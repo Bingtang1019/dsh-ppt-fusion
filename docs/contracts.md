@@ -180,3 +180,36 @@ Root required: `version` (const `"5"`), `filename`, `theme` (`{id}`), `meta`, `a
   out/                 published pptx + manifest.json
   .dsh-ppt/            temp master projects, caches, logs
 ```
+
+## 7. Fusion CLI contracts (M1)
+
+- **Exit codes.** 0 success; 1 classified failure; 2 usage error (commander).
+- **Failure line.** `dsh-ppt: <code> <message>` on stderr, with codes from the closed
+  union in `src/engine/errors.ts`: `PptwiseMissing`, `PptwiseFailed`, `VenvMissing`,
+  `EngineVersionMismatch`, `UvMissing`, `SpawnFailed`, `EngineTimeout`, `EngineExit`,
+  `OutputMissing`, `ContractViolation`, `PathOutsideWorkspace`, `DoctorFailed`,
+  `UsageError`.
+- **Process discipline.** `src/engine/runner.ts` is the only child-process primitive.
+  Every spawn carries a cwd, a timeout class, `stdin: 'ignore'`, and an environment built
+  by `buildEnv`, which is default-deny: a fixed system-variable list plus
+  `PYTHONIOENCODING=utf-8`, `PYTHONUTF8=1`, `PYTHONDONTWRITEBYTECODE=1`,
+  `PYTHONNOUSERSITE=1`. A credential passes only when a caller names it in
+  `allowCredentials`.
+- **Engine timeouts.** `project init` 120 s; `svg-to-pptx` 900 s; `svg-quality-check`
+  600 s; `pptx-delivery-check` 300 s; `stamp-native-fallbacks` 300 s. Front end:
+  `validate` 120 s; `render` 600 s; `audit` 300 s; `themes` 60 s; `theme new` 120 s;
+  `brand extract` 300 s; `doctor` 600 s.
+- **Path containment.** `assertInsideWorkspace` proves every path argument sits under the
+  deck workspace; an escape fails with `PathOutsideWorkspace` before any process starts.
+- **Command registry.** `REGISTERED_ENGINE_COMMANDS` lists exactly the engine subcommands
+  the wrapper may run. The v1 non-goals (`image-gen`, the `video-*` family) are absent
+  from it, so they are unreachable rather than merely undocumented.
+- **Determinism.** `pnpm engine:lock` regenerates `python-assets/requirements.lock` with
+  `uv pip compile --generate-hashes`; engine installs consume that file, never a floating
+  range.
+- **Diagnostics.** Every engine and front-end run writes
+  `<deck>/.dsh-ppt/logs/<timestamp>-<command>.log` containing argv, cwd, status, duration
+  and captured output.
+- **Doctor checks.** Node, uv, Python, engine venv, ppt-master dispatcher, pptwise front
+  end, PowerPoint COM (Windows only), plus a one-page render self-test; `--repair`
+  rebuilds the venv from the lock file and never touches deck data.

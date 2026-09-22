@@ -155,7 +155,13 @@ export function runDoctor(options: {
 
   // 4. Engine venv (and 6. the dispatcher inside it)
   const manager = createVenvManager({
-    config: { dshHome, engineVersion, pythonVersion: PINNED.python, requirementsFile, indexUrl: DEFAULT_PYPI_INDEX },
+    config: {
+      dshHome,
+      engineVersion,
+      pythonVersion: PINNED.python,
+      requirementsFile,
+      indexUrl: env.DSH_PPT_PYPI_INDEX ?? DEFAULT_PYPI_INDEX,
+    },
     runner,
     fs,
     env,

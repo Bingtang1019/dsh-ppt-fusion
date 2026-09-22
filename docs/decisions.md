@@ -281,3 +281,48 @@ edited to match reality.
   is where the plan localizes the project's highest risk. ADR-010's narrower prototype
   remains in the fixtures as `merged-proto.pptx` for contrast, and ADR-010 is superseded
   by this entry for the M0 gate decision.
+
+## ADR-019 — Two modules beyond the plan's file list; the DSH plugin fields arrive in M7
+
+- **Date:** 2026-09-22
+- **Decision:** `src/engine/runner.ts` and `src/logging.ts` exist in addition to the file
+  list in plan §2.4, and `package.json` in M1 deliberately omits `main`, `exports` and
+  the `dsh` block (including `cordis.patch.yml`) until M7 adds the plugin shell.
+- **Evidence:** the runner holds the child-process primitive and the default-deny
+  environment whitelist that both `master.ts` and `frontend.ts` need; duplicating it in
+  each would put the credential policy in two places. The logger implements v2 §3.12's
+  `<deck>/.dsh-ppt/logs/<ts>-<cmd>.log` contract, which is written by both the engine and
+  the front end. §3.10 describes the *finished* package, and M7 is the milestone that
+  creates `dsh/index.js`; declaring `main`/`exports`/`dsh` in M1 would advertise an entry
+  point that does not exist yet.
+- **Alternatives rejected:** inlining the runner in `master.ts` (the front end would need
+  its own copy of the credential policy); adding a stub `dsh/index.js` now (a placeholder
+  that reports "not implemented" is worse than an absent entry point).
+
+## ADR-020 — M1 verification record
+
+- **Date:** 2026-09-22
+- **Decision:** M1 is accepted on the following measurements; the next milestone may
+  build on them.
+- **Evidence:**
+  - `pnpm typecheck`, `pnpm lint` and `pnpm test` are clean; 45 unit tests across
+    `frontend.test.ts`, `engine/contracts.test.ts`, `engine/venv.test.ts` and
+    `engine/master.test.ts`, all driven through injected process and filesystem ports
+    (no network, no venv, no PowerPoint).
+  - `pnpm build` emits `dist/cli.js` (30 KB, shebang present).
+  - `node dist/cli.js doctor` on this machine: Node v24.18.1, uv found via
+    `local-packages`, Python 3.13.12, engine venv carrying `ppt_master 0.1.128`, the
+    `ppt-master` dispatcher reporting **74** subcommands (the plan's "~70" was an
+    estimate; `docs/help/ppt-master-help.txt` has 74 command lines), pptwise 0.35.0,
+    PowerPoint COM 16.0, and a one-page self-test render — exit 0.
+  - The self-test deck (`%DSH_HOME%/ppt-fusion/doctor/self-test.pptx`, 18117 bytes) opens
+    in PowerPoint with exactly 1 slide, `Saved=true`, bytes unchanged.
+  - The venv was renamed aside and `doctor --repair` rebuilt it from
+    `python-assets/requirements.lock`: 212 MB / 18048 files, dispatcher healthy, doctor
+    green again. The 500-file difference against the M0 capture is `__pycache__` written
+    by the M0 engine runs.
+  - `python-assets/requirements.lock` is `uv pip compile --generate-hashes` output over
+    `ppt-master==0.1.128`: 2378 lines with transitive pins and hashes.
+- **Alternatives rejected:** accepting M1 on the unit tests alone (the point of the phase
+  is that the wrapper really drives this machine's upstreams, which only a live doctor
+  run shows).

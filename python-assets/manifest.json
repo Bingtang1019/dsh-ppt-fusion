@@ -1,5 +1,5 @@
 {
-  "schema": "dsh-ppt-fusion.manifest.v1",
+ "schema": "dsh-ppt-fusion.manifest.v1",
   "generatedAt": "2026-09-22",
   "generatedBy": "M0 environment and upstream feasibility verification",
   "upstreams": {
@@ -89,8 +89,8 @@
     "python": "3.13.12",
     "pythonExe": "Scripts\\python.exe",
     "engineExe": "Scripts\\ppt-master.exe",
-    "bytes": 222400000,
-    "files": 18047,
+    "bytes": 212000000,
+    "files": 18048,
     "hasPip": false
   },
   "captureLog": {
