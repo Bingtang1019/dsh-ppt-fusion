@@ -111,6 +111,26 @@ describe('imagesSearch', () => {
     expect(runner.callsWith('image-search')).toHaveLength(0)
   })
 
+  it('passes a keyed provider its key through the child environment', async () => {
+    const fs = createFakeFileSystem({ directories: [workspace] })
+    installFakeVenv(fs, { dshHome })
+    const runner = createFakeRunner((call) => {
+      if (call.args.includes('image-search')) {
+        const manifest = call.args[call.args.indexOf('--manifest') + 1] ?? ''
+        fs.writeText(join(workspace, manifest), JSON.stringify({ items: [manifestItem()] }))
+        fs.writeText(join(workspace, 'assets', 'mountain.jpg'), 'jpeg-bytes')
+        return ok('downloaded 1 image\n')
+      }
+      return ok()
+    })
+    const deps = defaultDependencies({ fs, cwd: workspace, env: { DSH_HOME: dshHome, PEXELS_API_KEY: 'test-key' }, runner })
+    await imagesSearch({ dir: workspace, query: 'mountain', provider: 'pexels', filename: 'mountain.jpg', deps })
+
+    const call = runner.callsWith('image-search')[0]
+    expect(call?.args).toContain('pexels')
+    expect(call?.options.env.PEXELS_API_KEY).toBe('test-key')
+  })
+
   it('refuses a missing or unreadable manifest', async () => {
     const missing = build({ writeManifest: false })
     await expect(imagesSearch({ dir: workspace, query: 'mountain', deps: missing.deps })).rejects.toMatchObject({ code: 'OutputMissing' })

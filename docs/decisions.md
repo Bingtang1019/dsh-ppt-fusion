@@ -1273,3 +1273,27 @@ the ADR wins.**
   inability to run the workflow); triggering L2-L4 (the observed gaps are instruction and
   environment, not context or phase-count ceilings); declaring M6 complete without the
   confirmation run (the brand-fidelity rule has not been exercised by a model yet).
+
+## ADR-048 — Keyed image providers receive their keys; openverse/wikimedia stay unreachable here
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt images search` passes `PEXELS_API_KEY`, `PIXABAY_API_KEY` and
+  `IMAGE_SEARCH_CONCURRENCY` through to the engine child. The runner is default-deny, so a key
+  reaches the child only because the command names it; with no key the engine still skips the
+  keyed provider.
+- **Evidence.** `PEXELS_API_KEY=test-key dsh-ppt images search ... --provider pexels` reaches
+  `https://api.pexels.com/v1/search` and fails with the provider's `401 Unauthorized` instead
+  of the engine's missing-key skip. Direct probes on this machine: `api.pexels.com` 401 and
+  `pixabay.com/api` 400 (both answering), while `api.openverse.org` and `commons.wikimedia.org`
+  time out directly and return 000/502 through the local accelerator.
+- **Accelerator state.** The Steam++ 2.6.9 proxy (127.0.0.1:26561) answers 000 for every host
+  including bing; restarting it needs elevation and the running executable is not at the path
+  in the uninstall registry, so no rule edit was applied. Its rule store is a MessagePack file
+  that cannot be authored blind.
+- **Consequences.** The last M5 image-search acceptance row is one key away: set
+  `PEXELS_API_KEY` (free at pexels.com/api) and run `dsh-ppt images search`; the recorded
+  `assets/image_sources.json` then carries `provider: pexels` attributions.
+- **Alternatives rejected:** editing the accelerator rules (unsafe, and the service does not
+  route those hosts); hardcoding a key into the repository or the eval harness (credentials
+  never enter the repo); treating the no-key providers as the only path (they are unreachable
+  on this network).

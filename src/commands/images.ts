@@ -118,22 +118,27 @@ export async function imagesSearch(options: ImagesSearchOptions): Promise<Images
   // The engine requires a filename in single-query mode; derive one from the query (or the
   // URL extension) so callers only have to name it when they care.
   const filename = options.filename ?? defaultFilename(options.query, options.fromUrl)
-  engineFor(dir, options.deps).imageSearch({
-    query: options.query,
-    output: outputDir,
-    manifest: manifestPath,
-    ...(options.provider === undefined ? {} : { provider: options.provider }),
-    ...(options.orientation === undefined ? {} : { orientation: options.orientation }),
-    filename,
-    ...(options.minWidth === undefined ? {} : { minWidth: options.minWidth }),
-    ...(options.minHeight === undefined ? {} : { minHeight: options.minHeight }),
-    ...(options.strictNoAttribution === true ? { strictNoAttribution: true } : {}),
-    ...(options.saveCandidates === true ? { saveCandidates: true } : {}),
-    ...(options.maxCandidates === undefined ? {} : { maxCandidates: options.maxCandidates }),
-    ...(options.fromUrl === undefined ? {} : { fromUrl: options.fromUrl }),
-    ...(options.purpose === undefined ? {} : { purpose: options.purpose }),
-    ...(options.slide === undefined ? {} : { slide: options.slide }),
-  })
+  // The zero-config providers are unreachable from some networks; a keyed provider is then
+  // the only working path, so its key must reach the engine child.
+  engineFor(dir, options.deps).imageSearch(
+    {
+      query: options.query,
+      output: outputDir,
+      manifest: manifestPath,
+      ...(options.provider === undefined ? {} : { provider: options.provider }),
+      ...(options.orientation === undefined ? {} : { orientation: options.orientation }),
+      filename,
+      ...(options.minWidth === undefined ? {} : { minWidth: options.minWidth }),
+      ...(options.minHeight === undefined ? {} : { minHeight: options.minHeight }),
+      ...(options.strictNoAttribution === true ? { strictNoAttribution: true } : {}),
+      ...(options.saveCandidates === true ? { saveCandidates: true } : {}),
+      ...(options.maxCandidates === undefined ? {} : { maxCandidates: options.maxCandidates }),
+      ...(options.fromUrl === undefined ? {} : { fromUrl: options.fromUrl }),
+      ...(options.purpose === undefined ? {} : { purpose: options.purpose }),
+      ...(options.slide === undefined ? {} : { slide: options.slide }),
+    },
+    { credentials: ['PEXELS_API_KEY', 'PIXABAY_API_KEY', 'IMAGE_SEARCH_CONCURRENCY'] },
+  )
   const text = fs.readText(resolve(dir, manifestPath))
   if (text === null) {
     throw new DshPptFailure('OutputMissing', `image-search wrote no manifest at ${manifestPath}`, { detail: { manifest: manifestPath, query: options.query } })

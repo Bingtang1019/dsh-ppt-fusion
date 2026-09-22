@@ -456,6 +456,12 @@ and `skipped`.
   `.xlsx/.xlsm/.xls` → `excel-to-md`, `.pptx` → `ppt-to-md`, `.md/.markdown` → `markdown`,
   `.txt` → `text`, URLs → `web-to-md`; the unified `source-to-md` dispatcher is called with
   `-t <type>`. A directory input stands for its files (one level).
+- **Images.** `dsh-ppt images search` passes `PEXELS_API_KEY`, `PIXABAY_API_KEY` and
+  `IMAGE_SEARCH_CONCURRENCY` through to the engine child (the runner is default-deny, so keys
+  only travel when the command names them); with no key the engine skips the keyed provider,
+  as before. `assets/image_sources.json` records `{filename, provider, licenseName,
+  licenseUrl, author, attributionText}` and the command fails when a required attribution
+  field is missing (ADR-040, ADR-048).
 - **Outputs.** One Markdown file per input under `-o <dir>` (default `sources/`), named
   after the input and de-duplicated with a `-2` suffix; the engine may also write
   `<stem>.conversion_profile.json`, which is recorded in the manifest. `sources/` receives
