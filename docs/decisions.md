@@ -1390,3 +1390,22 @@ the ADR wins.**
 - **Alternatives rejected:** re-theming the hello deck (impossible across menus); authoring
   deep pages per theme (cost without new signal); making the pixel pass a per-command CI flag
   (the gate belongs to the fixture, where the deep SVGs live).
+
+## ADR-053 — The upstream upgrade drill: no newer patch exists, so drift detection is the rehearsal
+
+- **Date:** 2026-09-22
+- **Finding:** Both pins are already the newest release: pptwise 0.35.0 (the npmmirror version
+  list ends there) and ppt-master 0.1.128 (the Tsinghua PyPI index lists 121 releases, none
+  newer). There is no patch to upgrade, so the drill's "record the break points" step has
+  nothing to record yet.
+- **Decision:** The theme matrix treats the upstream pins as part of the snapshot identity, and
+  `tests/theme-matrix.test.ts` pins three drift failures (upstream version, theme snapshot,
+  schema version). `docs/upstream-drill.md` records the procedure for a future bump: bump the
+  pin, rebuild the venv, run `fixtures:verify` then `matrix:verify`, capture the differences in
+  an ADR and re-record with a raised fixtureVersion, or revert.
+- **Evidence:** the recorded matrix carries `upstream: {pptwise: '0.35.0', 'ppt-master':
+  '0.1.128'}`; the comparison unit test passes; `fixtures:verify` prints the recorded upstream
+  versions on every run and the matrix gate fails with a named problem on any drift.
+- **Alternatives rejected:** upgrading to an older patch to rehearse (artificial, no new
+  signal); re-recording fixtures against a hypothetical bump (nothing to record); leaving
+  detection to a human reading the verify log (the matrix gate now fails on drift).

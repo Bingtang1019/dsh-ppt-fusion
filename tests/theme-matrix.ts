@@ -132,6 +132,34 @@ export async function captureMatrix(): Promise<ThemeMatrix> {
   return { schemaVersion: SCHEMA_VERSION, fixtureVersion: 1, upstream: { pptwise: PINNED.pptwise, 'ppt-master': PINNED.pptMaster }, themes }
 }
 
+/**
+ * Compare a recorded matrix with a fresh capture.
+ *
+ * The upstream pins are part of the snapshot identity: a version bump must fail the gate
+ * until the matrix is re-recorded and the difference is explained, which is exactly the
+ * upstream-upgrade drill plan M8.6 asks for.
+ *
+ * @param recorded - the matrix in `fixtures/golden/theme-matrix.json`.
+ * @param fresh - the freshly captured matrix.
+ * @returns one message per difference; empty means equal.
+ */
+export function compareMatrix(recorded: ThemeMatrix, fresh: ThemeMatrix): string[] {
+  const problems: string[] = []
+  if (recorded.schemaVersion !== SCHEMA_VERSION) problems.push(`schemaVersion ${String(recorded.schemaVersion)} != ${String(SCHEMA_VERSION)}`)
+  if (recorded.upstream.pptwise !== PINNED.pptwise) problems.push(`pptwise ${recorded.upstream.pptwise} -> ${PINNED.pptwise}`)
+  if (recorded.upstream['ppt-master'] !== PINNED.pptMaster) problems.push(`ppt-master ${recorded.upstream['ppt-master']} -> ${PINNED.pptMaster}`)
+  for (const theme of MATRIX_THEMES) {
+    const expected = recorded.themes[theme]
+    const actual = fresh.themes[theme]
+    if (expected === undefined) {
+      problems.push(`${theme}: not in the recorded matrix`)
+      continue
+    }
+    if (JSON.stringify(expected) !== JSON.stringify(actual)) problems.push(`${theme}: snapshot changed`)
+  }
+  return problems
+}
+
 /** Run the record/verify driver when this file is the process entry. */
 async function main(): Promise<number> {
   const record = process.argv.includes('--record')
@@ -151,23 +179,12 @@ async function main(): Promise<number> {
     console.error(`matrix:verify: no ${GOLDEN}; run pnpm matrix:record first`)
     return 1
   }
-  const problems: string[] = []
-  if (recorded.schemaVersion !== SCHEMA_VERSION) problems.push(`schemaVersion ${String(recorded.schemaVersion)} != ${String(SCHEMA_VERSION)}`)
-  if (recorded.upstream.pptwise !== PINNED.pptwise) problems.push(`pptwise ${recorded.upstream.pptwise} -> ${PINNED.pptwise}`)
-  if (recorded.upstream['ppt-master'] !== PINNED.pptMaster) problems.push(`ppt-master ${recorded.upstream['ppt-master']} -> ${PINNED.pptMaster}`)
   for (const theme of MATRIX_THEMES) {
-    const expected = recorded.themes[theme]
-    const actual = fresh.themes[theme]
-    if (expected === undefined) {
-      problems.push(`${theme}: not in the recorded matrix`)
-      continue
-    }
-    if (JSON.stringify(expected) !== JSON.stringify(actual)) {
-      problems.push(`${theme}: snapshot changed\n  recorded: ${JSON.stringify(expected)}\n  fresh:    ${JSON.stringify(actual)}`)
-    } else {
+    if (recorded.themes[theme] !== undefined && JSON.stringify(recorded.themes[theme]) === JSON.stringify(fresh.themes[theme])) {
       console.log(`matrix ${theme}: equal`)
     }
   }
+  const problems = compareMatrix(recorded, fresh)
   if (problems.length > 0) {
     console.error('matrix:verify: the theme matrix no longer matches:')
     for (const problem of problems) console.error(`  ${problem}`)
