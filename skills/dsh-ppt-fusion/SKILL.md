@@ -62,6 +62,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 
 ## 7. 相位 7 · 评审
 - `dsh-ppt audit <dir> --pixels`；必要时 `--strict`（warning 也非零）。
+- `dsh-ppt preview <dir> --html`（DSH 会话里同名工具 `dsh_ppt_preview`）把每页渲染成可翻阅的预览：标准页走 pptwise，deep 页用作者 SVG。
 - 逐页读 `out/manifest.json` 与 `compat-report.json`；对照评审清单：单母版、图表可编辑、配色一致、署名齐全。
 - Revision Round：改动只走对应相位，改完重跑该相位与其后的门；不要整链重来。
 
@@ -82,7 +83,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 - 上游 references/workflows 未随 wheel 分发：需要时从上游仓库取（见 vendor manifest 备注）。
 
 ## 命令面（本 SKILL 只教这些）
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## 失败时
 - 每条错误都是 `dsh-ppt: <code> <message>`；先看 code，再读 `<deck>/.dsh-ppt/logs/` 的最后一份日志。

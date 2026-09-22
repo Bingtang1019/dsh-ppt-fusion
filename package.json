@@ -11,13 +11,35 @@
   "bin": {
     "dsh-ppt": "./dist/cli.js"
   },
+  "main": "./dsh/index.js",
+  "exports": {
+    ".": "./dsh/index.js",
+    "./package.json": "./package.json",
+    "./client": "./dsh/client.js"
+  },
   "files": [
     "dist",
+    "dsh",
     "cordis.patch.yml",
+    "skills",
+    "python-assets",
+    "docs",
     "README.md",
     "LICENSE",
     "NOTICE"
   ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-tool"
+      ],
+      "platform": "web",
+      "immediately": true
+    }
+  },
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
@@ -32,7 +54,8 @@
     "opc:check": "node scripts/opc-invariants.mjs",
     "com:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-com-smoke.ps1",
     "eval:run": "node --import tsx scripts/eval-run.ts",
-    "dsh-ppt": "node --import tsx src/cli.ts"
+    "dsh-ppt": "node --import tsx src/cli.ts",
+    "prepack": "pnpm build && node scripts/check-pack.mjs"
   },
   "dependencies": {
     "@liustack/pptwise": "0.35.0",

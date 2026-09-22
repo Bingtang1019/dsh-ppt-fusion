@@ -1,0 +1,6 @@
+# dsh bundle layer: mount the dsh-ppt-fusion plugin (dsh/index.js via the package
+# root export). The plugin registers the `dsh-ppt-fusion` skill and the
+# `dsh_ppt_preview` tool; the web client half lives in dsh/client.js.
+- insert:
+    - id: dsh-ppt-fusion
+      name: '@dsh-ppt/dsh-ppt-fusion'

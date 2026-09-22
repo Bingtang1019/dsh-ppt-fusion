@@ -1171,7 +1171,7 @@ the ADR wins.**
   deterministic error fails, and `--strict` makes warnings fail too; the fusion adds no second
   policy layer. `dsh-ppt audit` now runs the same source (`prompt-audit`) instead of recording it
   as skipped, and names it in `skipped` with the reason when the engine venv is absent.
-- **Measured.** 24 files, 109398 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
+- **Measured.** 24 files, 109510 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
   Per-file budgets sit above the measured block and load sets cover the SKILL's 8-12 document
   reference packs; the one cross-file exact duplicate (the language-neutral CLI roster shared by
   `SKILL.md` and `SKILL.en.md`) is declared in `duplicates.accepted`.
@@ -1303,3 +1303,50 @@ the ADR wins.**
   route those hosts); hardcoding a key into the repository or the eval harness (credentials
   never enter the repo); treating the no-key providers as the only path (they are unreachable
   on this network).
+
+## ADR-049 — `dsh-ppt preview`: pptwise pages plus the authored deep SVGs
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt preview <dir> [-o <dir>] [--html]` runs pptwise `preview --html` over
+  the deck's IR into `.dsh-ppt/preview`, then replaces each deep page's placeholder SVG with
+  the authored `deep/<dir>/page.svg`, clears the manifest `placeholder` flag, sets
+  `deep: true`, and patches the self-contained viewer when its inline markup still matches.
+  The result reports overlaid pages, remaining placeholders and whether the viewer was
+  patched.
+- **Evidence.** On `fixtures/hello`: 5 pages written, 2 deep pages overlaid, the page-3 output
+  byte-identical to `deep/p03-native-chart/page.svg`, the manifest no longer marks pages 3/4 as
+  placeholders, and the viewer HTML contains the authored SVG markup. Unit tests cover the
+  overlay, a deep page with no authored SVG (reported as a placeholder) and a missing
+  manifest.
+- **Alternatives rejected:** a second renderer for deep pages (the authored SVG is exactly
+  what the exporter ships); leaving placeholders in the viewer (the card and the viewer would
+  disagree); regenerating `preview.html` from scratch (pptwise owns that format; a failed
+  patch is reported, never faked).
+
+## ADR-050 — The DSH plugin bundle: skill + preview tool + card, verified in a scratch profile
+
+- **Date:** 2026-09-22
+- **Decision:** The package is a DSH bundle: `dsh/index.js` (the package root export) registers
+  the `dsh-ppt-fusion` skill with a runtime preamble and the `dsh_ppt_preview` tool;
+  `dsh/client.js` is the lazy-CJS preview card; `cordis.patch.yml` is the bundle layer;
+  `dsh.bundle.patch`, `dsh.client.immediately`, `main` and `exports` are declared in
+  package.json. `pnpm prepack` builds and runs `scripts/check-pack.mjs`, which refuses a
+  tarball that misses any runtime file.
+- **Skill mounting.** The registered content is the SKILL body (frontmatter stripped) plus a
+  preamble mapping `dsh-ppt <args>` to `node <package>/dist/cli.js <args>` and pointing the
+  vendored reference paths at the package root; `resourceBase` is the package root so the
+  playbook's relative paths resolve inside an installed plugin.
+- **Verification (M7.5, ops discipline).** Scratch profile `~/.dsh/profiles/ppt-eval` (base +
+  web-app bundles): `dsh plugin --profile ppt-eval add -w link:<checkout>` updated
+  `dependencies` and `dsh.profile.bundles`; `--dump-config` showed the
+  `# == @dsh-ppt/dsh-ppt-fusion` layer; booting on port 3098 logged no plugin skip line and
+  answered `GET /dsh-ppt/preview/does-not-exist` with 404, `x-dsh-ppt-preview: 1` and
+  `preview_unknown`; `remove -w @dsh-ppt/dsh-ppt-fusion` removed both the dependency and the
+  bundle entry, left no `node_modules/@dsh-ppt`, and the linked checkout was intact. Backups
+  and the changelog entry live in `~/.dsh/CHANGELOG-dsh.md`; the browser card is the one check
+  a browser-less host cannot do.
+- **Alternatives rejected:** shipping the skill as a filesystem-only directory (a DSH_HOME
+  install is a machine change and stays invisible to `dump-config`); copying pptwise's plugin
+  verbatim (its CLI has no `assemble` step and no fusion render; identity and route would
+  collide); a from-scratch card protocol (the lazy-CJS card and its failure vocabulary are
+  battle-tested).

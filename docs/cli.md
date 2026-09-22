@@ -284,7 +284,25 @@ Runs the engine's `prompt-audit` over `skills/dsh-ppt-fusion/**/*.md` and the ve
 ppt-master docs with `skills/dsh-ppt-fusion/prompt_audit_manifest.json`: token budgets,
 per-file and per-load-set ceilings, local reference integrity, duplicate paragraphs and the
 authority graph. Errors fail; `--strict` makes warnings fail too. The corpus measures
-109 398 tokens against the 120 000-token ceiling (ADR-044).
+109 510 tokens against the 120 000-token ceiling (ADR-044).
+
+## Implemented (M7)
+
+### `dsh-ppt preview <dir> [-o <dir>] [--html] [--json]`
+
+Renders every page to SVG for review. Standard pages come from pptwise `preview` over the
+deck's IR; each deep page's placeholder is replaced by the authored `deep/<dir>/page.svg`, and
+with `--html` the self-contained viewer is patched in place when its inline markup still
+matches. Default output `.dsh-ppt/preview`. The plugin's `dsh_ppt_preview` tool calls this
+command and serves the result through `/dsh-ppt/preview` (ADR-049).
+
+### DSH plugin bundle
+
+`dsh/index.js` + `cordis.patch.yml` + `dsh/client.js` register the `dsh-ppt-fusion` skill, the
+`dsh_ppt_preview` tool and the preview card. `pnpm prepack` builds and then runs
+`scripts/check-pack.mjs`, which refuses a tarball that misses any of the 17 runtime files
+(CLI, plugin shell, skill, vendored docs, lock). Install/uninstall, the `-w` requirement and
+the M7.5 scratch-profile rehearsal are documented in [install.md](install.md) (ADR-050).
 
 ## Planned
 
@@ -293,7 +311,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 | Command | Milestone |
 |---|---|
 | `deep check|chart` | M3/M5 |
-| `preview`, `serve` | M4 part 2 / M5 |
+| `serve` | M5 |
 
 Options are registered with commander in `src/commands/*.ts`; a change to a documented
 option is an ADR, because the skill teaches the surface.

@@ -8,6 +8,7 @@ import { buildEnv, type RunResult, type Runner } from './engine/runner.ts'
 export const FRONTEND_TIMEOUTS = {
   validate: 120_000,
   render: 600_000,
+  preview: 300_000,
   audit: 300_000,
   themes: 60_000,
   themeNew: 120_000,
@@ -226,6 +227,19 @@ export function createFrontend(options: FrontendOptions) {
       if (result.status !== 0) throw failureFrom('render', result)
       const reported = /wrote\s+(.+?)\s+\(/.exec(result.stdout)?.[1]?.trim()
       return { outputFile: reported ?? renderOptions.output, stdout: result.stdout }
+    },
+
+    /** Render every page of an IR file or deck project to SVGs (and optionally a viewer). */
+    preview(target: string, previewOptions: { output?: string; html?: boolean } = {}): { stdout: string } {
+      const args = ['preview', target]
+      if (previewOptions.output !== undefined) args.push('-o', previewOptions.output)
+      if (previewOptions.html === true) args.push('--html')
+      // The fusion owns `.dsh-ppt/`; pptwise must not touch the repository's git exclude.
+      args.push('--no-git-ignore')
+      const result = invoke(args, FRONTEND_TIMEOUTS.preview)
+      checkSpawn(result, 'preview')
+      if (result.status !== 0) throw failureFrom('preview', result)
+      return { stdout: result.stdout }
     },
 
     /** Deterministic geometry audit; findings travel in the report, not in the exit code. */

@@ -6,6 +6,7 @@ import { initDeck } from './commands/init.ts'
 import { confirmPlan, planDeck } from './commands/plan.ts'
 import { formatResumeReport, runResume } from './commands/resume.ts'
 import { validateDeck } from './commands/validate.ts'
+import { formatPreviewResult, previewDeck } from './commands/preview.ts'
 import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
 import { tokensExport } from './commands/tokens.ts'
 import { deepRender } from './commands/deep.ts'
@@ -444,6 +445,19 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (result.outputFile === null) printJson(result.document)
       else process.stdout.write(`wrote ${result.outputFile}\n`)
+    })
+
+  program
+    .command('preview')
+    .description('render every page to SVG (standard pages through pptwise, deep pages from their authored SVGs)')
+    .argument('<dir>', 'deck directory')
+    .option('-o, --output <dir>', 'output directory, deck-relative', '.dsh-ppt/preview')
+    .option('--html', 'also write the self-contained preview.html viewer')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { output: string; html?: boolean; json?: boolean }) => {
+      const result = previewDeck({ dir, output: options.output, html: options.html === true, deps })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatPreviewResult(result)}\n`)
     })
 
   program

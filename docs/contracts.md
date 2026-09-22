@@ -498,7 +498,7 @@ and `skipped`.
 SKILL documents and their vendored references, using
 `skills/dsh-ppt-fusion/prompt_audit_manifest.json` as the single source of budgets.
 
-- **Corpus and budgets.** 24 files / 109 398 tokens measured against a fixed 120 000-token
+- **Corpus and budgets.** 24 files / 109 510 tokens measured against a fixed 120 000-token
   ceiling; per-file and per-load-set budgets live in the manifest and are enforced by the
   engine. The gate reports `files`, `tokens`, `maxTokens`, `errors`, `warnings` and the
   normalized findings `{level, code, message, path, line}` (ADR-044).
@@ -526,3 +526,28 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   published manifest is a `problem`, not a crash.
 - **`--write`.** Persists the same brief to `.dsh-ppt/resume.md` for a fresh session; the
   printed report stays the primary surface.
+
+## 16. Preview and the DSH plugin surface (M7)
+
+- **`dsh-ppt preview <dir> [-o <dir>] [--html]`.** Runs pptwise `preview --html` over the
+  deck's IR into `.dsh-ppt/preview` (or `-o`), then replaces each deep page's placeholder SVG
+  with the authored `deep/<dir>/page.svg`, clears its manifest `placeholder` flag, sets
+  `deep: true`, and patches the self-contained viewer when its inline markup still matches.
+  The result reports the page list, the overlaid deep pages, any placeholders left, and
+  whether the viewer was patched (ADR-049).
+- **Plugin entry.** `dsh/index.js` is the package root export and the single registration
+  point: it parses `skills/dsh-ppt-fusion/SKILL.md` frontmatter, registers the skill body
+  with a runtime preamble (`dsh-ppt <args>` becomes `node <package>/dist/cli.js <args>`; the
+  vendored reference paths resolve against the package root), registers the
+  `dsh_ppt_preview` tool from `dsh/preview-tool.js`, and mounts the route through a scoped
+  `ctx.inject(['webServer'])`. Failures are one console line each; the skill and tool halves
+  are independent.
+- **Client.** `dsh/client.js` is the lazy-CJS card (`exports[\"./client\"]`), registered by DSH
+  because `dsh.client.immediately` is true; it reads the bundle and viewer from
+  `/dsh-ppt/preview/<id>` and treats a missing deck as a card state, never a fetched error
+  document.
+- **Package.** `dsh.bundle.patch` points at `cordis.patch.yml`; `main`/`exports[\".\"]` point at
+  `dsh/index.js`. `pnpm prepack` runs the build and `scripts/check-pack.mjs`, which checks 17
+  runtime files on disk and in the tarball (ADR-050).
+- **Cache.** The plugin keeps previews under `$DSH_PPT_PREVIEW_HOME` (default `~/.dsh-ppt`),
+  never inside the deck or the user's git checkout.

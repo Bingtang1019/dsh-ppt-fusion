@@ -62,6 +62,7 @@ Model-agnostic by design: no model name is hardcoded; DeepSeek works by default 
 
 ## 7. Phase 7 · Review
 - `dsh-ppt audit <dir> --pixels`, `--strict` when warnings must fail.
+- `dsh-ppt preview <dir> --html` (the `dsh_ppt_preview` tool in a DSH session) renders every page into a browsable preview: standard pages through pptwise, deep pages from their authored SVGs.
 - Read `out/manifest.json` and `compat-report.json`; check single master, editable chart/table, palette consistency, complete attribution.
 - Revision round: change only the owning phase, then re-run that phase and the gates after it; never restart the whole chain.
 
@@ -82,7 +83,7 @@ Model-agnostic by design: no model name is hardcoded; DeepSeek works by default 
 - The upstream `references/`/`workflows/` trees are not shipped in the wheel; fetch them from upstream when needed (see the vendor manifest note).
 
 ## Command surface (this SKILL teaches only these)
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## When something fails
 - Every error is `dsh-ppt: <code> <message>`; read the code, then the newest log under `<deck>/.dsh-ppt/logs/`.

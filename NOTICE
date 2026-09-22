@@ -1,0 +1,12 @@
+dsh-ppt-fusion — bundled notices
+
+- ppt-master 0.1.128 (MIT). Its documentation is vendored under
+  python-assets/vendor/; see python-assets/vendor/NOTICE and
+  python-assets/vendor/manifest.json for the per-file SHA-256.
+- pptwise 0.35.0 (MIT, Copyright (c) 2026 Leon Liu). The DSH plugin shell files
+  dsh/preview-tool.js, dsh/client.js and dsh/spawnHidden.js are adapted copies
+  (identity, plugin home and CLI wiring changed), and dsh/index.js follows its
+  plugin-entry structure; the card/route protocol is unchanged.
+- Runtime dependencies consumed from npm (commander, jszip, sharp, zod,
+  @liustack/pptwise) keep their own licences; docs/licensing.md holds the full
+  table.
