@@ -359,7 +359,7 @@ export function createVenvManager(options: {
     }
     if (result.status !== 0) {
       throw new DshPptFailure('EngineExit', `${invocation.id} exited ${String(result.status)}: ${tailOf(result.stderr) || tailOf(result.stdout)}`, {
-        detail: { id: invocation.id, status: result.status, stderr: tailOf(result.stderr, 40) },
+        detail: { id: invocation.id, status: result.status, stderr: tailOf(result.stderr, 40), stdout: result.stdout },
       })
     }
     const outputFiles = invocation.outputFiles.map((entry) => {

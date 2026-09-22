@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { join } from 'node:path'
 import { auditDeck } from './audit.ts'
 import { defaultDependencies } from './context.ts'
-import { createFakeFileSystem, createFakeRunner, ok, type FakeCall, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
+import { createFakeFileSystem, createFakeRunner, fail, ok, type FakeCall, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
 import { installFakePptwise } from '../../tests/support/fake-pptwise.ts'
+import { installFakeVenv } from '../../tests/support/fake-venv.ts'
 
 const workspace = join(process.cwd(), 'tmp', 'audit-deck')
 const packageDir = join(process.cwd(), 'tmp', 'pptwise-audit')
@@ -78,6 +79,40 @@ describe('auditDeck', () => {
 
     expect(report.findings.some((finding) => finding.rule === 'pptwise-ir-invalid' && finding.message.includes('no title'))).toBe(true)
     expect(report.findings.some((finding) => finding.rule === 'pptwise-audit-failed')).toBe(true)
+  })
+
+  it('maps the SKILL prompt-audit findings into the unified report', async () => {
+    const { fs, resolveModule } = buildDeck()
+    const dshHome = join(process.cwd(), 'tmp', 'audit-dsh')
+    installFakeVenv(fs, { dshHome })
+    const runner = createFakeRunner((call) => {
+      if (call.args[0] === 'prompt-audit') {
+        return fail(
+          1,
+          '',
+          JSON.stringify({
+            summary: { files: 24, tokens: 130000, max_tokens: 120000, errors: 1, warnings: 0 },
+            findings: [{ severity: 'error', code: 'TOTAL_BUDGET_EXCEEDED', message: 'corpus exceeds 120000 tokens', path: '', line: 0 }],
+          }),
+        )
+      }
+      if (call.args[1] === 'validate') return ok('OK\n')
+      if (call.args[1] === 'audit') return ok('{"findings": []}\n')
+      return ok()
+    })
+    const report = await auditDeck({
+      dir: workspace,
+      strict: false,
+      pixels: false,
+      deps: defaultDependencies({ fs, cwd: workspace, env: { DSH_HOME: dshHome }, runner, resolveModule }),
+    })
+
+    expect(report.sources).toContain('prompt-audit')
+    expect(report.skipped.join(' ')).not.toContain('prompt-audit')
+    const mapped = report.findings.filter((finding) => finding.source === 'prompt-audit')
+    expect(mapped).toEqual([
+      { level: 'error', source: 'prompt-audit', rule: 'TOTAL_BUDGET_EXCEEDED', message: 'corpus exceeds 120000 tokens' },
+    ])
   })
 
   it('records the pixel check as skipped when there is nothing to sample', async () => {

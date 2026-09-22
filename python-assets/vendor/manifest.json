@@ -1,0 +1,122 @@
+{
+  "schema": "dsh-ppt-fusion.vendor-manifest.v1",
+  "upstream": {
+    "name": "ppt-master",
+    "version": "0.1.128",
+    "license": "MIT",
+    "source": "PyPI wheel (uv-managed engine venv) skills/ppt-master/scripts/docs"
+  },
+  "note": "The wheel ships scripts/docs only; the upstream references/ and workflows/ trees are not in it (raw.githubusercontent.com and api.github.com are unreachable through this machine accelerator). Fetch them from the upstream repository when a network path exists and append them here. Local relative links whose targets are outside this vendored subset are rewritten to https://github.com/elvisw/ppt-master/blob/main/... URLs; see NOTICE.",
+  "files": [
+    {
+      "path": "docs/advanced-image-motion-smoke.md",
+      "sha256": "408214763821e6e1805efaf71767f994735bb1deb7873b7ad237e6948843379b",
+      "bytes": 12682
+    },
+    {
+      "path": "docs/chart-recall.md",
+      "sha256": "987c981ff064dec6c43a982df013a98c44289f3dceef7231ebe6992d7642fd8c",
+      "bytes": 1139
+    },
+    {
+      "path": "docs/confirm_ui.md",
+      "sha256": "d7e86d4410be0d533c5f976fa6d69ab0e3932c5937589a2b1c676caf470083e1",
+      "bytes": 56600
+    },
+    {
+      "path": "docs/conversion.md",
+      "sha256": "e54ad1bfb237d53824a71e14852a7ac1872d0cf832d4c48c66a74aab6ee5006f",
+      "bytes": 32958
+    },
+    {
+      "path": "docs/image.md",
+      "sha256": "4194b27bd3463438d72ab28272e2afd4c39f5fb4c88b0a76216ee17076f97221",
+      "bytes": 27291
+    },
+    {
+      "path": "docs/mask-gradient-smoke.md",
+      "sha256": "6caaf140cc078af13b4d1400c7d77a36554de8e0c118a13f5e8bda8379857fdd",
+      "bytes": 9009
+    },
+    {
+      "path": "docs/multilingual-text-smoke.md",
+      "sha256": "8e1fded2e02c7dd625b1243a19ed5dcd8b1b74f06ca80d62a1d01626cf352659",
+      "bytes": 10649
+    },
+    {
+      "path": "docs/narration.md",
+      "sha256": "bc27eb47d9fc4160c7a782d20fb01021592ef3d4c59996174db528366359757a",
+      "bytes": 12299
+    },
+    {
+      "path": "docs/native-data.md",
+      "sha256": "a5c2ae6518faea0c4aafadd5bb83f3ef62610c428ec3fe18fa4b0b367457366e",
+      "bytes": 21221
+    },
+    {
+      "path": "docs/pptx-animations.md",
+      "sha256": "5c16d8cb4a2c8628607745ae583c2d40d31047d3a73322fd8e4c7bf581e90f65",
+      "bytes": 19943
+    },
+    {
+      "path": "docs/pptx-transitions.md",
+      "sha256": "2a09b79e9498cc47fe9bf358b6f9c197c7c3199ca00dc865b185bd613d64b9c9",
+      "bytes": 13106
+    },
+    {
+      "path": "docs/project.md",
+      "sha256": "038d480e425e7bd264b0a4c05b03919340c5b7ed39ca31eff91af44587d9ae4d",
+      "bytes": 18211
+    },
+    {
+      "path": "docs/prompt_audit.md",
+      "sha256": "5f9c6e9ce5acc2eee8621930963e43b28d6c044d8c44e7a929af933cfc7e4519",
+      "bytes": 6339
+    },
+    {
+      "path": "docs/spec_review.md",
+      "sha256": "d92f348f20d7c5942a81b8df6b615103b7ba6ab54fa40c8d22a5c9e81fa539d7",
+      "bytes": 13593
+    },
+    {
+      "path": "docs/svg-contract.md",
+      "sha256": "e7a448bfb47a86584a154dde2660f6f5d691e8aa9f9b1806abb939578eff0963",
+      "bytes": 58422
+    },
+    {
+      "path": "docs/svg-pipeline.md",
+      "sha256": "f2cd472dcf3a20ab6d620294d1e1ce8ec1348e7cad9d5a09c666dde94b6c59d1",
+      "bytes": 97054
+    },
+    {
+      "path": "docs/svg_editor.md",
+      "sha256": "c61d06026f08b835ea10218715a9b72295d9f0a0a852fabd19ed083af46576b4",
+      "bytes": 5501
+    },
+    {
+      "path": "docs/template-tools.md",
+      "sha256": "efb3ef3a633996f51d953a37d458c5eca03d3d28359d309a4b22929b9b6f18c1",
+      "bytes": 18232
+    },
+    {
+      "path": "docs/troubleshooting.md",
+      "sha256": "b80d9b347e57cce6a69bf8fa679901bc1b7dcc68372f4e812094294dc0d76076",
+      "bytes": 2988
+    },
+    {
+      "path": "docs/update_spec.md",
+      "sha256": "4c9ca601b79fef436edaa8e7aa3933fd3a169e2caea3a799acf318c2e9f67450",
+      "bytes": 4244
+    },
+    {
+      "path": "docs/video-motion-plan.md",
+      "sha256": "ed5531d764e975e49dcb1bb795a661d658ea98e934d9ec933aee59f69f9cf99d",
+      "bytes": 3983
+    },
+    {
+      "path": "docs/visualization-recall.md",
+      "sha256": "e9af2824bb67a3ca2822a94a1da4b6525dd47c2e36ad0b3e4e8653f88646b067",
+      "bytes": 5319
+    }
+  ]
+}

@@ -1160,3 +1160,54 @@ the ADR wins.**
   types in the merge (the source package already declares them); dropping the notes master theme
   (leaves a dangling relationship PowerPoint would repair); scaffolding the engine animation
   config to satisfy `narrate --sync` (the fusion owns motion in `post/animations.json`, ADR-032).
+
+## ADR-044 — The SKILL budget gate: prompt-audit thresholds, vendored links, and tiktoken
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt skill audit [--json] [--strict]` wraps the engine's `prompt-audit` over
+  `skills/dsh-ppt-fusion/prompt_audit_manifest.json` (corpus `skills/dsh-ppt-fusion/**/*.md`
+  plus `python-assets/vendor/ppt-master/docs/*.md`). The gate's thresholds are the engine's own:
+  the manifest's ceiling is a fixed upper bound on o200k_base token counts, over-budget or any
+  deterministic error fails, and `--strict` makes warnings fail too; the fusion adds no second
+  policy layer. `dsh-ppt audit` now runs the same source (`prompt-audit`) instead of recording it
+  as skipped, and names it in `skipped` with the reason when the engine venv is absent.
+- **Measured.** 24 files, 109162 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
+  Per-file budgets sit above the measured block and load sets cover the SKILL's 8-12 document
+  reference packs; the one cross-file exact duplicate (the language-neutral CLI roster shared by
+  `SKILL.md` and `SKILL.en.md`) is declared in `duplicates.accepted`.
+- **Vendored references.** The upstream wheel ships only `skills/ppt-master/scripts/docs`; the
+  referenced `references/`/`workflows/` trees are not in it and raw.githubusercontent.com is
+  unreachable through this machine's accelerator. The 22 vendored docs keep their content, but
+  relative links whose targets are outside the vendored subset were rewritten to absolute
+  `https://github.com/elvisw/ppt-master/blob/main/...` URLs; `python-assets/vendor/NOTICE`
+  records the edit and `manifest.json` the new hashes (upstream repository per the wheel's
+  `Project-URL`).
+- **Engine dependency.** The engine refuses `prompt-audit` without `tiktoken`, so
+  `python-assets/requirements.in`/`.lock` pin `tiktoken==0.14.0` plus its `regex` dependency;
+  the lock diff is additive (89 to 91 packages, no version churn) and `dsh-ppt doctor --repair`
+  installs it with the rest of the lock.
+- **Alternatives rejected:** a second budget policy in the fusion (the manifest already owns
+  the ceilings); making the deck audit fail when the venv is absent (a pure-pptwise deck must
+  audit on a consumer machine); keeping dangling vendored links (the audit's local-reference
+  check would stay red); leaving tiktoken out of the lock (the gate would be un-runnable after a
+  repair).
+
+## ADR-045 — Checkpoint and resume: model-authored state, read-only reporting, opt-in brief
+
+- **Date:** 2026-09-22
+- **Decision:** The SKILL writes `.dsh-ppt/checkpoint.json`
+  (`{version, phase, deck?, updatedAt?, artifacts[], gates{}, notes}`) at the end of every phase,
+  and `dsh-ppt resume <dir> [--json] [--write]` reads it. Resume never infers progress from the
+  filesystem or the model's memory: it validates the checkpoint, checks each claimed artifact,
+  reads `out/manifest.json` for the published `{file, sha256, bytes, slides}`, and prints the next
+  phase's entry commands. `--write` persists the same brief to `.dsh-ppt/resume.md`.
+- **Leniency.** The checkpoint schema ignores unknown keys (a model-authored file must not become
+  unusable over a stray field) but reports known-field violations with their path, like
+  `deck.fusion.json`. `phase` accepts `0`–`7` as a string or a number.
+- **Exit contract.** Missing artifacts make the report `ok: false` and exit 1; an unreadable
+  `out/manifest.json` is a `problem` inside an otherwise valid report; an absent or invalid
+  checkpoint is `OutputMissing`/`ContractViolation`.
+- **Alternatives rejected:** deriving the phase from file timestamps (checkpoint plus manifest
+  are the authority); letting resume write the checkpoint itself (the model owns the phase
+  narrative, and a tool that rewrites it could silently erase work); failing the report on a
+  malformed published manifest (the render command owns that file).

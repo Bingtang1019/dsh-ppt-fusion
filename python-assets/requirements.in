@@ -21,3 +21,9 @@ ppt-master==0.1.128
 # reports the renderer state instead of letting the degradation stay silent, and
 # `docs/compat/probe.md` records the B7 fallback (rasterise in Node with sharp).
 cairosvg==2.9.1
+
+# Exact token counts for `dsh-ppt skill audit` (plan M6.3). The engine refuses
+# `prompt-audit` without tiktoken, and that audit is the budget gate for the SKILL
+# documents; the venv is built from this lock, so the gate works wherever
+# `dsh-ppt doctor` has run.
+tiktoken==0.14.0

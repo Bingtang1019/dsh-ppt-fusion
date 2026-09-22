@@ -21,7 +21,7 @@ export type FailureCode =
   | 'SpawnFailed'
   /** The child process exceeded its class timeout and was killed. */
   | 'EngineTimeout'
-  /** The child process exited non-zero. */
+  /** The child process exited non-zero; `detail.stdout`/`detail.stderr` keep the captured output. */
   | 'EngineExit'
   /** The command exited zero but its contracted output file is absent or empty. */
   | 'OutputMissing'

@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "audit_only": true,
+  "runtime_consumed": false,
+  "budget_policy": "fixed_upper_bound",
+  "encoding": "o200k_base",
+  "documents": {
+    "include": [
+      "skills/dsh-ppt-fusion/**/*.md",
+      "python-assets/vendor/ppt-master/docs/*.md"
+    ],
+    "exclude": [],
+    "max_tokens": 120000
+  },
+  "file_budgets": {
+    "skills/dsh-ppt-fusion/SKILL.md": 2500,
+    "skills/dsh-ppt-fusion/SKILL.en.md": 2250,
+    "python-assets/vendor/ppt-master/docs/advanced-image-motion-smoke.md": 3750,
+    "python-assets/vendor/ppt-master/docs/chart-recall.md": 500,
+    "python-assets/vendor/ppt-master/docs/confirm_ui.md": 14000,
+    "python-assets/vendor/ppt-master/docs/conversion.md": 8500,
+    "python-assets/vendor/ppt-master/docs/image.md": 7250,
+    "python-assets/vendor/ppt-master/docs/mask-gradient-smoke.md": 2750,
+    "python-assets/vendor/ppt-master/docs/multilingual-text-smoke.md": 3000,
+    "python-assets/vendor/ppt-master/docs/narration.md": 3250,
+    "python-assets/vendor/ppt-master/docs/native-data.md": 5750,
+    "python-assets/vendor/ppt-master/docs/pptx-animations.md": 5250,
+    "python-assets/vendor/ppt-master/docs/pptx-transitions.md": 3750,
+    "python-assets/vendor/ppt-master/docs/project.md": 4500,
+    "python-assets/vendor/ppt-master/docs/prompt_audit.md": 1500,
+    "python-assets/vendor/ppt-master/docs/spec_review.md": 3500,
+    "python-assets/vendor/ppt-master/docs/svg-contract.md": 16000,
+    "python-assets/vendor/ppt-master/docs/svg-pipeline.md": 25000,
+    "python-assets/vendor/ppt-master/docs/svg_editor.md": 1500,
+    "python-assets/vendor/ppt-master/docs/template-tools.md": 4250,
+    "python-assets/vendor/ppt-master/docs/troubleshooting.md": 1000,
+    "python-assets/vendor/ppt-master/docs/update_spec.md": 1250,
+    "python-assets/vendor/ppt-master/docs/video-motion-plan.md": 1250,
+    "python-assets/vendor/ppt-master/docs/visualization-recall.md": 1250
+  },
+  "load_sets": {
+    "generate.core.zh": {
+      "description": "Chinese session entry: the seven-phase workflow.",
+      "scope": "cumulative",
+      "files": [
+        "skills/dsh-ppt-fusion/SKILL.md"
+      ],
+      "max_tokens": 2500
+    },
+    "generate.core.en": {
+      "description": "English session entry: the seven-phase workflow.",
+      "scope": "incremental",
+      "files": [
+        "skills/dsh-ppt-fusion/SKILL.en.md"
+      ],
+      "max_tokens": 2250
+    },
+    "generate.deep-authoring": {
+      "description": "Deep-page authoring contract and the SVG pipeline.",
+      "scope": "incremental",
+      "files": [
+        "python-assets/vendor/ppt-master/docs/svg-pipeline.md",
+        "python-assets/vendor/ppt-master/docs/svg-contract.md",
+        "python-assets/vendor/ppt-master/docs/native-data.md",
+        "python-assets/vendor/ppt-master/docs/pptx-animations.md",
+        "python-assets/vendor/ppt-master/docs/pptx-transitions.md"
+      ],
+      "max_tokens": 54000
+    },
+    "generate.narration": {
+      "description": "Narration roster, audio embedding and animation timing.",
+      "scope": "incremental",
+      "files": [
+        "python-assets/vendor/ppt-master/docs/narration.md",
+        "python-assets/vendor/ppt-master/docs/pptx-animations.md"
+      ],
+      "max_tokens": 8500
+    },
+    "generate.assets": {
+      "description": "Source conversion and image sourcing with attribution.",
+      "scope": "incremental",
+      "files": [
+        "python-assets/vendor/ppt-master/docs/image.md",
+        "python-assets/vendor/ppt-master/docs/conversion.md"
+      ],
+      "max_tokens": 16000
+    },
+    "generate.template": {
+      "description": "Template routing: import, materialise, apply.",
+      "scope": "incremental",
+      "files": [
+        "python-assets/vendor/ppt-master/docs/template-tools.md",
+        "python-assets/vendor/ppt-master/docs/project.md"
+      ],
+      "max_tokens": 8750
+    },
+    "generate.quick": {
+      "description": "Quick mode: short phases plus troubleshooting when a gate fails.",
+      "scope": "incremental",
+      "files": [
+        "skills/dsh-ppt-fusion/SKILL.md",
+        "python-assets/vendor/ppt-master/docs/troubleshooting.md"
+      ],
+      "max_tokens": 3250
+    }
+  },
+  "duplicates": {
+    "accepted": [
+      {
+        "kind": "exact",
+        "fingerprint": "ff158716b0aa",
+        "paths": ["skills/dsh-ppt-fusion/SKILL.en.md", "skills/dsh-ppt-fusion/SKILL.md"],
+        "reason": "The CLI subcommand roster is language-neutral and intentionally identical in both SKILL editions."
+      }
+    ]
+  },
+  "authority_edges": [],
+  "registries": [],
+  "schema_grammars": [],
+  "coverage": {
+    "exempt": [
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/advanced-image-motion-smoke.md",
+        "reason": "Maintainer smoke transcript for upstream image motion; not role context."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/chart-recall.md",
+        "reason": "Recall helper for the upstream chart catalog; the fusion reads charts through tokens."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/confirm_ui.md",
+        "reason": "Upstream interactive Eight Confirmations UI; the fusion SKILL asks its own questions."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/mask-gradient-smoke.md",
+        "reason": "Maintainer smoke transcript; not role context."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/multilingual-text-smoke.md",
+        "reason": "Maintainer smoke transcript; not role context."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/prompt_audit.md",
+        "reason": "Maintainer-only audit manual; generation roles never load it (upstream rule)."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/spec_review.md",
+        "reason": "Upstream local review UI; the fusion reviews through audit and preview."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/svg_editor.md",
+        "reason": "Upstream editor UI notes; the fusion edits SVG files directly."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/update_spec.md",
+        "reason": "Maintainer command for spec refresh; not role context."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/video-motion-plan.md",
+        "reason": "Video export is a v1 non-goal."
+      },
+      {
+        "glob": "python-assets/vendor/ppt-master/docs/visualization-recall.md",
+        "reason": "Recall helper for upstream visualization templates; loaded on demand only."
+      }
+    ]
+  }
+}

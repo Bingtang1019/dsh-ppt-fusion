@@ -8,6 +8,7 @@ import { resolveCompatLevel } from './render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { inspectCompat } from '../bridge/compat.ts'
 import { collectPixelFindings } from '../bridge/pixels.ts'
+import { runSkillAudit } from './skill.ts'
 import type { FusionAuditReport, FusionFinding } from '../audit.ts'
 import type { CompatLevel } from '../compat/registry.ts'
 
@@ -37,6 +38,7 @@ const SOURCE_ORDER = [
   'pptx',
   'svg-quality-check',
   'pptx-delivery-check',
+  'prompt-audit',
   'compat-lint',
 ] as const
 
@@ -129,7 +131,19 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
     skipped.push('pixels: no deep page with an in-sync tokens file to sample')
   }
 
-  skipped.push('prompt-audit: the SKILL prompt does not exist yet (M6 owns its budget gate)')
+  try {
+    const prompt = runSkillAudit({ strict: false, deps: options.deps })
+    ran.add('prompt-audit')
+    for (const finding of prompt.findings) {
+      const where = finding.path === '' ? '' : `${finding.path}${finding.line > 0 ? `:${String(finding.line)}` : ''}: `
+      findings.push({ level: finding.level, source: 'prompt-audit', rule: finding.code, message: `${where}${finding.message}` })
+    }
+  } catch (error) {
+    // A consumer machine without the engine venv can still audit a pure pptwise
+    // deck; the budget gate is a development-time source, so it is named as
+    // skipped instead of failing a deck the engine never touched.
+    skipped.push(`prompt-audit: ${isDshPptFailure(error) ? `${error.code} ${error.message}` : String(error)}`)
+  }
 
   const errors = findings.filter((finding) => finding.level === 'error').length
   const warnings = findings.length - errors

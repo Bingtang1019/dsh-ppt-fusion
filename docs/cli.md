@@ -267,16 +267,33 @@ ThemeFile v2. With `--bind`, the extracted theme is written into that deck as
 `theme ensure` derives `tokens.json` and `master-design.json` — one command from a
 customer deck to a deck this toolchain renders with.
 
+## Implemented (M6)
+
+### `dsh-ppt resume <dir> [--json] [--write]`
+
+Reads `.dsh-ppt/checkpoint.json`, checks every artifact the checkpoint claims against the
+filesystem, and prints the phase, the published package from `out/manifest.json`
+(`file`/`sha256`/`bytes`/`slides`) and the entry commands of the next phase. Missing artifacts
+make the report `ok: false` and the exit code 1; an unreadable checkpoint is a
+`ContractViolation` naming the field. `--write` also persists the brief to
+`.dsh-ppt/resume.md` for a fresh session.
+
+### `dsh-ppt skill audit [--json] [--strict]`
+
+Runs the engine's `prompt-audit` over `skills/dsh-ppt-fusion/**/*.md` and the vendored
+ppt-master docs with `skills/dsh-ppt-fusion/prompt_audit_manifest.json`: token budgets,
+per-file and per-load-set ceilings, local reference integrity, duplicate paragraphs and the
+authority graph. Errors fail; `--strict` makes warnings fail too. The corpus measures
+109 162 tokens against the 120 000-token ceiling (ADR-044).
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
 
 | Command | Milestone |
 |---|---|
-| `brand extract`, `theme` file binding via `brand` | M5 |
 | `deep check|chart` | M3/M5 |
 | `preview`, `serve` | M4 part 2 / M5 |
-| `resume`, `skill audit` | M6 |
 
 Options are registered with commander in `src/commands/*.ts`; a change to a documented
 option is an ADR, because the skill teaches the surface.

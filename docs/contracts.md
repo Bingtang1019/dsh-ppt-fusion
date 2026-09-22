@@ -216,7 +216,8 @@ Root required: `version` (const `"5"`), `filename`, `theme` (`{id}`), `meta`, `a
   `PYTHONNOUSERSITE=1`. A credential passes only when a caller names it in
   `allowCredentials`.
 - **Engine timeouts.** `project init` 120 s; `svg-to-pptx` 900 s; `svg-quality-check`
-  600 s; `pptx-delivery-check` 300 s; `stamp-native-fallbacks` 300 s. Front end:
+  600 s; `pptx-delivery-check` 300 s; `stamp-native-fallbacks` 300 s; `prompt-audit`
+ 120 s. Front end:
   `validate` 120 s; `render` 600 s; `audit` 300 s; `themes` 60 s; `theme new` 120 s;
   `brand extract` 300 s; `doctor` 600 s.
 - **Path containment.** `assertInsideWorkspace` proves every path argument sits under the
@@ -425,16 +426,18 @@ and `skipped`.
   recorded `.dsh-ppt/deep/<project>`: `blocking` becomes an error,
   `introduced`/`inherited`/`source-import` become warnings); `pptx` (OPC integrity plus the P1
   single-master invariant); `pptx-delivery-check` (the engine's delivery gate on the
-  artifact); `compat-lint` (ADR-034 at the resolved level). `--pixels` adds the CIELAB
+  artifact); `prompt-audit` (the SKILL budget gate of ?14, mapped from
+    `{severity, code, path, line}`); `compat-lint` (ADR-034 at the resolved level). `--pixels` adds the CIELAB
   source-colour comparison of the deep SVGs (`palette-delta-e`, warning only: a 1 % coverage
   floor and ΔE above 10).
 - **Artifact.** `--file`, else `out/manifest.json`'s `file`, else the single `*.pptx` under
   `out/`. A missing artifact is an `artifact-missing` error and the package sources are named
   in `skipped`, never silently passed.
 - **Strictness.** Errors always fail; `--strict` makes warnings fail too. A source that cannot
-  run appears in `skipped` with its reason; `prompt-audit` is skipped until the M6 SKILL
-  exists, because the engine command registry does not carry it.
-- **Evidence.** On the rendered golden deck the non-strict gate is green with 11 sources and
+  run appears in `skipped` with its reason. `prompt-audit` is a development-time source: a
+  consumer deck whose machine has no engine venv still audits its OPC and front-end sources,
+  and the missing budget gate is named in `skipped` (ADR-044).
+- **Evidence.** On the rendered golden deck the non-strict gate is green with 12 sources and
   five advisories from the SVG quality gate; `--strict` is red on those advisories until the
   fixture is compacted or the strict surface is scoped (ADR-035, M8).
 
@@ -482,3 +485,38 @@ and `skipped`.
   (`SOURCE_MAX_BYTES`); anything larger is a `ContractViolation`. Fetch-time MIME and byte
   limits stay the engine's responsibility (it writes Markdown text, and remote images stay
   links unless the caller asks otherwise) — ADR-039.
+
+## 14. SKILL budget gate (M6)
+
+`dsh-ppt skill audit [--json] [--strict]` runs the engine's `prompt-audit` over the shipped
+SKILL documents and their vendored references, using
+`skills/dsh-ppt-fusion/prompt_audit_manifest.json` as the single source of budgets.
+
+- **Corpus and budgets.** 24 files / 109 162 tokens measured against a fixed 120 000-token
+  ceiling; per-file and per-load-set budgets live in the manifest and are enforced by the
+  engine. The gate reports `files`, `tokens`, `maxTokens`, `errors`, `warnings` and the
+  normalized findings `{level, code, message, path, line}` (ADR-044).
+- **Exit codes.** Errors fail; `--strict` makes warnings fail too. Thresholds are the engine's
+  own (over-budget is an error), so the fusion adds no second policy layer.
+- **Engine dependency.** `python-assets/requirements.in` pins `tiktoken`, which the engine
+  requires for exact counts; `dsh-ppt doctor --repair` installs it with the rest of the
+  lock.
+- **Vendored links.** Vendored docs whose relative link targets are not part of the vendored
+  subset were rewritten to absolute upstream URLs; `python-assets/vendor/NOTICE` records the
+  edit and `manifest.json` the hashes.
+
+## 15. Checkpoint and resume (M6)
+
+The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <dir>
+[--json] [--write]` reads it. The checkpoint is the only progress authority, and
+`out/manifest.json` wins on any conflict about a published package.
+
+- **Schema.** `{version, phase, deck?, updatedAt?, artifacts[], gates{}, notes}` with `phase`
+  `0`–`7` (`0` is routing). Unknown keys are ignored so a model-authored file keeps working;
+  known fields fail with their path (ADR-045).
+- **Report.** The artifact list is checked against the filesystem, `out/manifest.json` is read
+  for `{file, sha256, bytes, slides}`, and `next` names the entry commands of the next phase.
+  A missing artifact makes the report `ok: false` and the command exits 1; an unreadable
+  published manifest is a `problem`, not a crash.
+- **`--write`.** Persists the same brief to `.dsh-ppt/resume.md` for a fresh session; the
+  printed report stays the primary surface.

@@ -4,6 +4,7 @@ import { formatDoctorReport, runDoctor } from './commands/doctor.ts'
 import { defaultDependencies, resolveDeckDir, type CommandDependencies } from './commands/context.ts'
 import { initDeck } from './commands/init.ts'
 import { confirmPlan, planDeck } from './commands/plan.ts'
+import { formatResumeReport, runResume } from './commands/resume.ts'
 import { validateDeck } from './commands/validate.ts'
 import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
 import { tokensExport } from './commands/tokens.ts'
@@ -11,6 +12,7 @@ import { deepRender } from './commands/deep.ts'
 import { renderDeck } from './commands/render.ts'
 import { compatLint, compatLintDocument, formatCompatLint } from './commands/compat.ts'
 import { auditDeck } from './commands/audit.ts'
+import { formatSkillAuditReport, runSkillAudit } from './commands/skill.ts'
 import { brandExtract } from './commands/brand.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
@@ -119,6 +121,19 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     })
 
   program
+    .command('resume')
+    .description('read .dsh-ppt/checkpoint.json and print the phase, artifacts and next commands')
+    .argument('<dir>', 'deck directory')
+    .option('--json', 'print the full report as JSON')
+    .option('--write', 'also write the brief to .dsh-ppt/resume.md')
+    .action((dir: string, options: { json?: boolean; write?: boolean }) => {
+      const report = runResume({ dir, write: options.write === true, deps })
+      if (options.json === true) printJson(report)
+      else process.stdout.write(`${formatResumeReport(report)}\n`)
+      process.exitCode = report.ok ? 0 : 1
+    })
+
+  program
     .command('validate')
     .description('check the manifest, IR page list, deep page files and theme files')
     .argument('<dir>', 'deck directory')
@@ -168,6 +183,19 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         if (report.findings.length > 0) process.stdout.write(`${formatFindings(report.findings)}\n`)
         for (const note of report.skipped) process.stdout.write(`skipped ${note}\n`)
       }
+      process.exitCode = report.ok ? 0 : 1
+    })
+
+  const skill = program.command('skill').description('audit the shipped SKILL documents and their vendored references')
+  skill
+    .command('audit')
+    .description('run the engine prompt-audit budget gate (tokens, references, duplicates)')
+    .option('--json', 'print the full report as JSON')
+    .option('--strict', 'fail on warnings as well as errors')
+    .action((options: { json?: boolean; strict?: boolean }) => {
+      const report = runSkillAudit({ strict: options.strict === true, deps })
+      if (options.json === true) printJson(report)
+      else process.stdout.write(`${formatSkillAuditReport(report)}\n`)
       process.exitCode = report.ok ? 0 : 1
     })
 

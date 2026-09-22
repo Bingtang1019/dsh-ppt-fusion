@@ -1,0 +1,13 @@
+Vendored ppt-master documentation (MIT)
+
+Source: ppt-master 0.1.128, PyPI wheel, skills/ppt-master/scripts/docs.
+Upstream repository (wheel Project-URL): https://github.com/elvisw/ppt-master. The wheel
+README names https://github.com/hugohe3/ppt-master as the original repository; see LICENSE
+in those repositories.
+
+These files are copied verbatim for the fusion SKILL reference set, with one documented
+edit: local relative links whose targets are not part of this vendored subset (upstream
+references/, workflows/, templates/, scripts/, and repository docs/) are rewritten to
+absolute https://github.com/elvisw/ppt-master/blob/main/... URLs so the fusion audit has no
+dangling local targets. python-assets/vendor/manifest.json records each file SHA-256 so
+drift is detectable.

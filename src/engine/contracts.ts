@@ -26,6 +26,7 @@ export const ENGINE_TIMEOUTS = {
   qualityCheck: 600_000,
   deliveryCheck: 300_000,
   stampFallbacks: 300_000,
+  promptAudit: 120_000,
 } as const
 
 /** One fully validated engine invocation: argv to run, budget, files it must produce. */
@@ -263,6 +264,38 @@ export function stampFallbacks(params: StampFallbacksParams): EngineInvocation {
 }
 
 /**
+ * Parameters for `ppt-master prompt-audit`.
+ *
+ * The audit is read-only and reports through stdout JSON; the caller owns any
+ * budget ceiling because the manifest carries it.
+ */
+export interface PromptAuditParams {
+  /** Repository root that contains the manifest's document globs, absolute. */
+  readonly root: string
+  /** Audit manifest, absolute or relative to the root. */
+  readonly manifest: string
+  /** Skip the heuristic near-duplicate pass. */
+  readonly skipNearDuplicates?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master prompt-audit`.
+ *
+ * @param params - repository root, manifest and the near-duplicate switch.
+ * @returns the validated invocation; the report arrives on stdout as JSON.
+ */
+export function promptAudit(params: PromptAuditParams): EngineInvocation {
+  const argv = ['prompt-audit', '--root', params.root, '--manifest', params.manifest, '--json']
+  if (params.skipNearDuplicates === true) argv.push('--skip-near-duplicates')
+  return {
+    id: 'prompt-audit',
+    argv,
+    timeoutMs: ENGINE_TIMEOUTS.promptAudit,
+    outputFiles: [],
+  }
+}
+
+/**
  * Registry ids the engine layer will run. Anything absent is unreachable by
  * design: the v1 non-goals (`image-gen`, the `video-*` commands, the Gemini
  * watermark helper) are not here, so no code path can invoke them.
@@ -273,6 +306,7 @@ export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
   'svg-quality-check',
   'pptx-delivery-check',
   'stamp-native-fallbacks',
+  'prompt-audit',
   'notes-to-audio',
   'narration-sync',
   'image-search',
