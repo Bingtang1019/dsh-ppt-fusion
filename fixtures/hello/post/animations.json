@@ -1,0 +1,10 @@
+{
+  "staggerMs": 200,
+  "slides": [
+    { "index": 1, "transition": "fade", "durationMs": 400 },
+    { "index": 2, "transition": "fade", "durationMs": 400 },
+    { "index": 3, "transition": "fade", "durationMs": 400, "entrance": { "effect": "fade", "target": { "match": "milestone-chart" } } },
+    { "index": 4, "transition": "wipe", "durationMs": 500, "entrance": { "effect": "wipe", "target": { "match": "engine-table" } } },
+    { "index": 5, "transition": "fade", "durationMs": 400 }
+  ]
+}

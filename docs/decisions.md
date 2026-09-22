@@ -676,3 +676,73 @@ the ADR wins.**
   data flow (§2.3 step d) applies motion inside the render chain; silently ignoring a
   selector that matches nothing — that is how a deck ships with the motion its author
   declared missing.
+## ADR-033 — Golden v1: the T1 canonicaliser and the `fixtures:verify` gate
+
+- **Date:** 2026-09-22
+- **Decision:** M4 part 2 item ⑤ lands as three pieces: `tests/support/canonicalize.ts`
+  (the T1 comparison §7.2 asks for), the five-page `fixtures/hello` golden input, and the
+  `pnpm fixtures:record` / `pnpm fixtures:verify` pair over
+  `fixtures/golden/golden-manifest.json`. `fixtures:verify` renders the fixture in a
+  scratch workspace and enforces canonical equality for `base`, `deep` and `merged`;
+  byte equality is reported for orientation and required only of `base`, which M0 measured
+  to be byte-stable (ADR-014). The current record is `fixtureVersion: 1`.
+- **Canonical form.** Per part: XML under `*.xml`/`*.rels` is normalised by deleting
+  `dcterms:created`/`modified`, `cp:revision`, `cp:lastModifiedBy`, `TotalTime`,
+  `Application` and `AppVersion`, and by collapsing inter-tag whitespace; nested OOXML
+  (`.xlsx/.docx/.pptx/.xlsm/.docm`, default depth 1) is canonicalised recursively as
+  ADR-017 requires; every other part is reduced to its SHA-256; the part list is a
+  name-keyed map, so zip entry order carries no meaning and the comparison reports the
+  differing part names. This is the **T1 hard gate**, and `fixtures:verify` runs it in CI
+  next to `themes:verify`.
+- **Deviation from §7.2's sketch.** The plan also sketches attribute ordering,
+  namespace-prefix normalisation, a rebuilt semantic tree, and special `p:sldId`
+  order-semantics handling. None of those are implemented, because none is needed by the
+  measured differences (ADR-014/017): text-level normalisation already makes two
+  independent deep renders equal (39 parts) while their bytes differ, and `p:sldIdLst`
+  order is compared exactly where it is meaningful — inside `ppt/presentation.xml` — while
+  part enumeration order is already insignificant in the name-keyed map. Attribute order
+  and prefix spelling are equal only because both engines emit them deterministically;
+  that is sufficient for T1 as defined (our own renders of one input), but the plan's
+  stronger wording is recorded as **not** implemented. A blanket attribute sort would also
+  risk hiding a real edit such as a changed attribute value, so it is not wanted as-is.
+- **Fixture shape.** `fixtures/hello` holds authored inputs only: `deck.ir.json` (5 pages —
+  cover, points, deep chart, deep table, ending, with `meta.animation.elements = "auto"`),
+  `deck.fusion.json`, `deep/p03-native-chart/page.svg`,
+  `deep/p04-native-table/page.svg`, and `post/animations.json` (slide 3 fade entrance,
+  slide 4 wipe entrance). `theme.json`, `tokens.json` and `master-design.json` are derived,
+  so `prepareWorkspace` copies the fixture to `tmp/golden-work/hello` and runs
+  `theme ensure` there: the gate exercises the theme bridge and the fixture commits no
+  generated file (the three names are gitignored).
+- **Record runbook.** §7.3's shape: `fixtureVersion`,
+  `upstream.{pptwise,ppt-master}` taken from `PINNED`, `baseRef`/`deepRef`/`mergedRef`
+  each carrying `file`, `sha256`, `canonical`, `bytes`, plus `generatedBy`, `command`
+  and `createdAt`. `fixtures:record` copies the three artifacts staged by one `render`
+  (`<deck>/.dsh-ppt/render/{base,deep,merged}.pptx`) into `fixtures/golden/` and rewrites
+  the manifest; binaries are never hand-edited, and a semantic change re-records with a
+  raised `fixtureVersion` in the same commit.
+- **Evidence.** `pnpm fixtures:record` wrote fixtureVersion 1 (base 29206 B
+  `423624c1…`, deep 21153 B, merged 36251 B `f5455d54…`); `pnpm fixtures:verify` reported
+  canonical equal for all three, base bytes identical, deep/merged bytes differing only as
+  expected. It was re-verified after normalising the tracked fixture text to LF (the
+  `.gitattributes` rule): the deep/merged byte counts move by 1–4 bytes while canonical
+  equality still holds — the T1/T3 distinction the plan draws, measured. The canonicaliser itself was first proven on two real `svg-to-pptx` runs of the
+  same project: `semantically equal (39 parts)` while the byte hashes differed — exactly
+  what ADR-014/017 predicted. M4's acceptance evidence was re-read from the recorded
+  merged deck: 47 parts, 5 slides, 1 master, 1 chart + 1 embedding, PowerPoint COM opens it
+  with `saved:true unchanged:true`, and the animation probe reads the slide-3 fade and
+  slide-4 wipe that `post/animations.json` asked for.
+- **Naming.** M0's fixture manifest moved from `fixtures/golden/manifest.json` to
+  `fixtures/golden/m0-fixtures.json` so that §7.3's name belongs to the golden manifest;
+  the M0 evidence itself is unchanged and ADR-016's sentence carries the pointer.
+- **Alternatives rejected:** byte comparison as T1 (the engines stamp their own times, so
+  the gate would be permanently red for no meaning — ADR-014); implementing the whole §7.2
+  sketch up front (no measured difference demands it, and blanket normalisation can hide
+  real edits); committing `theme.json`/`tokens.json` beside the fixture (they would freeze
+  theme drift and let the gate pass without exercising `theme ensure`); recording only
+  after the compat pass lands (that would leave M4's end-to-end determinism gate unproven
+  while the riskiest remaining work proceeds — the golden is re-recorded then, §7.3).
+- **Remaining in M4 part 2:** ② `bridge/compat.ts` v1 + `--compat safe|standard|max` +
+  `compat lint` (B7: Node `sharp` only); ③ merge compatibility discipline tests
+  (`mc:AlternateContent` pair migration, `p14:creationId` de-duplication, plain zip / no
+  duplicate entries); ④ compat goldens for the three levels; ⑥ the §3.8 unified
+  `dsh-ppt audit` gate; and ⑤b — re-record the golden once the compat output settles.

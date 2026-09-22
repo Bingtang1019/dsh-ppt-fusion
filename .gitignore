@@ -14,6 +14,9 @@ fixtures/**/.pptwise/
 fixtures/**/.pptwise-preview/
 fixtures/**/exports/*.pptx
 fixtures/**/backup/
+fixtures/hello/theme.json
+fixtures/hello/tokens.json
+fixtures/hello/master-design.json
 fixtures/**/live_preview/
 
 # Local environment

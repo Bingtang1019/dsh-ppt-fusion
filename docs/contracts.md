@@ -338,3 +338,25 @@ recurse into `ppt/embeddings/*` (ADR-017).
   what the animation pane shows. XML structure alone is not accepted as proof.
 - **Recorded data.** `render` writes its post report into `out/manifest.json` (`post`), so a
   published deck records which shapes were animated.
+
+## 11. Determinism gate and the golden fixture (M4 part 2)
+
+- **Owner.** `tests/support/canonicalize.ts` owns the T1 comparison; `pnpm fixtures:verify`
+  is the gate and `pnpm fixtures:record` is the only writer of `fixtures/golden/*`.
+- **Canonical form.** `*.xml`/`*.rels` have their volatile fields removed
+  (`dcterms:created`, `dcterms:modified`, `cp:revision`, `cp:lastModifiedBy`, `TotalTime`,
+  `Application`, `AppVersion`) and their inter-tag whitespace collapsed; nested OOXML
+  (`.xlsx/.docx/.pptx/.xlsm/.docm`) is canonicalised recursively (default depth 1, ADR-017);
+  every other part is reduced to a SHA-256. Parts are compared through a name-keyed map, so
+  zip entry order carries no meaning and differences are reported per part (ADR-033).
+- **Tiers.** T1 is the hard gate (CI step `Golden deck gate`). T2 — our merge/post bytes
+  stable for fixed input — is a target with unit coverage. T3 (whole-chain bytes) is never a
+  v1 gate; `fixtures:verify` reports base byte stability (measured in M0) and expects
+  deep/merged bytes to differ.
+- **Manifest.** `fixtures/golden/golden-manifest.json`: `fixtureVersion`,
+  `upstream.{pptwise,ppt-master}`, `baseRef`/`deepRef`/`mergedRef` with `file`, `sha256`,
+  `canonical`, `bytes`, plus `generatedBy`, `command`, `createdAt`. `m0-fixtures.json` is
+  the separate M0 record and is not a render gate.
+- **Inputs.** `fixtures/hello` commits authored inputs only (IR, manifest, two deep SVGs,
+  `post/animations.json`); `theme.json`/`tokens.json`/`master-design.json` are derived by
+  `theme ensure` in the scratch copy, so a theme-bridge regression fails this same gate.

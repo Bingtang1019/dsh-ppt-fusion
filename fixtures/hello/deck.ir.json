@@ -2,96 +2,16 @@
   "version": "5",
   "filename": "hello",
   "theme": { "id": "brief" },
-  "meta": {
-    "organization": "dsh-ppt-fusion",
-    "authors": [{ "name": "dsh-ppt-fusion", "role": "M0 smoke fixture" }]
-  },
+  "meta": { "organization": "dsh-ppt-fusion", "authors": [{ "name": "golden fixture" }], "animation": { "elements": "auto" } },
   "assets": { "images": {} },
   "slides": [
-    {
-      "type": "cover",
-      "id": "p01",
-      "heading": "dsh-ppt-fusion",
-      "subheading": "pptwise front end + ppt-master deep engine, one deck",
-      "components": []
-    },
-    {
-      "type": "content",
-      "id": "p02",
-      "kind": "points",
-      "heading": "Why fuse the two engines",
+    { "type": "cover", "id": "p01", "heading": "dsh-ppt-fusion", "subheading": "golden fixture: five pages, two engines, one deck", "components": [] },
+    { "type": "content", "id": "p02", "kind": "points", "heading": "Two engines, one deck",
       "components": [
-        {
-          "type": "bullets",
-          "style": "checklist",
-          "items": [
-            "pptwise: DSH-native shell, IR v5, themes",
-            "pptwise: geometry and contrast audit",
-            "ppt-master: native charts, tables, formulas",
-            "ppt-master: animation and narration timelines",
-            "This page is a standard page, made by pptwise"
-          ]
-        },
-        {
-          "type": "callout",
-          "variant": "info",
-          "text": "Pages 3 and 4 of this fixture are routed to the deep engine in the fusion build; this M0 copy renders all five with pptwise."
-        }
-      ]
-    },
-    {
-      "type": "content",
-      "id": "p03",
-      "kind": "data",
-      "heading": "Render time per stage (fallback: pptwise)",
-      "components": [
-        {
-          "type": "chart",
-          "chart_type": "bar",
-          "direction": "vertical",
-          "axes": { "x_title": "Stage", "y_title": "Seconds" },
-          "series": [
-            {
-              "name": "M0 baseline",
-              "data": [
-                { "x": "IR author", "y": 12 },
-                { "x": "pptwise render", "y": 4 },
-                { "x": "deep render", "y": 9 },
-                { "x": "merge", "y": 1 }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "content",
-      "id": "p04",
-      "kind": "evidence",
-      "heading": "Engine split (fallback: pptwise)",
-      "components": [
-        {
-          "type": "data_table",
-          "columns": [
-            { "key": "capability", "label": "Capability" },
-            { "key": "owner", "label": "Engine" },
-            { "key": "native", "label": "Native", "align": "center" }
-          ],
-          "rows": [
-            { "cells": { "capability": "Bullets, cards", "owner": "pptwise", "native": "no" } },
-            { "cells": { "capability": "Charts", "owner": "ppt-master", "native": "yes" }, "emphasis": "highlight" },
-            { "cells": { "capability": "Tables", "owner": "ppt-master", "native": "yes" } },
-            { "cells": { "capability": "Formulas", "owner": "ppt-master", "native": "yes" } }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "ending",
-      "id": "p05",
-      "heading": "Next: M0 acceptance",
-      "subheading": "validate / render / audit / preview all green",
-      "components": []
-    }
+        { "type": "bullets", "style": "checklist", "items": ["pptwise renders the standard pages", "ppt-master renders the deep pages", "the merge keeps one master"] }
+      ] },
+    { "type": "content", "id": "p03", "kind": "data", "placeholder": true, "components": [] },
+    { "type": "content", "id": "p04", "kind": "evidence", "placeholder": true, "components": [] },
+    { "type": "ending", "id": "p05", "heading": "Published from one command", "subheading": "dsh-ppt render", "components": [] }
   ]
 }

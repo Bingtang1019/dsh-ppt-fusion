@@ -49,5 +49,11 @@ jobs:
       - name: Theme snapshot gate
         run: pnpm run themes:verify
 
+      # Renders fixtures/hello through both engines plus the merge and compares the
+      # result canonically (tier T1) against fixtures/golden. Needs the engine venv,
+      # so it runs where `dsh-ppt doctor --repair` has already provisioned one.
+      - name: Golden deck gate
+        run: pnpm run fixtures:verify
+
       - name: Build the CLI bundle
         run: pnpm run build

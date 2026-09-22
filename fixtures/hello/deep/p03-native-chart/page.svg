@@ -1,0 +1,35 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-page-role="content">
+  <rect id="bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#F7F6F2"/>
+  <g id="page-heading" data-pptx-bounds="80 70 900 90">
+    <text x="80" y="110" font-family="Arial" font-size="42" font-weight="bold" fill="#1E2A4A">Pages delivered per milestone</text>
+    <rect id="heading-rule" data-pptx-role="decoration" x="80" y="140" width="120" height="8" fill="#F5C518"/>
+  </g>
+  <g id="milestone-chart" data-pptx-bounds="80 200 1120 400" data-pptx-replace-with="chart" data-pptx-fallback-sha256="c446ee4a8497d98df53e1d1de143e5d159800fa5a898b5782edc31d1f551c492">
+    <metadata type="application/json">
+      {
+        "name": "milestone-chart",
+        "x": 100,
+        "y": 220,
+        "width": 1080,
+        "height": 360,
+        "type": "column",
+        "categories": ["M0", "M1", "M4", "M9"],
+        "series": [
+          { "name": "Deck pages", "values": [5, 12, 30, 60] }
+        ],
+        "style": { "colors": ["#1E2A4A"] }
+      }
+    </metadata>
+    <g id="chart-fallback">
+      <rect id="axis-x" x="100" y="520" width="1040" height="4" fill="#DDDCD4"/>
+      <rect id="bar-m0" x="180" y="470" width="120" height="50" fill="#1E2A4A"/>
+      <rect id="bar-m1" x="380" y="430" width="120" height="90" fill="#1E2A4A"/>
+      <rect id="bar-m4" x="580" y="330" width="120" height="190" fill="#1E2A4A"/>
+      <rect id="bar-m9" x="780" y="240" width="120" height="280" fill="#1E2A4A"/>
+      <text x="180" y="560" font-family="Arial" font-size="22" fill="#5B6069">M0</text>
+      <text x="380" y="560" font-family="Arial" font-size="22" fill="#5B6069">M1</text>
+      <text x="580" y="560" font-family="Arial" font-size="22" fill="#5B6069">M4</text>
+      <text x="780" y="560" font-family="Arial" font-size="22" fill="#5B6069">M9</text>
+    </g>
+  </g>
+</svg>

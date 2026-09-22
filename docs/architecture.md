@@ -48,7 +48,7 @@ full/minimal checklist.
 | `src/bridge/theme.ts` (M2) | ThemeFile → `tokens.json` → engine palette; colour-consistency audit | edit upstream theme files |
 | `src/bridge/route.ts` (M2) | per-page engine choice; deep-page file completeness | degrade silently when a deep page is incomplete |
 | `src/bridge/merge.ts` (M4 ✅) | slide-level OOXML merge, closure import, layout remap, content-aware reuse | parse or rewrite shape semantics |
-| `src/bridge/post.ts` (M4 part 2 ⏳) | the single place animations, transitions and narration are applied | run before the merge |
+| `src/bridge/post.ts` (M4 part 2 ✅) | the single place animations, transitions and narration are applied | run before the merge |
 | `src/bridge/compat.ts` (M4 part 2 ⏳) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping, lint) against `src/compat/registry.json` | transform anything the registry does not name |
 | `src/engine/venv.ts` | venv lifecycle, uv resolution, lock-file install, repair | install anything on the DSH boot path |
 | `src/engine/master.ts` | the only spawn site for Python; timeouts, error classes, logs | accept an unregistered command or a path outside the workspace |
@@ -90,8 +90,8 @@ passes only when a caller names it in `allowCredentials`.
 - **Deep pages are absolute.** Deep pages are authored as absolutely positioned SVG and
   exported with `--pptx-structure flat`, so remapping their layout onto the receiving
   deck's layout cannot move content.
-- **Deterministic tiers.** T1 (semantic equality after canonicalisation) is the hard CI
-  gate; T2 (our own bytes stable) is a goal; T3 (whole chain byte-identical) is never a
+- **Deterministic tiers.** T1 (semantic equality after canonicalisation —
+  `tests/support/canonicalize.ts`, run by `pnpm fixtures:verify`) is the hard CI gate; T2 (our own bytes stable) is a goal; T3 (whole chain byte-identical) is never a
   v1 gate, because the upstream exporter timestamps its output (ADR-014, ADR-017).
 - **Model-visible means logged.** Anything that reaches a model request is
   reconstructable from the DSH session log; this package also keeps its own per-run logs
@@ -125,7 +125,8 @@ src/commands/              one file per subcommand
 src/bridge/opc.ts          OPC primitives: parts, rels, content types (M4 ✅)
 src/bridge/merge.ts        slide-level merge, layout remap, closure import (M4 ✅)
 src/bridge/theme.ts        ThemeFile v2 → tokens → master palette (M2 ✅)
-src/bridge/{post,compat}.ts  M4 part 2 (animations applied post-merge; compat pass)
+src/bridge/post.ts          animations/transitions applied post-merge (M4 part 2 ✓)
+src/bridge/compat.ts        compat pass: scan/transform/stamp/lint (M4 part 2, pending)
 src/compat/registry.json   feature→minOffice→WPS→downgrade table (M0.G measured)
 src/engine/runner.ts       child-process primitive + environment whitelist
 src/engine/contracts.ts    engine command registry, enums, argv builders
@@ -134,10 +135,11 @@ src/engine/master.ts       typed engine surface (the only Python spawn site)
 src/engine/errors.ts       failure codes
 src/frontend.ts            pptwise CLI wrapper
 src/logging.ts             per-run diagnostics
+tests/support/             T1 canonicalize, golden record/verify, fake engines, theme snapshots
 src/audit.ts               multi-source audit aggregation (growing with M4/M5)
 python-assets/             requirements.in, requirements.lock, upstream SHA manifest
 scripts/                   gates: opc-invariants, win-com-smoke, M0 measurement tools
-fixtures/                  hello deck, deep project, recorded golden packages
+fixtures/                  hello deck (golden input), deep project, golden packages + golden-manifest.json
 docs/                      this file, contracts, cli, decisions, m0-*, compat/, licensing
 README.md                  architecture summary and command surface
 ```

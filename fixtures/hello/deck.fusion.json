@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "hello",
+  "pptwiseIr": "deck.ir.json",
+  "theme": { "preset": "brief" },
+  "pages": [
+    { "index": 1, "route": "pptwise" },
+    { "index": 2, "route": "pptwise" },
+    { "index": 3, "route": "ppt-master", "deep": { "dir": "deep/p03-native-chart", "kind": "native-chart", "format": "ppt169" } },
+    { "index": 4, "route": "ppt-master", "deep": { "dir": "deep/p04-native-table", "kind": "native-table", "format": "ppt169" } },
+    { "index": 5, "route": "pptwise" }
+  ],
+  "post": { "animations": "post/animations.json", "narration": null }
+}
