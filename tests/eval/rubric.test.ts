@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHECK_IDS, evaluateRubric, type DeckObservation, type ScenarioRubric } from './rubric.ts'
+import { CHECK_IDS, attemptPassed, evaluateRubric, type DeckObservation, type ScenarioRubric } from './rubric.ts'
 
 /** A rubric that asks for every check. */
 const strict: ScenarioRubric = {
@@ -79,5 +79,14 @@ describe('evaluateRubric', () => {
 
   it('fails brand-theme when the bound theme file is missing', () => {
     expect(check({ ...good, themeFileExists: false }, strict, 'brand-theme')?.passed).toBe(false)
+  })
+
+  it('treats the checkpoint as a warning-level process signal, not a gate', () => {
+    const checks = evaluateRubric(strict, { ...good, checkpointPhase: null })
+    const checkpoint = checks.find((entry) => entry.id === 'checkpoint')
+    expect(checkpoint?.level).toBe('warning')
+    expect(checkpoint?.passed).toBe(false)
+    expect(attemptPassed(checks)).toBe(true)
+    expect(attemptPassed(evaluateRubric(strict, { ...good, slides: 99 }))).toBe(false)
   })
 })

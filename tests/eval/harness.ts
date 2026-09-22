@@ -15,7 +15,7 @@ import yaml from 'js-yaml'
 import JSZip from 'jszip'
 import { auditDeck } from '../../src/commands/audit.ts'
 import { defaultDependencies } from '../../src/commands/context.ts'
-import { CHECK_IDS, evaluateRubric, type DeckObservation, type RubricCheckResult, type ScenarioSpec } from './rubric.ts'
+import { CHECK_IDS, CHECK_SEVERITY, attemptPassed, evaluateRubric, type CheckId, type DeckObservation, type RubricCheckResult, type ScenarioSpec } from './rubric.ts'
 
 /** Where an eval run keeps its workspaces and reports. */
 export const EVAL_DIR = 'tmp/eval'
@@ -41,6 +41,8 @@ export interface AttemptResult {
   readonly workspace: string
   readonly deckDir: string
   readonly sessionFile: string | null
+  /** Non-null when the harness never reached the model (quota, auth), so retrying is pointless. */
+  readonly infrastructure: string | null
 }
 
 /** Process facts recovered from the headless session log. */
@@ -143,6 +145,8 @@ export async function runScenario(root: string, scenario: ScenarioSpec, options:
     const result = await runAttempt(root, scenario, attempt)
     attempts.push(result)
     if (result.passed) break
+    // An aborted boot (no balance, bad key) will not succeed on a retry.
+    if (result.infrastructure !== null) break
   }
   return { scenario, passed: attempts.some((attempt) => attempt.passed), attempts }
 }
@@ -187,10 +191,10 @@ export async function runAttempt(root: string, scenario: ScenarioSpec, attempt: 
   const metrics = readSessionMetrics(home)
   const observation = await observeDeck(workspace, deckDir)
   const checks = evaluateRubric(scenario.rubric, observation)
-  const passed = checks.every((check) => check.passed)
+  const infrastructure = detectInfrastructure(stderr, metrics)
   return {
     attempt,
-    passed,
+    passed: attemptPassed(checks),
     checks,
     observation,
     metrics,
@@ -201,7 +205,19 @@ export async function runAttempt(root: string, scenario: ScenarioSpec, attempt: 
     workspace,
     deckDir,
     sessionFile: metrics.sessionFile,
+    infrastructure,
   }
+}
+
+/**
+ * @param stderr - agent stderr.
+ * @param metrics - session metrics of the attempt.
+ * @returns the vendor message when the boot never reached the model, else null.
+ */
+function detectInfrastructure(stderr: string, metrics: SessionMetrics): string | null {
+  if (metrics.toolCalls > 0) return null
+  const match = /(QUOTA:[^\n]*|Insufficient Balance|invalid api key|authentication[^\n]*)/i.exec(stderr)
+  return match === null ? null : match[0].trim()
 }
 
 /** Copy the scenario's staged inputs into the workspace. */
@@ -597,14 +613,51 @@ function readJson(file: string): unknown {
  * @returns the two written paths.
  */
 export function writeEvalReport(root: string, runs: readonly ScenarioRun[]): { json: string; markdown: string } {
+  const previous = readPreviousReport(join(root, EVAL_DIR, 'report.json'))
+  const byName = new Map(previous.map((entry) => [entry.name as string, entry]))
+  for (const run of runs) byName.set(run.scenario.name, scenarioEntry(run))
+  return persistReport(root, [...byName.values()])
+}
+
+/**
+ * Recompute every recorded attempt's verdict from its stored checks and rewrite
+ * both report files.
+ *
+ * This keeps the evidence machine-derived when the pass rule or a check severity
+ * changes after a run; it never touches the workspaces or the session logs.
+ *
+ * @param root - repository root.
+ * @returns the written paths plus the recomputed summary.
+ */
+export function rejudgeReport(root: string): { json: string; markdown: string; scenarios: number; passed: number } {
+  const scenarios = readPreviousReport(join(root, EVAL_DIR, 'report.json')).map((entry) => {
+    const attempts = Array.isArray(entry.attempts) ? entry.attempts : []
+    const normalized = attempts.map((attempt) => {
+      const record = attempt as { attempt?: number; checks?: readonly RubricCheckResult[]; infrastructure?: unknown; metrics?: SessionMetrics }
+      const checks = (record.checks ?? []).map((check) => ({ ...check, level: check.level ?? CHECK_SEVERITY[check.id as CheckId] ?? 'error' }))
+      const stderrFile = join(root, EVAL_DIR, String(entry.name), `attempt-${String(record.attempt ?? 0)}`, 'agent.stderr.txt')
+      const infrastructure =
+        typeof record.infrastructure === 'string'
+          ? record.infrastructure
+          : detectInfrastructure(existsSync(stderrFile) ? readFileSync(stderrFile, 'utf8') : '', record.metrics ?? emptyMetrics(null))
+      return { ...record, checks, infrastructure, passed: attemptPassed(checks) }
+    })
+    return { ...entry, attempts: normalized, passed: normalized.some((attempt) => attempt.passed) }
+  })
+  const written = persistReport(root, scenarios)
+  return { ...written, scenarios: scenarios.length, passed: scenarios.filter((entry) => entry.passed === true).length }
+}
+
+/**
+ * @param root - repository root.
+ * @param scenarios - serializable scenario entries.
+ * @returns the two written paths.
+ */
+function persistReport(root: string, scenarios: Record<string, unknown>[]): { json: string; markdown: string } {
   const dir = join(root, EVAL_DIR)
   mkdirSync(dir, { recursive: true })
   const jsonPath = join(dir, 'report.json')
   const markdownPath = join(dir, 'report.md')
-  const previous = readPreviousReport(jsonPath)
-  const byName = new Map(previous.map((entry) => [entry.name as string, entry]))
-  for (const run of runs) byName.set(run.scenario.name, scenarioEntry(run))
-  const scenarios = [...byName.values()]
   const summary = {
     scenarios: scenarios.length,
     passed: scenarios.filter((entry) => entry.passed === true).length,
@@ -615,6 +668,12 @@ export function writeEvalReport(root: string, runs: readonly ScenarioRun[]): { j
     `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), checkIds: CHECK_IDS, summary, scenarios }, null, 2)}\n`,
     'utf8',
   )
+  writeFileSync(markdownPath, renderReportMarkdown(scenarios, summary), 'utf8')
+  return { json: jsonPath, markdown: markdownPath }
+}
+
+/** @returns the markdown rendering of the report. */
+function renderReportMarkdown(scenarios: readonly Record<string, unknown>[], summary: { scenarios: number; passed: number; attempts: number }): string {
   const lines = [
     '# M6 model evaluation',
     '',
@@ -622,22 +681,28 @@ export function writeEvalReport(root: string, runs: readonly ScenarioRun[]): { j
     '',
   ]
   for (const entry of scenarios) {
-    const run = entry as ReturnType<typeof scenarioEntry>
+    const run = entry as {
+      name: string
+      title: string
+      passed?: boolean
+      attempts?: readonly { attempt: number; passed?: boolean; exitCode?: number | null; wallTimeMs?: number; metrics?: SessionMetrics; checks?: readonly RubricCheckResult[]; infrastructure?: string | null }[]
+    }
     lines.push(`## ${run.name} — ${run.passed === true ? 'PASS' : 'FAIL'}`, '', `> ${run.title}`, '')
-    for (const attempt of run.attempts) {
+    for (const attempt of run.attempts ?? []) {
+      const metrics = attempt.metrics
       lines.push(
-        `- attempt ${String(attempt.attempt)}: ${attempt.passed ? 'pass' : 'fail'}, exit ${String(attempt.exitCode)}, wall ${String(Math.round(attempt.wallTimeMs / 1000))}s, ` +
-          `turns ${String(attempt.metrics.turns)}, tools ${String(attempt.metrics.toolCalls)} (${String(attempt.metrics.failedToolCalls)} failed, ${String(attempt.metrics.gateFailures)} gate), ` +
-          `skill loads ${String(attempt.metrics.skillLoads)}, checkpoints ${String(attempt.metrics.checkpointCommands)}`,
+        `- attempt ${String(attempt.attempt)}: ${attempt.passed === true ? 'pass' : 'fail'}, exit ${String(attempt.exitCode)}, wall ${String(Math.round((attempt.wallTimeMs ?? 0) / 1000))}s, ` +
+          `turns ${String(metrics?.turns ?? 0)}, tools ${String(metrics?.toolCalls ?? 0)} (${String(metrics?.failedToolCalls ?? 0)} failed, ${String(metrics?.gateFailures ?? 0)} gate), ` +
+          `skill loads ${String(metrics?.skillLoads ?? 0)}, checkpoints ${String(metrics?.checkpointCommands ?? 0)}` +
+          `${attempt.infrastructure === undefined || attempt.infrastructure === null ? '' : `, infrastructure: ${attempt.infrastructure}`}`,
       )
-      for (const check of attempt.checks.filter((entry) => !entry.passed)) {
-        lines.push(`  - FAIL ${check.id}: ${check.message}`)
+      for (const check of (attempt.checks ?? []).filter((entry) => !entry.passed)) {
+        lines.push(`  - ${check.level === 'warning' ? 'WARN' : 'FAIL'} ${check.id}: ${check.message}`)
       }
     }
     lines.push('')
   }
-  writeFileSync(markdownPath, `${lines.join('\n')}\n`, 'utf8')
-  return { json: jsonPath, markdown: markdownPath }
+  return `${lines.join('\n')}\n`
 }
 
 /** @returns one serializable scenario entry for the report. */
@@ -654,6 +719,7 @@ function scenarioEntry(run: ScenarioRun) {
       metrics: attempt.metrics,
       observation: attempt.observation,
       checks: attempt.checks,
+      infrastructure: attempt.infrastructure,
       workspace: relative(process.cwd(), attempt.workspace).replace(/\\/g, '/'),
       sessionFile: attempt.sessionFile === null ? null : relative(process.cwd(), attempt.sessionFile).replace(/\\/g, '/'),
     })),

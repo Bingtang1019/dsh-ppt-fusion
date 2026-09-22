@@ -25,6 +25,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 ## 2. 相位 2 · 主题
 - `dsh-ppt theme list` 看 24 个预设；2–4 个候选用 `theme try <ids>` 出选型接触片。
 - 客户品牌：`dsh-ppt brand extract <file> --bind <deck>`（提取 ThemeFile v2 → 写 `{file:...}` → 自动 `theme ensure`）。
+- **品牌忠实**：`--bind` 写出的 `brand.theme.json` 就是客户色/字体，**不得**为了好看改写其中的颜色或字体；确需调整先问用户，得到确认才改。
 - 绑定后 **必须** `theme ensure`（deep 页的 spec_lock 依赖 tokens）；`validate` 会检查 tokens 是否过期。
 
 ## 3. 相位 3 · 大纲与规格
@@ -65,7 +66,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 - Revision Round：改动只走对应相位，改完重跑该相位与其后的门；不要整链重来。
 
 ## checkpoint / resume（长链路兜底）
-- 每个相位结束写 `.dsh-ppt/checkpoint.json`：`{ version, phase, deck, updatedAt, artifacts, gates, notes }`；产物路径写相对路径。
+- 每个相位结束写 `.dsh-ppt/checkpoint.json`：`{ version, phase, deck, updatedAt, artifacts, gates, notes }`；产物路径写相对路径。**这是硬要求**，不要等全部做完才写。
 - **新会话第一步**：`dsh-ppt resume <dir>` —— 读 checkpoint，打印当前相位、已完成产物、下一个应执行的命令；`--write` 会把同一份简报写到 `.dsh-ppt/resume.md`。不要凭记忆重跑。
 - checkpoint 声明的产物缺失时 `resume` 非零退出：先补齐或修正 checkpoint，再继续。
 - checkpoint 与 `out/manifest.json` 冲突时以 manifest 的 sha256 为准。

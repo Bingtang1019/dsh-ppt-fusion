@@ -67,6 +67,8 @@ export interface DeckObservation {
 /** One evaluated check, before the catalog supplies its severity. */
 export interface RubricCheckResult {
   readonly id: string
+  /** `error` checks decide the scenario; `warning` checks are recorded process signals. */
+  readonly level: 'error' | 'warning'
   readonly passed: boolean
   readonly message: string
 }
@@ -85,6 +87,28 @@ export const CHECK_IDS = [
 ] as const
 
 export type CheckId = (typeof CHECK_IDS)[number]
+
+/** Severity per check (mirrors `fixtures/scenarios/rubric.json`). */
+export const CHECK_SEVERITY: Readonly<Record<CheckId, 'error' | 'warning'>> = {
+  'audit-pass': 'error',
+  'slide-count': 'error',
+  'text-shapes': 'error',
+  'single-master': 'error',
+  'native-chart': 'error',
+  'native-table': 'error',
+  attribution: 'error',
+  // Checkpoint use is a process metric (plan M6.4), not a delivery gate.
+  checkpoint: 'warning',
+  'brand-theme': 'error',
+}
+
+/**
+ * @param checks - evaluated checks.
+ * @returns true when every error-level check passed; warnings never fail a scenario.
+ */
+export function attemptPassed(checks: readonly RubricCheckResult[]): boolean {
+  return checks.every((check) => check.level === 'warning' || check.passed)
+}
 
 /**
  * Evaluate every check for one observation.
@@ -157,11 +181,11 @@ export function evaluateRubric(rubric: ScenarioRubric, observation: DeckObservat
 
 /** @returns a check that always runs. */
 function pass(id: CheckId, passed: boolean, message: string): RubricCheckResult {
-  return { id, passed, message }
+  return { id, level: CHECK_SEVERITY[id], passed, message }
 }
 
 /** @returns a check that reports `not required` when the rubric does not ask for it. */
 function toggle(id: CheckId, required: boolean, passed: boolean, message: string): RubricCheckResult {
-  if (!required) return { id, passed: true, message: 'not required by this scenario' }
-  return { id, passed, message }
+  if (!required) return { id, level: CHECK_SEVERITY[id], passed: true, message: 'not required by this scenario' }
+  return { id, level: CHECK_SEVERITY[id], passed, message }
 }

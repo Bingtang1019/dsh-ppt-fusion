@@ -12,17 +12,18 @@
  */
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { listScenarios, loadScenario, repositoryRoot, runScenario, writeEvalReport, type ScenarioRun } from '../tests/eval/harness.ts'
+import { listScenarios, loadScenario, rejudgeReport, repositoryRoot, runScenario, writeEvalReport, type ScenarioRun } from '../tests/eval/harness.ts'
 
 interface Options {
   readonly scenario?: string
   readonly attempts?: number
   readonly json: boolean
+  readonly rejudge: boolean
 }
 
 /** @returns parsed command-line options. @throws Error for an unknown flag. */
 function parseArgs(argv: readonly string[]): Options {
-  const options: { scenario?: string; attempts?: number; json: boolean } = { json: false }
+  const options: { scenario?: string; attempts?: number; json: boolean; rejudge: boolean } = { json: false, rejudge: false }
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
     if (flag === '--scenario') options.scenario = argv[++index]
@@ -31,6 +32,7 @@ function parseArgs(argv: readonly string[]): Options {
       if (!Number.isInteger(value) || value < 1) throw new Error('--attempts needs a positive integer')
       options.attempts = value
     } else if (flag === '--json') options.json = true
+    else if (flag === '--rejudge') options.rejudge = true
     else throw new Error(`unknown argument ${String(flag)}`)
   }
   return options
@@ -40,6 +42,11 @@ function parseArgs(argv: readonly string[]): Options {
 async function main(): Promise<number> {
   const options = parseArgs(process.argv.slice(2))
   const root = repositoryRoot(import.meta.url)
+  if (options.rejudge) {
+    const result = rejudgeReport(root)
+    process.stdout.write(`eval: rejudged ${String(result.passed)}/${String(result.scenarios)} scenario(s); report at ${result.json}\n`)
+    return result.passed === result.scenarios ? 0 : 1
+  }
   if (!existsSync(join(root, 'dist', 'cli.js'))) {
     process.stderr.write(`eval: dist/cli.js is missing; run \`pnpm build\` first\n`)
     return 2

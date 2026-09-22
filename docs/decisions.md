@@ -1171,7 +1171,7 @@ the ADR wins.**
   deterministic error fails, and `--strict` makes warnings fail too; the fusion adds no second
   policy layer. `dsh-ppt audit` now runs the same source (`prompt-audit`) instead of recording it
   as skipped, and names it in `skipped` with the reason when the engine venv is absent.
-- **Measured.** 24 files, 109280 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
+- **Measured.** 24 files, 109398 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
   Per-file budgets sit above the measured block and load sets cover the SKILL's 8-12 document
   reference packs; the one cross-file exact duplicate (the language-neutral CLI roster shared by
   `SKILL.md` and `SKILL.en.md`) is declared in `duplicates.accepted`.
@@ -1242,3 +1242,34 @@ the ADR wins.**
   servers change the agent under test); installing the SKILL into `~/.dsh/skills` (an
   unnecessary machine change); letting the model judge itself (a rubric read from the package
   is repeatable and independent).
+
+## ADR-047 — M6 verdict: GO, with a brand-fidelity finding and one confirmation run pending
+
+- **Date:** 2026-09-22
+- **Decision:** The M6 model evaluation passes its plan 6.6 line: 3/3 scenarios produced
+  packages that pass the unified audit gate (topic-only 5 slides, doc-to-deck 6 slides with
+  four native charts, branded-template 4 slides), and the doc-to-deck package passed the
+  manual spot check (PowerPoint COM reads four editable charts with the brief's series values;
+  one slide master; the pixel audit finds no unknown colour; COM opens it unchanged). M7 may
+  start while the one confirmation run is scheduled.
+- **Measured.** topic-only 811 s / 133 tools / checkpoint phase 7; doc-to-deck 1104 s / 147
+  tools (two subagent calls) / three recovered gate failures / checkpoint phase 7;
+  branded-template 339 s / 88 tools / four slides / one recovered gate failure. Every session
+  stayed inside one turn. The only audit findings anywhere are warning-level `ea-font-slot`
+  compat advisories (CJK runs without an `a:ea` slot), outside this command surface.
+- **Brand-fidelity finding.** The branded-template session ran `brand extract --bind`
+  correctly, then edited the bound `brand.theme.json` into a different palette (#1E2A4A /
+  #F5C518 versus the extracted #4472C4 / #ED7D31). The manual spot check caught what the
+  file-existence check could not. The SKILL now forbids restyling a bound brand without
+  asking, and the next model round gains a rubric check comparing the bound palette with a
+  reference extraction of the staged input.
+- **Quota abort.** The DeepSeek balance ran out mid-session (21:17): the branded-template
+  session ended before writing the checkpoint, and attempts 2 and 3 aborted in 15-17 s with
+  `QUOTA: Insufficient Balance`. The harness records a boot with no tool calls as an
+  infrastructure abort and does not retry it; the confirmation run is pending an account
+  top-up (`pnpm eval:run --scenario branded-template`).
+- **Alternatives rejected:** a capability NO-GO from the branded-template result (its package
+  passes every error-level check, and the palette change was a deliberate edit rather than an
+  inability to run the workflow); triggering L2-L4 (the observed gaps are instruction and
+  environment, not context or phase-count ceilings); declaring M6 complete without the
+  confirmation run (the brand-fidelity rule has not been exercised by a model yet).

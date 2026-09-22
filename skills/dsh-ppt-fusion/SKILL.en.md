@@ -25,6 +25,7 @@ Model-agnostic by design: no model name is hardcoded; DeepSeek works by default 
 ## 2. Phase 2 · Theme
 - `dsh-ppt theme list` shows 24 presets; shortlist 2–4 with `theme try <ids>`.
 - Customer brand: `dsh-ppt brand extract <file> --bind <deck>` (ThemeFile v2 → `{file: ...}` → `theme ensure`).
+- **Brand fidelity:** the `brand.theme.json` written by `--bind` is the customer's colours and fonts; never restyle it for looks. If an adjustment is genuinely needed, ask the user first.
 - Always `theme ensure` after binding: deep pages derive `spec_lock.md` from the tokens, and `validate` fails on stale tokens.
 
 ## 3. Phase 3 · Outline and spec
@@ -65,7 +66,7 @@ Model-agnostic by design: no model name is hardcoded; DeepSeek works by default 
 - Revision round: change only the owning phase, then re-run that phase and the gates after it; never restart the whole chain.
 
 ## checkpoint / resume
-- After each phase write `.dsh-ppt/checkpoint.json`: `{ version, phase, deck, updatedAt, artifacts, gates, notes }` with relative artifact paths.
+- After each phase write `.dsh-ppt/checkpoint.json`: `{ version, phase, deck, updatedAt, artifacts, gates, notes }` with relative artifact paths. **This is required**, not a final step.
 - **A new session starts with** `dsh-ppt resume <dir>`: it prints the phase, the artifacts already produced and the next command; `--write` also persists the brief to `.dsh-ppt/resume.md`. Do not re-run from memory.
 - A claimed artifact that is missing makes `resume` exit non-zero: fix the work or the checkpoint before continuing.
 - When the checkpoint and `out/manifest.json` disagree, the manifest sha256 wins.
