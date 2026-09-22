@@ -12,10 +12,11 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { compatLint } from '../src/commands/compat.ts'
 import { defaultDependencies, venvManagerFor } from '../src/commands/context.ts'
 import { COMPAT_LEVELS } from '../src/compat/registry.ts'
+import { tailOf } from '../src/engine/errors.ts'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const REPORT = join(ROOT, 'docs', 'compat', 'matrix.md')
@@ -113,11 +114,21 @@ function probePptx(python: string, file: string): { record: Record<string, unkno
   }
 }
 
-/** @returns the PDF page count via PyMuPDF (already in the engine venv). */
-function pdfPages(python: string, pdf: string): number | null {
-  const run = spawnSync(python, ['-c', 'import fitz,sys; print(fitz.open(sys.argv[1]).page_count)', pdf], { encoding: 'utf8', timeout: 120_000, windowsHide: true })
-  const value = Number.parseInt((run.stdout ?? '').trim(), 10)
-  return Number.isInteger(value) ? value : null
+/**
+ * @param python - engine venv interpreter.
+ * @param pdf - converted PDF.
+ * @returns the page count, or a reason string when the count cannot be read.
+ */
+function pdfPages(python: string, pdf: string): number | string {
+  const size = existsSync(pdf) ? statSync(pdf).size : 0
+  if (size === 0) return 'the converted PDF is empty'
+  // `pymupdf` is the supported module name: the old `fitz` alias writes a
+  // deprecation warning to stdout, which the page count used to swallow.
+  const run = spawnSync(python, ['-c', 'import pymupdf,sys; print(pymupdf.open(sys.argv[1]).page_count)', pdf], { encoding: 'utf8', timeout: 120_000, windowsHide: true })
+  const line = (run.stdout ?? '').trim().split(/\r?\n/).filter(Boolean).pop()
+  const value = line === undefined ? Number.NaN : Number.parseInt(line, 10)
+  if (run.status === 0 && Number.isInteger(value)) return value
+  return `${tailOf(run.stderr) || tailOf(run.stdout) || `exit ${String(run.status)}`} (${String(size)} bytes)`
 }
 
 /** @returns the report rows. */
@@ -158,15 +169,27 @@ async function runMatrix(): Promise<Row[]> {
     let libreoffice = office === null ? 'skipped (soffice not on PATH; CI installs it)' : 'converted'
     let pdfPageCount: number | null = null
     if (office !== null) {
-      const run = spawnSync(office, ['--headless', '--convert-to', 'pdf', '--outdir', scratch, artifact.path], { encoding: 'utf8', timeout: 300_000, windowsHide: true })
+      // An explicit profile keeps headless LibreOffice from depending on a
+      // writable $HOME or on a profile left behind by an earlier run.
+      const profile = join(scratch, 'lo-profile')
+      mkdirSync(profile, { recursive: true })
+      const run = spawnSync(
+        office,
+        [`-env:UserInstallation=${pathToFileURL(profile).href}`, '--headless', '--convert-to', 'pdf', '--outdir', scratch, artifact.path],
+        { encoding: 'utf8', timeout: 300_000, windowsHide: true },
+      )
       const pdf = join(scratch, `${file.replace(/\.pptx$/i, '')}.pdf`)
       if (run.status !== 0 || !existsSync(pdf)) {
-        libreoffice = `FAILED: ${run.stderr.trim() || `exit ${String(run.status)}`}`
+        libreoffice = `FAILED: ${tailOf(run.stderr) || tailOf(run.stdout) || `exit ${String(run.status)}`}`
         problems.push('LibreOffice conversion failed')
       } else if (python !== null) {
-        pdfPageCount = pdfPages(python, pdf)
-        if (pdfPageCount === null) problems.push('LibreOffice PDF page count is unreadable')
-        else if (pdfPageCount !== slides) problems.push(`LibreOffice rendered ${String(pdfPageCount)} page(s) for ${String(slides)} slide(s)`)
+        const count = pdfPages(python, pdf)
+        if (typeof count === 'number') {
+          pdfPageCount = count
+          if (count !== slides) problems.push(`LibreOffice rendered ${String(count)} page(s) for ${String(slides)} slide(s)`)
+        } else {
+          problems.push(`LibreOffice PDF page count is unreadable: ${count}`)
+        }
       }
     }
     rows.push({

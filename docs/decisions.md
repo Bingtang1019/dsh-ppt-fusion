@@ -1523,6 +1523,13 @@ the ADR wins.**
   is the single motion owner and rewrites transitions and timings. v1 narrates without
   auto-advance; deriving the advance inside `post.ts` from a deterministic source and
   re-recording is a v0.2 backlog item.
+- **Decision (ubuntu compat matrix).** `compat:matrix` reads the LibreOffice PDF page count with
+  `import pymupdf` — the old `fitz` alias writes a deprecation warning to stdout, which
+  `Number.parseInt` swallowed, so every artifact reported "PDF page count is unreadable" as soon
+  as the ubuntu leg actually reached step 17. The parse now takes the last non-empty stdout line,
+  the conversion runs with an isolated `-env:UserInstallation` profile, and a failure carries the
+  tool output and the PDF size. This branch had never executed: the local machine has no
+  `soffice`, so the rendering half was `skipped` until CI.
 - **Decision (CI engine provisioning).** The workflow provisions the engine venv with
   `DSH_PPT_PYPI_INDEX=https://pypi.org/simple`. The package default stays the Tsinghua mirror
   chosen for the development machine, but the runners get `403 Forbidden` from that mirror, so
