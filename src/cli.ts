@@ -8,6 +8,7 @@ import { validateDeck } from './commands/validate.ts'
 import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
 import { tokensExport } from './commands/tokens.ts'
 import { deepRender } from './commands/deep.ts'
+import { renderDeck } from './commands/render.ts'
 import { formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
@@ -212,6 +213,29 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (result.outputFile === null) printJson(result.document)
       else process.stdout.write(`wrote ${result.outputFile}\n`)
+    })
+
+  program
+    .command('render')
+    .description('render the whole deck: standard pages, deep pages, merge, then publish')
+    .argument('<dir>', 'deck directory')
+    .option('-o, --out <file>', 'output pptx path, resolved against the deck')
+    .action(async (dir: string, options: { out?: string }) => {
+      const result = await renderDeck({
+        dir,
+        deps,
+        ...(options.out === undefined ? {} : { output: options.out }),
+      })
+      process.stdout.write(`wrote ${result.outputFile} (${String(result.slides)} slides, ${String(result.bytes)} bytes)\n`)
+      process.stdout.write(`sha256 ${result.sha256}\n`)
+      if (result.postflight.deep !== undefined) {
+        process.stdout.write(
+          `deep postflight status=${result.postflight.deep.status} quality_gate=${result.postflight.deep.qualityGate} slides=${String(result.postflight.deep.slides)}\n`,
+        )
+      }
+      process.stdout.write(
+        `merge: ${String(result.merge.replaced.length)} page(s) replaced, ${String(Object.keys(result.merge.imported).length)} part(s) imported, ${String(result.merge.multiMaster ? 'multi-master' : 'single master')}\n`,
+      )
     })
 
   const deep = program.command('deep').description('deep-page engine operations')

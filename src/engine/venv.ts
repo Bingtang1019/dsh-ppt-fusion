@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, posix, win32 } from 'node:path'
 import { DshPptFailure, tailOf } from './errors.ts'
@@ -12,6 +12,11 @@ export interface FileSystemPort {
   listDir(path: string): string[]
   readText(path: string): string | null
   writeText(path: string, text: string): void
+  /** Byte reader for binary artifacts (pptx packages); text readers would corrupt them. */
+  readBytes(path: string): Buffer | null
+  writeBytes(path: string, bytes: Buffer): void
+  /** Move a file, replacing the destination; the atomic publish step needs it. */
+  rename(from: string, to: string): void
   removeTree(path: string): void
   mkdirp(path: string): void
 }
@@ -41,6 +46,15 @@ export const nodeFileSystem: FileSystemPort = {
     }
   },
   writeText: (path, text) => writeFileSync(path, text, 'utf8'),
+  readBytes: (path) => {
+    try {
+      return readFileSync(path)
+    } catch {
+      return null
+    }
+  },
+  writeBytes: (path, bytes) => writeFileSync(path, bytes),
+  rename: (from, to) => renameSync(from, to),
   removeTree: (path) => rmSync(path, { recursive: true, force: true }),
   mkdirp: (path) => mkdirSync(path, { recursive: true }),
 }

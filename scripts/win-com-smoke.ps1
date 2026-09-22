@@ -17,8 +17,23 @@ $msoTrue = -1
 $msoFalse = 0
 $results = @()
 $app = $null
+# Stale POWERPNT processes (from a killed run) make COM activation fail with
+# CO_E_SERVER_EXEC_FAILURE or hang behind a recovery prompt, so clear them first
+# and retry once; both were observed on this machine while building M4.
+Get-Process POWERPNT -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+for ($attempt = 1; $attempt -le 3 -and $null -eq $app; $attempt++) {
+    try {
+        $app = New-Object -ComObject PowerPoint.Application
+    }
+    catch {
+        if ($attempt -eq 3) { $activationError = $_ }
+        else { Start-Sleep -Seconds 10 }
+    }
+}
+if ($null -eq $app) { $_ = $activationError }
 try {
-    $app = New-Object -ComObject PowerPoint.Application
+    if ($null -eq $app) { throw $_ }
 }
 catch {
     $message = "cannot start PowerPoint COM: $($_.Exception.Message)"

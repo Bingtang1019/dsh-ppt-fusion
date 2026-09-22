@@ -66,6 +66,8 @@ export function spawnFailed(code = 'ENOENT', message = 'spawn ENOENT'): Partial<
 /** An in-memory filesystem for tests; paths are compared as written. */
 export interface FakeFileSystem extends FileSystemPort {
   readonly files: Map<string, string>
+  /** Binary artifacts, kept apart from the text map so neither corrupts the other. */
+  readonly byteFiles: Map<string, Buffer>
   readonly directories: Set<string>
 }
 
@@ -81,6 +83,7 @@ const normalize = (path: string): string => path.split('/').join(sep)
  */
 export function createFakeFileSystem(options: { files?: Record<string, string>; directories?: readonly string[] } = {}): FakeFileSystem {
   const files = new Map<string, string>()
+  const byteFiles = new Map<string, Buffer>()
   const directories = new Set<string>()
   const addParents = (path: string): void => {
     let current = dirname(path)
@@ -97,13 +100,14 @@ export function createFakeFileSystem(options: { files?: Record<string, string>; 
   for (const path of options.directories ?? []) directories.add(normalize(path))
   return {
     files,
+    byteFiles,
     directories,
-    exists: (path) => files.has(normalize(path)) || directories.has(normalize(path)),
+    exists: (path) => files.has(normalize(path)) || byteFiles.has(normalize(path)) || directories.has(normalize(path)),
     isDirectory: (path) => directories.has(normalize(path)),
     listDir: (path) => {
       const prefix = `${normalize(path)}${sep}`
       const names = new Set<string>()
-      for (const key of [...files.keys(), ...directories]) {
+      for (const key of [...files.keys(), ...byteFiles.keys(), ...directories]) {
         if (!key.startsWith(prefix)) continue
         const rest = key.slice(prefix.length)
         if (rest === '' || rest.includes(sep)) continue
@@ -112,14 +116,33 @@ export function createFakeFileSystem(options: { files?: Record<string, string>; 
       return [...names]
     },
     readText: (path) => files.get(normalize(path)) ?? null,
+    readBytes: (path) => byteFiles.get(normalize(path)) ?? null,
+    writeBytes: (path, bytes) => {
+      const key = normalize(path)
+      byteFiles.set(key, bytes)
+      addParents(key)
+    },
     writeText: (path, text) => {
       const key = normalize(path)
       files.set(key, text)
       addParents(key)
     },
+    rename: (from, to) => {
+      const source = normalize(from)
+      const destination = normalize(to)
+      const content = files.get(source)
+      const bytes = byteFiles.get(source)
+      if (content === undefined && bytes === undefined) throw new Error(`rename: ${from} does not exist`)
+      files.delete(source)
+      byteFiles.delete(source)
+      if (content !== undefined) files.set(destination, content)
+      if (bytes !== undefined) byteFiles.set(destination, bytes)
+      addParents(destination)
+    },
     removeTree: (path) => {
       const prefix = `${normalize(path)}${sep}`
       for (const key of [...files.keys()]) if (key === normalize(path) || key.startsWith(prefix)) files.delete(key)
+      for (const key of [...byteFiles.keys()]) if (key === normalize(path) || key.startsWith(prefix)) byteFiles.delete(key)
       for (const key of [...directories]) if (key === normalize(path) || key.startsWith(prefix)) directories.delete(key)
     },
     mkdirp: (path) => {

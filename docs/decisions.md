@@ -504,3 +504,62 @@ edited to match reality.
   - **DSH terminal:** every command above ran from this session's shell, which is the
     M0.F conclusion applied in practice (pipes work, so the pipeline is an ordinary
     synchronous chain with file artefacts).
+
+## ADR-028 — Merge bridge: content-aware reuse, and three bugs only a real merge found
+
+- **Date:** 2026-09-22
+- **Decision:** `bridge/merge.ts` implements plan §3.5 as: replace the base slide in
+  place, import the deep page's non-layout closure (charts, workbooks, media, notes),
+  remap its layout relationship onto the base layout, and keep exactly one master. A
+  part is reused **only when its bytes are identical**; a name match with different
+  content is renamed and imported. `--allow-multi-master` remains the escape hatch and
+  registers imported masters in `presentation.xml.rels` and `p:sldMasterIdLst`.
+- **Evidence:** three defects surfaced from running the merge on real fixtures rather than
+  on hand-built ones:
+  1. the closure walk treated the deep slide itself as "already in base" because both decks
+     name slides `slide1.xml`, so a page's chart and workbook were never imported and the
+     slide pointed at parts that did not exist;
+  2. imported parts' relationships were rewritten only under `--allow-multi-master`, so a
+     plain merge left the chart pointing at its old workbook name;
+  3. reuse keyed on the *name* first, which silently replaced a deep page's chart with the
+     base deck's when the two shared a name — data loss that stayed invisible because
+     ppt-master names its parts `chart101.xml` while pptwise has no charts at all.
+  The audit also had to learn that `_rels/.rels` belongs to the package root, not to a
+  `_rels` directory.
+- **Verification:** the merged deck passes `scripts/opc-invariants.mjs` (47 parts, 5
+  slides, one master, no dangling relationships), the independent reader (5 slides, 1
+  chart, 1 table) and PowerPoint COM (`Saved=true`, bytes unchanged). `src/bridge/
+  {opc,merge}.test.ts` pin the four OPC cases the milestone names (missing part, `..`
+  normalization, External targets, duplicate rId) plus the merge rules, and the merge
+  output itself is byte-stable for identical inputs, which is tier T2.
+- **Alternatives rejected:** trusting the name match (bug 3); rewriting only the slide's
+  relationships and hoping imported parts needed none (bug 1/2); always renumbering
+  imported parts (throws away upstream naming for no benefit, and `freePartName` now keeps
+  a free name as-is).
+
+## ADR-029 — M4 progress: the merge core and render chain are done, the rest is listed
+
+- **Date:** 2026-09-22
+- **Decision:** M4 is being landed in two parts. **Landed here:** `bridge/opc.ts`,
+  `bridge/merge.ts`, the `render` chain (`renderDeck`: pptwise `--draft` → deep render →
+  merge → structural gates → delivery check → atomic publish with `out/manifest.json`),
+  failure injection behaviour, and the bridge test suites. **Still open in M4:**
+  1. the animation/transition application-point spike (v3 M4.3, ≤2 pd, "must not slip to
+     M5") — `render` currently refuses a manifest whose `post.animations` is set rather
+     than publishing a deck that ignores the request;
+  2. `bridge/compat.ts` v1 (scan/transform/stamp/lint) with `--compat safe|standard|max`
+     and the compat-report hash in `out/manifest.json` (v3 M4.9–11);
+  3. golden v1 (`fixtures/hello/` five pages including one with animation, plus
+     `golden-manifest.json`) and the semantic-determinism canonicaliser of §7.2;
+  4. merge discipline tests for `mc:AlternateContent` migration and `p14:creationId`
+     de-duplication (v3 M4.10) — both need the animation pass to exist first.
+- **Evidence for what landed:** `dsh-ppt render tmp/m3-deep` published a 3-slide deck
+  (1 standard page + 2 deep pages: native chart and native table) whose audit is clean,
+  which PowerPoint opens with `Saved=true` and one master, and which the independent
+  reader reads as 3 slides / 1 chart / 1 table. Breaking a deep page makes the same
+  command exit 1 with **no** `out/` file and three staged diagnostics under
+  `.dsh-ppt/render/`. Two renders of the same deck differ bytewise (the engines stamp
+  their own times), which is why T3 is not a gate; the merge step alone is stable.
+- **Alternatives rejected:** publishing without the compat pass while accepting `--compat`
+  flags (the flag would lie); leaving `post.animations` silently unapplied (a deck that
+  promises animation and delivers none is worse than a refusal).

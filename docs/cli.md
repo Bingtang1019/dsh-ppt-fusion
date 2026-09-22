@@ -142,6 +142,21 @@ The deck must already pass `validate` and have tokens in sync. `--page` renders 
 because the engine only writes inside the workspace. Output paths are printed with the
 exporter's report and its `[POSTFLIGHT]` receipt.
 
+## Implemented (M4, part 1)
+
+### `dsh-ppt render <dir> [-o <out>]`
+
+Renders the whole deck in one pass: pptwise `render --draft` for the standard pages (deep
+pages are placeholders in the IR) → `deep render` for the deep pages → slide-level merge
+with layout remap and the single-master invariant → OPC and delivery gates → atomic
+publish to `out/<name>.pptx` plus `out/manifest.json` (sha256, slide count, exporter
+receipts, merge report, staged artifacts).
+
+Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
+leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.
+A manifest that asks for `post.animations` is refused until the post stage lands, rather
+than publishing a deck that silently ignores the request.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
@@ -150,7 +165,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
 | `deep check|chart|template create|template apply|native roundtrip`, `source`, `images search` | M3/M5 |
-| `render`, `audit`, `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4/M5 |
+| `audit`, `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 
 Options are registered with commander in `src/commands/*.ts`; a change to a documented
