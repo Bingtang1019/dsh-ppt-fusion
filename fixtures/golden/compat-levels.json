@@ -1,10 +1,10 @@
 {
-  "fixtureVersion": 4,
+  "fixtureVersion": 5,
   "registryVersion": 1,
   "levels": {
     "safe": {
       "counts": {
-        "occurrences": 5,
+        "occurrences": 7,
         "downgrades": 0,
         "stamps": 0,
         "errors": 0,
@@ -26,11 +26,25 @@
           "detail": "p14:dur=\"400\""
         },
         {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration1.mp3 (mp3)"
+        },
+        {
           "feature": "p14:dur",
           "part": "ppt/slides/slide3.xml",
           "slide": 3,
           "fallback": "not-required",
           "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration2.mp3 (mp3)"
         },
         {
           "feature": "p14:dur",
@@ -52,7 +66,7 @@
     },
     "standard": {
       "counts": {
-        "occurrences": 5,
+        "occurrences": 7,
         "downgrades": 0,
         "stamps": 0,
         "errors": 0,
@@ -74,11 +88,25 @@
           "detail": "p14:dur=\"400\""
         },
         {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration1.mp3 (mp3)"
+        },
+        {
           "feature": "p14:dur",
           "part": "ppt/slides/slide3.xml",
           "slide": 3,
           "fallback": "not-required",
           "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration2.mp3 (mp3)"
         },
         {
           "feature": "p14:dur",
@@ -100,7 +128,7 @@
     },
     "max": {
       "counts": {
-        "occurrences": 5,
+        "occurrences": 7,
         "downgrades": 0,
         "stamps": 0,
         "errors": 0,
@@ -122,11 +150,25 @@
           "detail": "p14:dur=\"400\""
         },
         {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration1.mp3 (mp3)"
+        },
+        {
           "feature": "p14:dur",
           "part": "ppt/slides/slide3.xml",
           "slide": 3,
           "fallback": "not-required",
           "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "audio-mp3",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "media container ppt/media/narration2.mp3 (mp3)"
         },
         {
           "feature": "p14:dur",

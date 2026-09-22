@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DshPptFailure } from './errors.ts'
 import type { MasterEngine } from './master.ts'
 import type { FileSystemPort } from './venv.ts'
@@ -39,6 +39,8 @@ export interface DeepRenderResult {
   readonly postflight: PostflightReceipt
   /** Pages that went out, in order. */
   readonly pages: readonly number[]
+  /** Recorded narration the exporter embedded, when `<deck>/narration/` had audio. */
+  readonly narration?: { readonly audio: readonly string[]; readonly dir: string }
 }
 
 /** The exporter's one-line receipt, which M4 records in `out/manifest.json`. */
@@ -232,7 +234,7 @@ export function createDeepRenderer(options: {
   /** Base directory for temporary master projects; kept inside the workspace. */
   const projectsRoot = join(master.workspace, '.dsh-ppt', 'deep')
 
-  const prepare = (pages: readonly DeepPage[]): { projectDir: string; svgTexts: string[]; svgDir: string } => {
+  const prepare = (pages: readonly DeepPage[]): { projectDir: string; svgTexts: string[]; svgDir: string; narrationAudio: string[] } => {
     if (pages.length === 0) {
       throw new DshPptFailure('ContractViolation', 'no deep page was given to render', { detail: { format } })
     }
@@ -266,7 +268,31 @@ export function createDeepRenderer(options: {
       join(created.projectDir, 'spec_lock.md'),
       deriveSpecLock({ pages: ordered, svgTexts, format, tokens: options.tokens }),
     )
-    return { projectDir: created.projectDir, svgTexts, svgDir }
+    // Authored narration: `notes.md` beside a page's SVG becomes that page's speaker
+    // notes, and every audio file under `<deck>/narration/` is copied into the project
+    // so the exporter can embed it (it matches audio by SVG stem).
+    const notesDir = join(created.projectDir, 'notes')
+    for (const page of ordered) {
+      const notes = fs.readText(join(dirname(page.svgPath), 'notes.md'))
+      if (notes === null) continue
+      fs.mkdirp(notesDir)
+      // The exporter and notes-to-audio both key notes by the SVG *stem*.
+      fs.writeText(join(notesDir, `${rosterName(page).replace(/\.svg$/i, '')}.md`), notes)
+    }
+    const deckNarration = join(options.master.workspace, 'narration')
+    const projectNarration = join(created.projectDir, 'narration')
+    const narrationAudio: string[] = []
+    if (fs.isDirectory(deckNarration)) {
+      for (const name of fs.listDir(deckNarration).sort()) {
+        if (!/\.(mp3|wav|m4a)$/i.test(name)) continue
+        const bytes = fs.readBytes(join(deckNarration, name))
+        if (bytes === null) continue
+        fs.mkdirp(projectNarration)
+        fs.writeBytes(join(projectNarration, name), bytes)
+        narrationAudio.push(name)
+      }
+    }
+    return { projectDir: created.projectDir, svgTexts, svgDir, narrationAudio }
   }
 
   return {
@@ -285,11 +311,18 @@ export function createDeepRenderer(options: {
      */
     render(params: { pages: readonly DeepPage[]; outputFile: string }): DeepRenderResult {
       const ordered = [...params.pages].sort((left, right) => left.index - right.index)
-      const { projectDir, svgDir } = prepare(ordered)
+      const { projectDir, svgDir, narrationAudio } = prepare(ordered)
 
       master.stampFallbacks({ target: svgDir, write: true })
       master.qualityCheck({ target: projectDir, stage: 'final', quickGenerate: true, canonicalAuthoring: true })
-      const exported = master.renderDeep({ projectDir, outputFile: params.outputFile, format, withNotes: true })
+      const exported = master.renderDeep({
+        projectDir,
+        outputFile: params.outputFile,
+        format,
+        withNotes: true,
+        // The engine resolves --recorded-narration against the project directory.
+        ...(narrationAudio.length === 0 ? {} : { recordedNarration: 'narration', useNarrationTimings: true }),
+      })
 
       const postflight = parsePostflight(exported.result.stdout)
       if (postflight === null) {
@@ -307,6 +340,7 @@ export function createDeepRenderer(options: {
         reportPath,
         postflight,
         pages: ordered.map((page) => page.index),
+        ...(narrationAudio.length === 0 ? {} : { narration: { audio: narrationAudio, dir: join(projectDir, 'narration') } }),
       }
     },
   }

@@ -1,0 +1,39 @@
+1
+00:00:00,100 --> 00:00:01,275
+The table compares what
+
+2
+00:00:01,275 --> 00:00:03,112
+each engine owns.
+
+3
+00:00:03,112 --> 00:00:03,838
+pptwise handles
+
+4
+00:00:03,838 --> 00:00:05,050
+bullets and cards,
+
+5
+00:00:05,050 --> 00:00:06,125
+while ppt-master
+
+6
+00:00:06,125 --> 00:00:07,200
+handles charts,
+
+7
+00:00:07,200 --> 00:00:09,425
+tables and formulas.
+
+8
+00:00:09,425 --> 00:00:10,412
+Only the deep engine
+
+9
+00:00:10,412 --> 00:00:11,638
+output stays editable
+
+10
+00:00:11,638 --> 00:00:12,825
+as native objects.

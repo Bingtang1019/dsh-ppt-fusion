@@ -345,6 +345,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .addOption(new Option('--orientation <orientation>', 'picture orientation').choices([...IMAGE_ORIENTATIONS]).default('any'))
     .option('--filename <name>', 'filename to save under')
     .option('--min-width <n>', 'minimum width in pixels', (value: string) => Number.parseInt(value, 10))
+    .option('--min-height <n>', 'minimum height in pixels', (value: string) => Number.parseInt(value, 10))
     .option('--strict-no-attribution', 'refuse licence terms that require attribution')
     .option('-o, --output <dir>', 'download directory (default assets)')
     .option('--manifest <file>', 'attribution manifest path')
@@ -362,6 +363,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.orientation === undefined ? {} : { orientation: options.orientation as (typeof IMAGE_ORIENTATIONS)[number] }),
         ...(options.filename === undefined ? {} : { filename: String(options.filename) }),
         ...(options.minWidth === undefined ? {} : { minWidth: Number(options.minWidth) }),
+        ...(options.minHeight === undefined ? {} : { minHeight: Number(options.minHeight) }),
         ...(options.strictNoAttribution === true ? { strictNoAttribution: true } : {}),
         ...(options.output === undefined ? {} : { output: String(options.output) }),
         ...(options.manifest === undefined ? {} : { manifest: String(options.manifest) }),

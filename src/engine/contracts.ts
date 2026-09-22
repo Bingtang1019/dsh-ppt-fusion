@@ -63,6 +63,10 @@ export interface SvgToPptxParams {
   readonly nativeObjects?: boolean
   readonly withNotes?: boolean
   readonly sourceDir?: string
+  /** Directory of per-slide narration audio to embed (`--recorded-narration`). */
+  readonly recordedNarration?: string
+  /** Let the embedded audio drive slide auto-advance timings. */
+  readonly useNarrationTimings?: boolean
 }
 
 /** Parameters for `ppt-master svg-quality-check`. */
@@ -181,6 +185,8 @@ export function svgToPptx(params: SvgToPptxParams): EngineInvocation {
   if (params.quickGenerate !== false) argv.push('--quick-generate')
   if (params.nativeObjects !== false) argv.push('--native-charts-and-tables')
   if (params.withNotes !== false) argv.push('--with-notes')
+  if (params.recordedNarration !== undefined) argv.push('--recorded-narration', params.recordedNarration)
+  if (params.useNarrationTimings === true) argv.push('--use-narration-timings')
   const stem = params.outputFile.replace(/^.*\//, '').replace(/\.pptx$/i, '')
   const projectRoot = params.projectDir.replace(/[\\/]+$/, '')
   return {
@@ -425,6 +431,7 @@ export interface ImageSearchParams {
   /** Refuse results that require attribution (CC BY / CC BY-SA). */
   readonly strictNoAttribution?: boolean
   readonly minWidth?: number
+  readonly minHeight?: number
   /** Directory the download lands in, workspace-relative. */
   readonly output?: string
   /** Attribution manifest the engine appends to, workspace-relative. */
@@ -456,6 +463,7 @@ export function imageSearch(params: ImageSearchParams): EngineInvocation {
   if (params.filename !== undefined) argv.push('--filename', params.filename)
   if (params.strictNoAttribution === true) argv.push('--strict-no-attribution')
   if (params.minWidth !== undefined) argv.push('--min-width', String(params.minWidth))
+  if (params.minHeight !== undefined) argv.push('--min-height', String(params.minHeight))
   if (params.output !== undefined) argv.push('-o', params.output)
   if (params.manifest !== undefined) argv.push('--manifest', params.manifest)
   if (params.saveCandidates === true) argv.push('--save-candidates')

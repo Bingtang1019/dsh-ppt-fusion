@@ -53,6 +53,7 @@ the ADR wins.**
 | 040 | Image search records provenance and refuses unattributed images |
 | 041 | T2 fix: pin every zip entry date, folders included |
 | 042 | Motion breadth (emphasis/paths) and narration: COM-verified wrapper, two TTS blockers |
+| 043 | Narration lands: notes roster, embedded audio, and the merge bugs it found |
 
 ---
 
@@ -1112,3 +1113,50 @@ the ADR wins.**
   pptwise output and is unnecessary); generating placeholder notes text in `narrate` (narration
   text is model work, and a stub would make the golden a lie); requiring an explicit `--voice`
   (the engine already has a curated default per language, and the deck knows its script).
+
+## ADR-043 — Narration lands: notes roster, embedded audio, and the merge bugs it found
+
+- **Date:** 2026-09-22
+- **Decision:** narration is a first-class M5 output: a deep page may carry `notes.md` beside
+  its SVG, `<deck>/narration/*.mp3` are embedded by the deep export
+  (`--recorded-narration narration --use-narration-timings`), and the golden moved to
+  `fixtureVersion: 5` with speaker notes, two narration audio parts and auto-advance timings.
+- **Network.** The user accelerator (SteamTools, PAC at `127.0.0.1:26561`) intercepts TLS with
+  its own root. The runner now inherits the standard proxy and CA bundle variables
+  (`http_proxy`/`https_proxy`/`all_proxy`/`no_proxy`, `requests_ca_bundle`, `curl_ca_bundle`,
+  `ssl_cert_file`, `node_extra_ca_certs`) when the user sets them; the fusion never sets them.
+  On this machine a bundle of certifi plus the accelerator roots lives at
+  `~/.dsh/ppt-fusion/certs/ca-bundle.pem` (logged in `~/.dsh/CHANGELOG-dsh.md`).
+- **ffprobe is required, exactly as the engine requires it.** `--use-narration-timings` reads
+  each audio duration with `ffprobe -show_entries format=duration -of json`, with no fallback;
+  the golden gate therefore installs ffmpeg on both CI legs (apt on Linux, choco on Windows).
+  This machine has no ffmpeg, so a machine-local shim
+  (`~/.dsh/ppt-fusion/bin/ffprobe.exe` → an imageio-ffmpeg static build) provides it; that is a
+  local workaround, not part of the repository.
+- **What the narration golden found.** Four real gaps, all fixed and covered by tests:
+  (1) the deep project already needed a notes roster and the exporter reads it by SVG *stem*, so
+  `deep-render` writes `notes/<roster-stem>.md`; (2) the merge closure never registered the
+  replaced slide in its mapping, so a notes slide back-reference imported a second copy of the
+  slide (the package then held 7 slides against a 5-entry `p:sldIdLst`); (3) imported media
+  relied on a hardcoded content-type list, so `narration2.mp3` had no content type — imported
+  parts now inherit the source package declaration; (4) notes masters carry their own theme,
+  which the closure used to drop, leaving a dangling relationship — themes referenced from a
+  notes master are imported now.
+- **Measured.** Real edge-tts audio through the proxy: 93600 B and 82224 B MP3s with SRTs; the
+  recorded merged deck is 196845 B with 61 parts, 5 slides, 1 master, 7 notes slides, 3 notes
+  masters, 3 themes, the native chart and both audio parts. `fixtures:verify` reports canonical
+  equality for all three artifacts plus equal compat snapshots; PowerPoint COM opens the golden
+  with 5 slides and no repair; `opc-invariants` passes with `masters=1`.
+- **Also verified with the accelerator on.** `source https://www.bing.com/` produced a real
+  2569-byte Markdown; `images search --from-url <pexels CDN jpeg>` downloaded a 5306x3770 image
+  and recorded `image_sources.json` with `provider: manual`, `license: unverified — direct URL`
+  and no attribution requirement. **Still blocked:** the no-key providers openverse and
+  wikimedia return 502 through this accelerator (it tunnels bing/pixabay/pexels hosts but not
+  those), and pexels/pixabay search needs an API key. Adding those domains to the accelerator
+  or supplying a free Pexels key completes the last acceptance row without code changes.
+- **Alternatives rejected:** keeping narration out of the golden until a networked CI existed
+  (the machine can do it now, and the golden is the evidence); setting proxy/CA variables inside
+  the repository (deployment facts belong to the user environment); hardcoding audio content
+  types in the merge (the source package already declares them); dropping the notes master theme
+  (leaves a dangling relationship PowerPoint would repair); scaffolding the engine animation
+  config to satisfy `narrate --sync` (the fusion owns motion in `post/animations.json`, ADR-032).

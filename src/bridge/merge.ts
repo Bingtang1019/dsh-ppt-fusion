@@ -87,13 +87,23 @@ export async function mergeDeep(options: {
 
   const importClosure = (rootPart: string): Map<string, string> => {
     const mapping = new Map<string, string>()
+    const visited = new Set<string>()
     // The root slide is replaced, never imported: both decks name slides
     // `slideN.xml`, so a name-based "already in base" test on the root would stop
-    // the walk before it reached the page's charts and media.
-    const visit = (sourcePart: string, isRoot: boolean): void => {
-      if (mapping.has(sourcePart)) return
-      if (!isRoot) {
-        if (!multiMaster && CLOSURE_SKIP.some((prefix) => sourcePart.startsWith(prefix))) {
+    // the walk before it reached the page's charts and media. It still gets a
+    // placeholder entry so a back-reference (a notes slide points at its slide)
+    // does not walk the root again and import a second copy of it.
+    const visit = (sourcePart: string, isRoot: boolean, referrer: string | null = null): void => {
+      if (visited.has(sourcePart)) return
+      visited.add(sourcePart)
+      if (isRoot) {
+        mapping.set(sourcePart, sourcePart)
+      } else {
+        // A notes master carries its own theme; dropping that theme would leave the
+        // imported notes master with a dangling relationship (PowerPoint decks with
+        // notes routinely ship a second theme for exactly this reason).
+        const fromNotesMaster = referrer !== null && referrer.startsWith('ppt/notesMasters/')
+        if (!multiMaster && !fromNotesMaster && CLOSURE_SKIP.some((prefix) => sourcePart.startsWith(prefix))) {
           dropped.push(sourcePart)
           return
         }
@@ -117,7 +127,7 @@ export async function mergeDeep(options: {
       if (!deep.hasRelationships(sourcePart)) return
       for (const rel of deep.relationshipsOf(sourcePart)) {
         if (rel.targetMode === 'External') continue
-        visit(resolveTarget(sourcePart, rel.target), false)
+        visit(resolveTarget(sourcePart, rel.target), false, sourcePart)
       }
     }
     visit(rootPart, true)
@@ -147,6 +157,9 @@ export async function mergeDeep(options: {
     }
 
     const mapping = importClosure(deepPart)
+    // The replaced slide answers to the base part name from now on, so every
+    // relationship that points back at the deep slide is rewritten onto it.
+    mapping.set(deepPart, basePart)
     const baseLayout = base
       .relationshipsOf(basePart)
       .find((rel) => rel.type === REL.slideLayout)
@@ -180,6 +193,9 @@ export async function mergeDeep(options: {
     // embedded workbook, a notes slide at its master, media at nothing. Rewrite
     // them onto the names this package uses, whatever the mode.
     for (const [sourcePart, mappedPart] of mapping) {
+      // The replaced slide's relationships were authored above; only its dependencies
+      // are rewritten here.
+      if (sourcePart === deepPart) continue
       if (base.has(sourcePart) && sourcePart === mappedPart) continue
       if (!deep.hasRelationships(sourcePart)) continue
       merged.setRelationships(mappedPart, rewriteRels(sourcePart, mappedPart, mapping))
@@ -197,8 +213,9 @@ export async function mergeDeep(options: {
   }
 
   for (const [sourcePart, targetPart] of Object.entries(imported)) {
-    void sourcePart
-    merged.ensureContentType(targetPart, contentTypeFor(targetPart))
+    // Prefer the source package's own declaration: narration brings media types
+    // (`audio/mpeg`) this bridge has no reason to hardcode.
+    merged.ensureContentType(targetPart, deep.contentTypeOf(sourcePart) ?? contentTypeFor(targetPart))
   }
 
   return {

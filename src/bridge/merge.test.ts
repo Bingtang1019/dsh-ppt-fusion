@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
-import { OpcPackage, auditPackage, listSlides } from './opc.ts'
+import { OpcPackage, auditPackage, listSlides, resolveTarget } from './opc.ts'
 import { mergeDeep } from './merge.ts'
 import { findAlternateContents } from './compat.ts'
 import { DshPptFailure } from '../engine/errors.ts'
@@ -252,6 +252,51 @@ describe('merge compatibility discipline', () => {
     // A second merge of the same inputs produces the same numbering.
     const again = await mergeDeep({ base, deep, routes: [{ index: 1, deepSlide: 1 }] })
     expect(again.merged.text('ppt/slides/slide2.xml')).toBe(merged.text('ppt/slides/slide2.xml'))
+    expect(auditPackage(merged, { requireSingleMaster: true })).toEqual([])
+  })
+})
+
+describe('notes closure discipline', () => {
+  const NOTES_SLIDE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide'
+  const NOTES_MASTER = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster'
+  const SLIDE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+  const THEME_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+
+  it('imports a notes closure without duplicating the replaced slide, and keeps its theme', async () => {
+    const base = deckWithChart()
+    const deep = deckWithChart()
+    deep.setRelationships('ppt/slides/slide1.xml', [
+      { id: 'rId1', type: LAYOUT, target: '../slideLayouts/slideLayout1.xml' },
+      { id: 'rId2', type: NOTES_SLIDE, target: '../notesSlides/notesSlide1.xml' },
+    ])
+    deep.setPart('ppt/notesSlides/notesSlide1.xml', '<p:notes/>')
+    deep.setRelationships('ppt/notesSlides/notesSlide1.xml', [
+      // A notes slide points back at its slide: the closure must resolve that to the
+      // replaced base slide instead of importing a second copy of it.
+      { id: 'rId1', type: SLIDE_REL, target: '../slides/slide1.xml' },
+      { id: 'rId2', type: NOTES_MASTER, target: '../notesMasters/notesMaster1.xml' },
+    ])
+    deep.setPart('ppt/notesMasters/notesMaster1.xml', '<p:notesMaster/>')
+    deep.setRelationships('ppt/notesMasters/notesMaster1.xml', [
+      { id: 'rId1', type: THEME_REL, target: '../theme/theme2.xml' },
+    ])
+    deep.setPart('ppt/theme/theme2.xml', '<a:theme name="notes"/>')
+    for (const name of ['ppt/notesSlides/notesSlide1.xml', 'ppt/notesMasters/notesMaster1.xml', 'ppt/theme/theme2.xml']) {
+      deep.ensureContentType(name, 'application/xml')
+    }
+
+    const { merged, report } = await mergeDeep({ base, deep, routes: [{ index: 1, deepSlide: 1 }] })
+    expect(merged.names().filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))).toHaveLength(1)
+    const notesPart = report.imported['ppt/notesSlides/notesSlide1.xml']
+    expect(notesPart).toBeDefined()
+    const back = merged.relationshipsOf(notesPart ?? '').find((rel) => rel.type === SLIDE_REL)
+    expect(back?.target).toBe('../slides/slide1.xml')
+    const masterPart = report.imported['ppt/notesMasters/notesMaster1.xml']
+    expect(masterPart).toBeDefined()
+    const themeRel = merged.relationshipsOf(masterPart ?? '').find((rel) => rel.type === THEME_REL)
+    expect(themeRel).toBeDefined()
+    const themePart = themeRel === undefined ? '' : resolveTarget(masterPart ?? '', themeRel.target)
+    expect(merged.has(themePart)).toBe(true)
     expect(auditPackage(merged, { requireSingleMaster: true })).toEqual([])
   })
 })

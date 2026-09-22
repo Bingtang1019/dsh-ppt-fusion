@@ -27,7 +27,7 @@ Paths: `MASTER` = `%DSH_HOME%\ppt-fusion\venvs\ppt-master-0.1.128\Scripts\ppt-ma
 | Subcommand | Flags the fusion uses | Output contract |
 |---|---|---|
 | `project init <name> [--format F] [--dir D]` | `--format {ppt169,ppt43,wechat,xiaohongshu,moments,story,banner,a4}` | creates `<D>\<name>_<format>_<YYYYMMDD>\` with `svg_output/`, `sources/`, `exports/`, `validation/`, … |
-| `svg-to-pptx <project> [flags]` | `--quick-generate`, `--native-charts-and-tables`, `--with-notes`, `-f`, `-o`, `-s`, `--pptx-structure {structured,flat,baseline,template,preserve,generated}`, `-t`, `-a`, `--animation-config`, `--animation-duration`, `--no-animations` | writes `-o` target (default `exports/…pptx`); always writes `validation/<stem>.report.json`; prints `[POSTFLIGHT] status=… quality_gate=… slides=N warning_categories=N` plus `[PPTX]`/`[REPORT]` lines |
+| `svg-to-pptx <project> [flags]` | `--quick-generate`, `--native-charts-and-tables`, `--with-notes`, `--recorded-narration <dir>`, `--use-narration-timings`, `-f`, `-o`, `-s`, `--pptx-structure {structured,flat,baseline,template,preserve,generated}`, `-t`, `-a`, `--animation-config`, `--animation-duration`, `--no-animations` | writes `-o` target (default `exports/…pptx`); always writes `validation/<stem>.report.json`; prints `[POSTFLIGHT] status=… quality_gate=… slides=N warning_categories=N` plus `[PPTX]`/`[REPORT]` lines |
 | `svg-quality-check <project\|dir\|file> [flags]` | `--stage {early,first-page,page,final}`, `--quick-generate`, `--canonical-authoring`, `--json`, `--roundtrip`, `--template-mode`, `--page` (required with `--stage page`) | writes `validation/svg_quality_report.json`; exit 0 = pass. `--json` output on stdout is **not** parseable (progress lines surround it) — read the file (ADR-009) |
 | `stamp-native-fallbacks <file\|dir> [--write]` | `--write` to persist | rewrites marker `data-pptx-fallback-sha256` in place; prints a `Native fallback baselines:` receipt with `SVG-first=N` |
 | `pptx-delivery-check <file.pptx>` | — | delivery-risk findings; exit 0 = pass |
@@ -369,6 +369,13 @@ recurse into `ppt/embeddings/*` (ADR-017).
   without the wrapper PowerPoint reported the effect with the right duration but **zero
   behaviours** (nothing would play); with it, COM reads spin as effect type 61 and the rightward
   path as 149, each with one behaviour (ADR-042).
+- **Narration.** A deep page may carry `notes.md` beside its SVG; the deep render copies it
+  into the project as `notes/<roster-stem>.md`, which is the roster the exporter embeds as
+  speaker notes (`--with-notes`) and `notes-to-audio` narrates. Audio files under
+  `<deck>/narration/` are copied into the project and passed to the exporter as
+  `--recorded-narration narration --use-narration-timings`, so the published deck carries the
+  audio (matched by SVG stem) plus auto-advance timings. The timings step reads durations with
+  **ffprobe**, so any machine or CI leg that renders narration needs ffmpeg (ADR-043).
 - **Recorded data.** `render` writes its post report into `out/manifest.json` (`post`), so a
   published deck records which shapes were animated. `dsh-ppt post animate` re-applies the
   configuration to a published package, re-runs the compat pass and refreshes

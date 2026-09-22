@@ -28,9 +28,12 @@ describe('compatLint', () => {
   it('accepts the real golden deck at the standard level', async () => {
     const result = await compatLint({ dir: REPO_ROOT, file: 'fixtures/golden/hello-merged.pptx', level: 'standard', strict: true, deps: defaultDependencies() })
     expect(result.ok).toBe(true)
-    expect(result.inspection.occurrences).toHaveLength(5)
-    expect(result.inspection.occurrences.every((occurrence) => occurrence.feature === 'p14:dur')).toBe(true)
-    expect(formatCompatLint(result)).toContain('ok (5 occurrence(s)')
+    const occurrences = result.inspection.occurrences
+    // One transition per slide, plus the two narration audio parts the M5 golden carries.
+    expect(occurrences.filter((occurrence) => occurrence.feature === 'p14:dur')).toHaveLength(5)
+    expect(occurrences.filter((occurrence) => occurrence.feature === 'audio-mp3')).toHaveLength(2)
+    expect(occurrences.every((occurrence) => occurrence.slide !== null)).toBe(true)
+    expect(formatCompatLint(result)).toContain('ok (7 occurrence(s)')
   })
 
   it('fails on warning-level findings only under --strict', async () => {

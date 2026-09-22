@@ -146,6 +146,7 @@ export function createMasterEngine(options: MasterEngineOptions) {
         projectDir: relative(params.projectDir, 'projectDir'),
         outputFile: relative(params.outputFile, 'outputFile'),
         ...(params.sourceDir === undefined ? {} : { sourceDir: relative(params.sourceDir, 'sourceDir') }),
+        ...(params.recordedNarration === undefined ? {} : { recordedNarration: relative(params.recordedNarration, 'recordedNarration') }),
       })
       return execute(invocation)
     },

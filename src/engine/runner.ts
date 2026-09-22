@@ -75,6 +75,17 @@ const INHERITED_ENV_KEYS: readonly string[] = [
   'lc_ctype',
   'tz',
   'term',
+  // Network appliances: a user proxy (and its CA bundle) is a deployment fact, not a
+  // credential, so the standard variables are inherited when the user sets them. The
+  // fusion never sets them itself (ADR-043).
+  'http_proxy',
+  'https_proxy',
+  'all_proxy',
+  'no_proxy',
+  'requests_ca_bundle',
+  'curl_ca_bundle',
+  'ssl_cert_file',
+  'node_extra_ca_certs',
   // CPU reporting (some Python wheels read it at import time)
   'number_of_processors',
   'processor_architecture',

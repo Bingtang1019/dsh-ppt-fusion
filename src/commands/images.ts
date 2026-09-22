@@ -27,6 +27,7 @@ export interface ImagesSearchOptions {
   readonly orientation?: ImageOrientation
   readonly filename?: string
   readonly minWidth?: number
+  readonly minHeight?: number
   readonly strictNoAttribution?: boolean
   /** Download directory, deck-relative; defaults to `assets`. */
   readonly output?: string
@@ -125,6 +126,7 @@ export async function imagesSearch(options: ImagesSearchOptions): Promise<Images
     ...(options.orientation === undefined ? {} : { orientation: options.orientation }),
     filename,
     ...(options.minWidth === undefined ? {} : { minWidth: options.minWidth }),
+    ...(options.minHeight === undefined ? {} : { minHeight: options.minHeight }),
     ...(options.strictNoAttribution === true ? { strictNoAttribution: true } : {}),
     ...(options.saveCandidates === true ? { saveCandidates: true } : {}),
     ...(options.maxCandidates === undefined ? {} : { maxCandidates: options.maxCandidates }),

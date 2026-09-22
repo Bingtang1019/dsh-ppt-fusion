@@ -246,3 +246,32 @@ describe('error classification (the five classes the milestone requires)', () =>
     expect(codeOf(() => projectInit({ name: 'deep', baseDir: '.dsh-ppt/deep', format: 'a4x' as never }))).toBe('ContractViolation')
   })
 })
+
+describe('authored notes and narration', () => {
+  it('copies notes.md and the deck narration into the project and embeds it', () => {
+    const fs = healthyFs()
+    const runner = pipelineRunner(fs)
+    const { renderer, pages } = build(fs, runner)
+    const page = pages[0]
+    if (page === undefined) throw new Error('the helper produced no page')
+    const stem = rosterName(page).replace(/\.svg$/, '')
+    fs.writeText(join(workspace, page.spec.dir, 'notes.md'), '# Notes\n\nNarration text.')
+    fs.writeBytes(join(workspace, 'narration', `${stem}.mp3`), Buffer.from([0x49, 0x44, 0x33, 0x04]))
+
+    const result = renderer.render({ pages, outputFile: join(workspace, 'out', 'deep-batch.pptx') })
+    expect(fs.readText(join(result.projectDir, 'notes', `${stem}.md`))).toContain('Narration text.')
+    expect(result.narration?.audio).toEqual([`${stem}.mp3`])
+    expect(fs.exists(join(result.projectDir, 'narration', `${stem}.mp3`))).toBe(true)
+    const argv = runner.callsWith('--recorded-narration')[0]?.args ?? []
+    expect(argv).toEqual(expect.arrayContaining(['--recorded-narration', 'narration', '--use-narration-timings']))
+  })
+
+  it('embeds no narration when the deck has none', () => {
+    const fs = healthyFs()
+    const runner = pipelineRunner(fs)
+    const { renderer, pages } = build(fs, runner)
+    const result = renderer.render({ pages, outputFile: join(workspace, 'out', 'deep-batch.pptx') })
+    expect(result.narration).toBeUndefined()
+    expect(runner.callsWith('--recorded-narration')).toHaveLength(0)
+  })
+})

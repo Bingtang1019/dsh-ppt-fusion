@@ -49,6 +49,16 @@ jobs:
       - name: Theme snapshot gate
         run: pnpm run themes:verify
 
+      # Narration embedding reads audio durations with ffprobe, exactly as the engine
+      # does, so the golden gate needs ffmpeg on both legs.
+      - name: Install ffmpeg (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+
       # Renders fixtures/hello through both engines plus the merge and compares the
       # result canonically (tier T1) against fixtures/golden. Needs the engine venv,
       # so it runs where `dsh-ppt doctor --repair` has already provisioned one.

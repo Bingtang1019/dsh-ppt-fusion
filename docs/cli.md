@@ -199,15 +199,19 @@ replaced atomically.
 
 ### `dsh-ppt narrate <dir> [--provider <p>] [--voice <v>] [--rate <r>] [--volume <v>] [--project <dir>] [-o <dir>] [--sync] [--list-voices]`
 
-Generates per-slide narration audio for the deck's newest deep project with
-`notes-to-audio` (provider default `edge`, no key needed) and, with `--sync`, derives
-`narration_animations.json` through `narration-sync animations`. The project must carry a
-per-slide notes roster (`notes/<exported-stem>.md`); the command refuses early when it does
-not, and it picks a default edge voice from the deck's script (Chinese or English). TTS itself
-needs network access to the provider; `--list-voices` is offline.
+Generates per-slide narration audio for the deck newest deep project with `notes-to-audio`
+(provider default `edge`, no key needed) and, with `--sync`, derives `narration_animations.json`
+through `narration-sync animations` (that mode also needs the engine's own `animations.json`,
+which the fusion does not use: its motion lives in `post/animations.json`). The roster is
+authored per page as `deep/<page>/notes.md`; `deep render` copies it into the project, where
+`notes-to-audio` reads it. The command refuses early when the roster is empty, and picks a
+default edge voice from the deck script (Chinese or English). `-o <dir>` writes the audio beside
+the deck (for example `narration/`); `deep render` then embeds every `narration/*.mp3` it finds
+automatically, matching audio to slides by SVG stem, and sets auto-advance timings. TTS needs
+network access to the provider; `--list-voices` is offline.
 
 
-### `dsh-ppt images search [query] [--dir <dir>] [--provider <p>] [--orientation <o>] [--filename <name>] [--min-width <n>] [--strict-no-attribution] [-o <dir>] [--manifest <file>] [--save-candidates] [--max-candidates <n>] [--from-url <url>] [--purpose <text>] [--slide <n>]`
+### `dsh-ppt images search [query] [--dir <dir>] [--provider <p>] [--orientation <o>] [--filename <name>] [--min-width <n>] [--min-height <n>] [--strict-no-attribution] [-o <dir>] [--manifest <file>] [--save-candidates] [--max-candidates <n>] [--from-url <url>] [--purpose <text>] [--slide <n>]`
 
 Searches the openly licensed providers the engine knows (openverse/wikimedia need no key),
 downloads one image into `assets/` and records it in `assets/image_sources.json` with its
