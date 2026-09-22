@@ -37,6 +37,7 @@
     "@liustack/pptwise": "0.35.0",
     "commander": "^13.1.0",
     "jszip": "3.10.1",
+    "sharp": "0.35.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
