@@ -368,3 +368,29 @@ recurse into `ppt/embeddings/*` (ADR-017).
 - **Inputs.** `fixtures/hello` commits authored inputs only (IR, manifest, two deep SVGs,
   `post/animations.json`); `theme.json`/`tokens.json`/`master-design.json` are derived by
   `theme ensure` in the scratch copy, so a theme-bridge regression fails this same gate.
+
+## 12. Unified audit gate (M4 part 2)
+
+`dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>]` is the
+eight-source gate plan §3.8 defines. It emits a `FusionAuditReport`: the `validate` findings
+(`{level, source, page?, rule, message}`) plus `strict`, `artifact`, `compatLevel`, `pixels`
+and `skipped`.
+
+- **Sources.** `manifest`/`ir`/`deep`/`theme`/`palette` (the `validate` pass, ADR-023);
+  `pptwise-validate` and `pptwise-audit` (the front end's own IR validation and geometry
+  audit, mapped from `{slide, severity, code, message}`); `svg-quality-check` (re-run on each
+  recorded `.dsh-ppt/deep/<project>`: `blocking` becomes an error,
+  `introduced`/`inherited`/`source-import` become warnings); `pptx` (OPC integrity plus the P1
+  single-master invariant); `pptx-delivery-check` (the engine's delivery gate on the
+  artifact); `compat-lint` (ADR-034 at the resolved level). `--pixels` adds the CIELAB
+  source-colour comparison of the deep SVGs (`palette-delta-e`, warning only: a 1 % coverage
+  floor and ΔE above 10).
+- **Artifact.** `--file`, else `out/manifest.json`'s `file`, else the single `*.pptx` under
+  `out/`. A missing artifact is an `artifact-missing` error and the package sources are named
+  in `skipped`, never silently passed.
+- **Strictness.** Errors always fail; `--strict` makes warnings fail too. A source that cannot
+  run appears in `skipped` with its reason; `prompt-audit` is skipped until the M6 SKILL
+  exists, because the engine command registry does not carry it.
+- **Evidence.** On the rendered golden deck the non-strict gate is green with 11 sources and
+  five advisories from the SVG quality gate; `--strict` is red on those advisories until the
+  fixture is compacted or the strict surface is scoped (ADR-035, M8).

@@ -45,6 +45,7 @@ the ADR wins.**
 | 032 | Animation owner: one post-merge pass in `bridge/post.ts` |
 | 033 | T1 canonicaliser, the golden v1 fixture, and `fixtures:verify` |
 | 034 | The compat pass v1: registered downgrades, the sharp PNG stamp, and refusals |
+| 035 | The unified audit gate: eight sources, an honest skip list, a warning-only ΔE |
 
 ---
 
@@ -798,3 +799,44 @@ the ADR wins.**
   judge the wrong package); writing the pre-compat package to the staged `merged.pptx` (the
   staged artifact must be the published bytes); leaving `sharp` a transitive dependency (a user
   install could lose the binary the stamp needs).
+
+## ADR-035 — The unified audit gate: eight sources, an honest skip list, and a warning-only ΔE
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>]
+  [--compat <level>]` implements plan §3.8 as one command: the `validate` pass, pptwise IR
+  validation, pptwise geometry audit, the deep SVGs quality gate, the package OPC/P1 audit, the
+  engine delivery gate, the compat lint and the optional pixel comparison. `--strict` makes
+  warnings fail as well as errors; `--json` prints the whole report.
+- **Artifact rules.** `--file`, else `out/manifest.json` `file`, else the single pptx under
+  `out/`. A missing artifact is an `artifact-missing` error, and the three sources that need
+  it are named in `skipped`. A delivery gate that passes without a package would be worthless,
+  so this is deliberately not a skip.
+- **Source mapping.** pptwise findings map `severity: error` to errors and everything else to
+  warnings, with `page ?? slide` and `code` preserved as the rule id. The SVG quality report
+  maps `blocking` to errors and `introduced`/`inherited`/`source-import` to warnings. Engine
+  calls that throw become errors with their stable failure code in the message.
+- **`--pixels` is the source-colour ΔE check, warning only.** `sharp` rasterises each deep SVG
+  (longest side 256 px), colours below 1 % of the opaque pixels are dropped, and every survivor
+  is compared with the palette in CIELAB (CIE76). Above ΔE 10 the page gets a
+  `palette-delta-e` warning. It is opt-in because anti-aliasing and gradients invent colours,
+  and warning-only because it samples the authored SVG, not the rendered slide. Measured
+  anchors: ΔE black/white ≈ 100, `#FF0000`/`#EE0000` = 6.4.
+- **Why source colours and not the merged package.** Rasterising the merged DrawingML package
+  needs a renderer this machine does not have (no LibreOffice, no PDF path; Office COM export
+  is Windows-only and slow). M8 owns the renderer-based ΔE matrix over the merged package; this
+  row covers the authored deep pages today and is recorded as the narrower check.
+- **`prompt-audit` stays skipped.** The engine command registry does not carry `prompt-audit`
+  and the SKILL it would budget does not exist before M6; an unregistered engine command is not
+  callable (§3.9), so the gate names the skip instead of inventing a budget.
+- **Evidence.** On the rendered golden deck the non-strict gate is green: 11 sources, 0 errors,
+  5 warnings (all `svg-quality-introduced` advisories from the two fixture SVGs),
+  `artifact=out/hello.pptx`, `compat=standard`. `--strict` is red on exactly those advisories,
+  which the upstream gate itself calls non-blocking; the fixture keeps the explicit authoring
+  form plan §3.4 allows. Where M8 puts the strict CI line (compact the fixture with the upstream
+  legacy migration script, or scope strictness) is left to that milestone with this evidence.
+- **Alternatives rejected:** parsing the engine quality verdict from stdout instead of the
+  recorded report (ADR-009); treating a missing artifact as a skip (the gate would pass on an
+  unrendered deck); promoting the advisory quality categories to errors (the engine maps them
+  as non-blocking, and the plan maps the gate, not its advisories, to errors); rasterising the
+  merged package for ΔE (no renderer here; COM would make the gate Windows-only and slow).

@@ -10,6 +10,7 @@ import { tokensExport } from './commands/tokens.ts'
 import { deepRender } from './commands/deep.ts'
 import { renderDeck } from './commands/render.ts'
 import { compatLint, compatLintDocument, formatCompatLint } from './commands/compat.ts'
+import { auditDeck } from './commands/audit.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
@@ -121,6 +122,43 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         if (report.findings.length === 0) process.stdout.write(`OK ${String(report.sources.length)} gates: ${report.sources.join(', ')}\n`)
         else process.stdout.write(`${formatFindings(report.findings)}\n`)
         process.stdout.write(report.ok ? 'validate: ok\n' : 'validate: failed\n')
+      }
+      process.exitCode = report.ok ? 0 : 1
+    })
+
+  program
+    .command('audit')
+    .description('run the unified audit gate: validate, pptwise, engine gates, package, compat, pixels')
+    .argument('<dir>', 'deck directory')
+    .option('--json', 'print the full report as JSON')
+    .option('--strict', 'fail on warnings as well as errors')
+    .option('--pixels', 'also sample the deep SVGs and compare their colours with the palette')
+    .option('--file <pptx>', 'audit this package instead of the last published render')
+    .addOption(new Option('--compat <level>', 'compatibility level for the package lint').choices([...COMPAT_LEVELS]))
+    .action(async (dir: string, options: { json?: boolean; strict?: boolean; pixels?: boolean; file?: string; compat?: string }) => {
+      const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
+      if (options.compat !== undefined && compat === null) {
+        throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
+      }
+      const report = await auditDeck({
+        dir,
+        strict: options.strict === true,
+        pixels: options.pixels === true,
+        deps,
+        ...(options.file === undefined ? {} : { file: options.file }),
+        ...(compat === null ? {} : { compat }),
+      })
+      if (options.json === true) {
+        printJson(report)
+      } else {
+        const errors = report.findings.filter((finding) => finding.level === 'error').length
+        process.stdout.write(
+          `audit ${report.ok ? 'ok' : 'failed'} (${String(report.sources.length)} source(s), ${String(errors)} error(s), ${String(report.findings.length - errors)} warning(s))` +
+            `${report.artifact === null ? '' : ` artifact=${report.artifact}`}${report.compatLevel === null ? '' : ` compat=${report.compatLevel}`}` +
+            '\n',
+        )
+        if (report.findings.length > 0) process.stdout.write(`${formatFindings(report.findings)}\n`)
+        for (const note of report.skipped) process.stdout.write(`skipped ${note}\n`)
       }
       process.exitCode = report.ok ? 0 : 1
     })

@@ -53,7 +53,7 @@ full/minimal checklist.
 | `src/engine/venv.ts` | venv lifecycle, uv resolution, lock-file install, repair | install anything on the DSH boot path |
 | `src/engine/master.ts` | the only spawn site for Python; timeouts, error classes, logs | accept an unregistered command or a path outside the workspace |
 | `src/engine/runner.ts` | the child-process primitive and the environment whitelist | inherit credentials by default |
-| `src/audit.ts` (M2/M4) | aggregating pptwise audit, OPC checks, engine checks into one report | swallow a failing gate |
+| `src/audit.ts` (M2/M4 ✅) | the unified report types and the palette pass behind `dsh-ppt audit`; the command aggregates eight sources (plan §3.8) | swallow a failing gate, or pass without a package |
 | `src/logging.ts` | per-run diagnostics under `<deck>/.dsh-ppt/logs/` | delete or rewrite deck data |
 
 ## Boundaries
@@ -136,7 +136,7 @@ src/engine/errors.ts       failure codes
 src/frontend.ts            pptwise CLI wrapper
 src/logging.ts             per-run diagnostics
 tests/support/             T1 canonicalize, golden record/verify, fake engines, theme snapshots
-src/audit.ts               multi-source audit aggregation (growing with M4/M5)
+src/audit.ts               unified audit report types + palette/ΔE findings (M4 ✓)
 python-assets/             requirements.in, requirements.lock, upstream SHA manifest
 scripts/                   gates: opc-invariants, win-com-smoke, M0 measurement tools
 fixtures/                  hello deck (golden input), deep project, golden packages + golden-manifest.json

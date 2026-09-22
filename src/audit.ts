@@ -17,12 +17,29 @@ export interface FusionFinding {
   readonly message: string
 }
 
-/** Aggregate report returned by `validate --json` and (from M4) `audit --json`. */
+/** Aggregate report returned by `validate --json` and `audit --json`. */
 export interface FusionReport {
   readonly ok: boolean
   readonly findings: readonly FusionFinding[]
   /** Gates that actually ran, in order. */
   readonly sources: readonly string[]
+}
+
+/**
+ * The unified audit gate report (plan §3.8): `validate`'s findings plus the package,
+ * engine, compat and pixel sources, and the reasons a source could not run.
+ */
+export interface FusionAuditReport extends FusionReport {
+  /** `--strict` makes warnings fail as well as errors. */
+  readonly strict: boolean
+  /** Workspace-relative path of the audited package, or null when none exists. */
+  readonly artifact: string | null
+  /** Compat level the package was linted at, or null when nothing was linted. */
+  readonly compatLevel: string | null
+  /** Whether the opt-in pixel (ΔE) check ran. */
+  readonly pixels: boolean
+  /** Sources that could not run, each with the reason. */
+  readonly skipped: readonly string[]
 }
 
 /** Hex literals that are legitimate in any palette: pure white and pure black. */

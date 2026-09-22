@@ -6,7 +6,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 - 本包：`@dsh-ppt/dsh-ppt-fusion`，MIT，Node >= 22.19，bin `dsh-ppt`
 - 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）；本仓库 `docs/decisions.md` 是裁决记录（ADR），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M3 已验收，M4 第 1 部分（OPC 层 + 合并桥 + render 链）已落地。** M4 第 2 部分进行中（动画施加点 ✅ ADR-032、T1 canonicalize + 黄金 v1 ✅ ADR-033、compat pass ✅ ADR-034、统一审计门待做）、M5–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
+> 状态：**M0–M3 已验收，M4 第 1 部分（OPC 层 + 合并桥 + render 链）已落地。** M4 第 2 部分接近完成（动画施加点 ✅ ADR-032、T1 canonicalize + 黄金 v1 ✅ ADR-033、compat pass ✅ ADR-034、统一审计门 ✅ ADR-035；剩余合并纪律测试、三档兼容黄金、黄金重录）、M5–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
 
 ---
 
@@ -50,6 +50,7 @@ deck/
 | `src/bridge/merge.ts` | slide 级合并：内容感知复用、layout remap、单一母版 | 解析 shape 语义 |
 | `src/bridge/post.ts`（M4 第 2 部分 ✅） | 合并后统一施加动画/切换/旁白 | 在合并前运行 |
 | `src/bridge/compat.ts`（M4 第 2 部分 ✅） | 兼容 pass：scan/transform/stamp/lint，对照 `src/compat/registry.json` | 注册表之外的隐式改写 |
+| `src/commands/audit.ts`（M4 第 2 部分 ✅） | 八源统一审计门：validate / pptwise / 引擎门 / OPC+P1 / compat / ΔE | 吞失败门、缺产物静默跳过 |
 | `src/engine/contracts.ts` | 引擎命令白名单 + 参数枚举 + 输出文件契约 | 放行未登记命令 |
 | `src/engine/venv.ts` | venv 生命周期、uv 解析、锁文件安装/修复 | 启动路径联网 |
 | `src/engine/master.ts` | 唯一 Python spawn 点；超时、错误分类、路径白名单 | 接受白名单外命令 |
@@ -64,11 +65,12 @@ deck/
 - **确定性三级**：T1 语义确定性 = 硬门（`tests/support/canonicalize.ts` 递归进 `ppt/embeddings/*`，`pnpm fixtures:verify` 在 CI 执行）；T2 本包字节稳定 = 目标（merge 步骤已达成）；T3 全链字节一致 = 非 v1 门（master 输出时间戳不稳定）。
 - **兼容性被声明、不靠假设**：`src/compat/registry.json` 登记每个版本敏感标记的最低 Office/WPS 支持与降级规则；`render --compat safe|standard|max` 覆盖 manifest 的 `compat` 字段，默认 `standard`（Office 2016+/WPS 2019+）；报告写 `out/compat-report.json`，哈希进 `out/manifest.json`（ADR-034）。
 - **失败分类**：每个错误是 `src/engine/errors.ts` 的封闭枚举，CLI 打印 `dsh-ppt: <code> <message>`。
+- **交付门**：`dsh-ppt audit` 聚合八源（validate、pptwise、引擎门、OPC+P1、delivery、compat、可选 ΔE）；缺产物是 error 并把跳过的源记入 `skipped`（ADR-035）。
 - **非目标不可达**：`image-gen`、`video-*`、`gemini-watermark-remove` 不在 contracts 白名单（ADR-013）。
 
 ## 已实现的命令
 
-`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · render [-o] [--compat <level>] · compat lint <file>`
+`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
 
 - `doctor` 八项：Node / uv / Python / engine venv / ppt-master / **png-renderer**（本机红=设计使然，B7 用 Node `sharp` 兜底）/ pptwise / PowerPoint COM / self-test。
 - `render` 的动画/切换由 `bridge/post.ts` 在合并后单一施加（ADR-032）；选择器匹配不到时是硬失败 `ContractViolation`，不静默忽略。

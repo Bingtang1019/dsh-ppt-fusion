@@ -82,8 +82,10 @@ export function resolvePptwiseCli(
 /** One audit finding, as pptwise emits it. */
 export interface AuditFinding {
   readonly page?: number
+  readonly slide?: number
   readonly slideId?: string
   readonly code?: string
+  readonly severity?: string
   readonly message?: string
   readonly detail?: unknown
 }

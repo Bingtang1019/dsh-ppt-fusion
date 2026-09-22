@@ -176,6 +176,15 @@ read-only half of the render chain's compatibility step, useful for re-checking 
 against another level. Errors always fail; `--strict` also fails on warnings. `--json`
 prints the occurrences and findings.
 
+### `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>]`
+
+Runs the unified audit gate (plan §3.8) over a workspace: the `validate` pass, pptwise's own IR
+validation and geometry audit, the deep SVGs' quality gate, the published package's OPC
+integrity plus the single-master invariant, the engine's delivery check, the compat lint, and
+optionally the CIELAB colour comparison of the deep SVGs (`--pixels`). Errors fail the
+command; `--strict` also fails on warnings. Without an artifact the command reports
+`artifact-missing` and names the package sources it skipped instead of passing silently.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
@@ -184,7 +193,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
 | `deep check|chart|template create|template apply|native roundtrip`, `source`, `images search` | M3/M5 |
-| `audit`, `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
+| `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 
 Options are registered with commander in `src/commands/*.ts`; a change to a documented
