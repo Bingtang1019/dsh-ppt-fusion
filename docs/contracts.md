@@ -241,10 +241,18 @@ the CLI at build time so it cannot go missing at install).
 - **Registry entries.** `{feature, namespace, marker (XPath), minOffice, wpsSupport,
   mceFallbackRequired, downgradeTo}`; `downgradeTo: null` means the feature is allowed
   everywhere the level permits it.
-- **Compat pass** (`bridge/compat.ts`, M4): scan → transform (only registered
-  downgrades; anything over-level without a rule is an error, never a silent edit) →
-  stamp (complete MCE fallback pairs and PNG+SVG dual format) → lint, producing
-  `compat-report.json` whose hash enters `out/manifest.json`.
+- **Compat pass** (`bridge/compat.ts`, ADR-034): scan → transform → stamp → lint, run
+  by `render` after post and before the structural gates. Implemented transforms are only
+  the registered ones: morph/advanced transitions fall back to fade (unwrapping the MCE
+  block when it has one), and `asvg:svgBlip` gets its PNG sibling through `sharp`. A
+  registered downgrade this build cannot build (`bar-chart`, `drop-narration`,
+  `linear-text`) is an error, never a silent edit, and an unknown version-sensitive
+  namespace is rejected.
+- **Level.** `render --compat safe|standard|max` > the manifest's `compat` field >
+  `standard`. `out/manifest.json` records the level, its source, the registry version and
+  the report hash; `out/compat-report.json` carries every occurrence, the applied changes
+  and the findings. `dsh-ppt compat lint <file> [--strict]` re-runs the read-only half on
+  any artifact and fails on errors (and on warnings under `--strict`).
 - **PNG rasterisation.** The Python stack cannot produce it on this machine (probe:
   cairosvg imports fail on a missing cairo runtime; svglib/reportlab fail the same way),
   so the `stamp` step uses the Node-side `sharp` (B7). `doctor` reports the Python-side

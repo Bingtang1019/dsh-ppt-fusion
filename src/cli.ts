@@ -9,7 +9,9 @@ import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './command
 import { tokensExport } from './commands/tokens.ts'
 import { deepRender } from './commands/deep.ts'
 import { renderDeck } from './commands/render.ts'
-import { formatFailure } from './engine/errors.ts'
+import { compatLint, compatLintDocument, formatCompatLint } from './commands/compat.ts'
+import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
+import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
@@ -220,14 +222,23 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .description('render the whole deck: standard pages, deep pages, merge, then publish')
     .argument('<dir>', 'deck directory')
     .option('-o, --out <file>', 'output pptx path, resolved against the deck')
-    .action(async (dir: string, options: { out?: string }) => {
+    .addOption(new Option('--compat <level>', 'compatibility target; overrides the manifest field').choices([...COMPAT_LEVELS]))
+    .action(async (dir: string, options: { out?: string; compat?: string }) => {
+      const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
+      if (options.compat !== undefined && compat === null) {
+        throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
+      }
       const result = await renderDeck({
         dir,
         deps,
         ...(options.out === undefined ? {} : { output: options.out }),
+        ...(compat === null ? {} : { compat }),
       })
       process.stdout.write(`wrote ${result.outputFile} (${String(result.slides)} slides, ${String(result.bytes)} bytes)\n`)
       process.stdout.write(`sha256 ${result.sha256}\n`)
+      process.stdout.write(
+        `compat ${result.compat.report.level}: ${String(result.compat.report.counts.occurrences)} occurrence(s), ${String(result.compat.report.counts.downgrades)} downgrade(s), ${String(result.compat.report.counts.stamps)} stamp(s), ${String(result.compat.report.counts.warnings)} warning(s)` + '\n',
+      )
       if (result.postflight.deep !== undefined) {
         process.stdout.write(
           `deep postflight status=${result.postflight.deep.status} quality_gate=${result.postflight.deep.qualityGate} slides=${String(result.postflight.deep.slides)}\n`,
@@ -236,6 +247,24 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       process.stdout.write(
         `merge: ${String(result.merge.replaced.length)} page(s) replaced, ${String(Object.keys(result.merge.imported).length)} part(s) imported, ${String(result.merge.multiMaster ? 'multi-master' : 'single master')}\n`,
       )
+    })
+
+  const compat = program.command('compat').description('inspect a rendered package against the compatibility registry')
+  compat
+    .command('lint')
+    .description('scan and lint one pptx against a compat level without changing it')
+    .argument('<file>', 'pptx file, resolved against --dir')
+    .option('--dir <dir>', 'workspace the file path is resolved against', '.')
+    .addOption(new Option('--compat <level>', 'compatibility target level').choices([...COMPAT_LEVELS]).default('standard'))
+    .option('--strict', 'treat warning-level findings as failures')
+    .option('--json', 'print the full report as JSON')
+    .action(async (file: string, options: { dir: string; compat: string; strict?: boolean; json?: boolean }) => {
+      const level = asCompatLevel(options.compat)
+      if (level === null) throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
+      const result = await compatLint({ dir: options.dir, file, level, strict: options.strict === true, deps })
+      if (options.json === true) printJson(compatLintDocument(result))
+      else process.stdout.write(`${formatCompatLint(result)}` + '\n')
+      process.exitCode = result.ok ? 0 : 1
     })
 
   const deep = program.command('deep').description('deep-page engine operations')

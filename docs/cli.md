@@ -142,9 +142,9 @@ The deck must already pass `validate` and have tokens in sync. `--page` renders 
 because the engine only writes inside the workspace. Output paths are printed with the
 exporter's report and its `[POSTFLIGHT]` receipt.
 
-## Implemented (M4, part 1)
+## Implemented (M4)
 
-### `dsh-ppt render <dir> [-o <out>]`
+### `dsh-ppt render <dir> [-o <out>] [--compat <level>]`
 
 Renders the whole deck in one pass: pptwise `render --draft` for the standard pages (deep
 pages are placeholders in the IR) → `deep render` for the deep pages → slide-level merge
@@ -158,7 +158,23 @@ leaves `out/` untouched and the workspace diagnosable. `--out` resolves against 
 When the manifest declares `post.animations`, the post pass applies that configuration after
 the merge (transitions and entrances from one place, stripping whatever the engines wrote),
 records what it applied in `out/manifest.json`, and fails the render if a selector matches no
-shape. `--compat` levels arrive with the compatibility pass (M4 part 2, remaining).
+shape.
+
+The compatibility pass runs after the post pass and before the structural gates: it scans the
+merged package against `src/compat/registry.json`, applies only the downgrades the registry
+names (morph and advanced transitions become their MCE fade fallback), stamps the PNG sibling of
+any `asvg:svgBlip` with Node `sharp` (B7), and lints MCE pairing and namespace declarations.
+The report goes to `out/compat-report.json`, and its sha256, level, level source and counts go
+into `out/manifest.json`. `--compat safe|standard|max` overrides the manifest's `compat`
+field; the default is `standard`. An error-level finding fails the render before anything is
+published.
+
+### `dsh-ppt compat lint <file.pptx> [--dir <dir>] [--compat <level>] [--strict] [--json]`
+
+Scans and lints an already-rendered package against the registry without changing it: the
+read-only half of the render chain's compatibility step, useful for re-checking an artifact
+against another level. Errors always fail; `--strict` also fails on warnings. `--json`
+prints the occurrences and findings.
 
 ## Planned
 

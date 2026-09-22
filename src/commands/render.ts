@@ -8,6 +8,8 @@ import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
+import type { CompatLevel } from '../compat/registry.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
 import type { PostflightReceipt } from '../engine/deep-render.ts'
@@ -18,6 +20,8 @@ export interface RenderOptions {
   readonly dir: string
   /** Output pptx; resolved against the deck. Defaults to `<deck>/out/<name>.pptx`. */
   readonly output?: string
+  /** `--compat` level; overrides the manifest's field, which overrides `standard`. */
+  readonly compat?: CompatLevel
   readonly deps: CommandDependencies
 }
 
@@ -32,8 +36,27 @@ export interface RenderResult {
   readonly merge: MergeReport
   /** What the post pass applied, when the manifest declared motion. */
   readonly post?: PostReport
+  /** The compat pass result, the file it was serialised to, and that file's hash. */
+  readonly compat: { readonly report: CompatReport; readonly reportFile: string; readonly reportSha256: string }
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
   readonly staged: readonly string[]
+}
+
+/** Where the compat level came from, so the manifest can record it. */
+export interface CompatChoice {
+  readonly level: CompatLevel
+  readonly source: 'flag' | 'manifest' | 'default'
+}
+
+/**
+ * @param flag - `--compat` value, when given.
+ * @param manifest - the manifest's `compat` field, when given.
+ * @returns the level and where it came from.
+ */
+export function resolveCompatLevel(flag: CompatLevel | undefined, manifest: CompatLevel | undefined): CompatChoice {
+  if (flag !== undefined) return { level: flag, source: 'flag' }
+  if (manifest !== undefined) return { level: manifest, source: 'manifest' }
+  return { level: 'standard', source: 'default' }
 }
 
 /** 1-based page positions of the deep pages, in deck order. */
@@ -46,23 +69,22 @@ export function deepPageIndices(pages: readonly { index: number; route: string }
  * ppt-master, then merge and publish.
  *
  * Order is plan §2.3: `pptwise render --draft` (deep pages are placeholders in the
- * IR), deep render, slide-level merge with layout remap, then the hard gates before
- * anything reaches `out/`. Every intermediate artifact is staged under
- * `<deck>/.dsh-ppt/render/`, so a failure leaves the workspace diagnosable and
- * `out/` untouched (plan §3.12).
+ * IR), deep render, slide-level merge with layout remap, the post pass (the single
+ * owner of motion), the compat pass, then the hard gates before anything reaches
+ * `out/`. Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a
+ * failure leaves the workspace diagnosable and `out/` untouched (plan §3.12).
  *
- * @param options - deck directory, optional output path, command dependencies.
+ * @param options - deck directory, optional output path and compat level, dependencies.
  * @returns the published file and the evidence the gates produced.
- * @throws DshPptFailure when the deck is invalid, a gate fails, or the deck asks
- *   for a stage this build does not implement yet.
+ * @throws DshPptFailure when the deck is invalid or a gate fails.
  */
 export async function renderDeck(options: RenderOptions): Promise<RenderResult> {
   const dir = resolveDeckDir(options.deps, options.dir)
   const fs = options.deps.fs
   const context = loadDeck(dir, fs)
 
-  const report = validateDeck({ dir, deps: options.deps })
-  const errors = report.findings.filter((finding) => finding.level === 'error')
+  const validation = validateDeck({ dir, deps: options.deps })
+  const errors = validation.findings.filter((finding) => finding.level === 'error')
   if (errors.length > 0) {
     throw new DshPptFailure('ContractViolation', `deck workspace is not valid: ${errors.map((finding) => finding.message).join('; ')}`, {
       detail: { findings: errors },
@@ -78,6 +100,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
     context.deck.post?.animations === undefined || context.deck.post.animations === null
       ? null
       : readPostConfig(fs, join(dir, context.deck.post.animations))
+  const compat = resolveCompatLevel(options.compat, context.deck.compat)
 
   const stagedRoot = join(dir, '.dsh-ppt', 'render')
   fs.mkdirp(stagedRoot)
@@ -93,43 +116,63 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   staged.push(basePath)
 
   const deepIndices = deepPageIndices(context.deck.pages)
-  const base = await OpcPackage.read(readBytes(fs, basePath))
+  let pkg = await OpcPackage.read(readBytes(fs, basePath))
+  let merge = emptyMergeReport()
+  let postflight: { deep?: PostflightReceipt } = {}
 
-  if (deepIndices.length === 0) {
-    // A pptwise-only deck skips the merge entirely; the file still passes the same
-    // OPC and delivery gates.
-    const findings = auditPackage(base, { requireSingleMaster: true })
-    assertNoErrors(findings)
-    const outputFile = publishPath(dir, options.output, context.deck.name)
-    const bytes = await base.write()
-    return publish({ fs, dir, outputFile, bytes, slides: countSlides(base), merge: emptyMergeReport(), postflight: {}, staged, deps: options.deps })
+  if (deepIndices.length > 0) {
+    // 2. Deep pages through the engine.
+    const deepPages: DeepPage[] = []
+    for (const page of context.deck.pages) {
+      if (page.route !== 'ppt-master') continue
+      deepPages.push({ index: page.index, spec: page.deep, svgPath: join(dir, page.deep.dir, 'page.svg') })
+    }
+    const formats = new Set(deepPages.map((page) => page.spec.format))
+    if (formats.size > 1) {
+      throw new DshPptFailure('ContractViolation', `deep pages in one render must share a canvas format; found ${[...formats].join(', ')}`)
+    }
+    const deepRenderer = createDeepRenderer({
+      master: engineFor(dir, options.deps),
+      fs,
+      tokens: context.tokens,
+      format: [...formats][0] ?? 'ppt169',
+    })
+    const deepPath = join(stagedRoot, 'deep.pptx')
+    const deepResult = deepRenderer.render({ pages: deepPages, outputFile: deepPath })
+    staged.push(deepResult.pptxPath, deepResult.reportPath, deepResult.projectDir)
+
+    // 3. Slide-level merge with layout remap (P1: one master).
+    const deep = await OpcPackage.read(readBytes(fs, deepResult.pptxPath))
+    const routes: SlideRoute[] = deepPages.map((page, offset) => ({ index: page.index, deepSlide: offset + 1 }))
+    const merged = await mergeDeep({ base: pkg, deep, routes })
+    pkg = merged.merged
+    merge = merged.report
+    postflight = { deep: deepResult.postflight }
   }
 
-  // 2. Deep pages through the engine.
-  const deepPages: DeepPage[] = []
-  for (const page of context.deck.pages) {
-    if (page.route !== 'ppt-master') continue
-    deepPages.push({ index: page.index, spec: page.deep, svgPath: join(dir, page.deep.dir, 'page.svg') })
-  }
-  const formats = new Set(deepPages.map((page) => page.spec.format))
-  if (formats.size > 1) {
-    throw new DshPptFailure('ContractViolation', `deep pages in one render must share a canvas format; found ${[...formats].join(', ')}`)
-  }
-  const deepRenderer = createDeepRenderer({
-    master: engineFor(dir, options.deps),
-    fs,
-    tokens: context.tokens,
-    format: [...formats][0] ?? 'ppt169',
-  })
-  const deepPath = join(stagedRoot, 'deep.pptx')
-  const deepResult = deepRenderer.render({ pages: deepPages, outputFile: deepPath })
-  staged.push(deepResult.pptxPath, deepResult.reportPath, deepResult.projectDir)
+  return finalize({ pkg, dir, stagedRoot, staged, postConfig, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps })
+}
 
-  // 3. Slide-level merge with layout remap (P1: one master).
-  const deep = await OpcPackage.read(readBytes(fs, deepResult.pptxPath))
-  const routes: SlideRoute[] = deepPages.map((page, offset) => ({ index: page.index, deepSlide: offset + 1 }))
-  const { merged, report: mergeReport } = await mergeDeep({ base, deep, routes })
-  const postApplied = postConfig === null ? null : applyPost(merged, postConfig)
+/** Publish path, staged artifacts and the shared gate tail. */
+async function finalize(input: {
+  pkg: OpcPackage
+  dir: string
+  stagedRoot: string
+  staged: readonly string[]
+  postConfig: ReturnType<typeof readPostConfig> | null
+  compat: CompatChoice
+  output: string | undefined
+  name: string
+  merge: MergeReport
+  postflight: { deep?: PostflightReceipt }
+  runDelivery: boolean
+  deps: CommandDependencies
+}): Promise<RenderResult> {
+  const fs = input.deps.fs
+  const { dir, pkg } = input
+
+  // 4. Motion: the single post-merge application point (plan 3.6, ADR-032).
+  const postApplied = input.postConfig === null ? null : applyPost(pkg, input.postConfig)
   if (postApplied !== null && postApplied.unmatched.length > 0) {
     throw new DshPptFailure(
       'ContractViolation',
@@ -137,30 +180,44 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
       { detail: { unmatched: postApplied.unmatched } },
     )
   }
-  const mergedPath = join(stagedRoot, 'merged.pptx')
-  fs.writeBytes(mergedPath, await merged.write())
-  staged.push(mergedPath)
 
-  // 4. Hard gates: OPC structure and the single-master invariant, then the
-  //    engine's own delivery check.
-  const opcFindings = auditPackage(merged, { requireSingleMaster: true })
+  // 5. Compatibility pass: registered downgrades and fallback stamps, after motion
+  //    (a downgrade must see the transitions it judges) and before the gates.
+  const compatReport = await applyCompatPass(pkg, { level: input.compat.level })
+  const compatErrors = compatReport.findings.filter((finding) => finding.level === 'error')
+  if (compatErrors.length > 0) {
+    throw new DshPptFailure(
+      'ContractViolation',
+      `compat pass (${input.compat.level}, from ${input.compat.source}) rejected ${String(compatErrors.length)} marker(s): ${compatErrors.map((finding) => finding.message).join('; ')}`,
+      { detail: { findings: compatErrors, level: input.compat.level, source: input.compat.source } },
+    )
+  }
+
+  const mergedPath = join(input.stagedRoot, 'merged.pptx')
+  fs.writeBytes(mergedPath, await pkg.write())
+  const staged = [...input.staged, mergedPath]
+
+  // 6. Hard gates: OPC structure and the single-master invariant, then the engine's
+  //    own delivery check when a deep page participated.
+  const opcFindings = auditPackage(pkg, { requireSingleMaster: true })
   assertNoErrors(opcFindings)
-  const delivery = engineFor(dir, options.deps).deliveryCheck({ file: mergedPath })
+  const delivery = input.runDelivery ? engineFor(dir, input.deps).deliveryCheck({ file: mergedPath }) : null
 
-  // 5. Publish atomically, then record what was published.
-  const outputFile = publishPath(dir, options.output, context.deck.name)
-  const bytes = await merged.write()
+  // 7. Publish atomically, then record what was published.
+  const outputFile = publishPath(dir, input.output, input.name)
+  const bytes = await pkg.write()
   return publish({
     fs,
     dir,
     outputFile,
     bytes,
-    slides: countSlides(merged),
-    merge: mergeReport,
-    postflight: { deep: deepResult.postflight },
+    slides: countSlides(pkg),
+    merge: input.merge,
+    postflight: input.postflight,
     staged,
-    deps: options.deps,
-    delivery: { stdout: delivery.result.stdout, status: delivery.result.status },
+    deps: input.deps,
+    compat: { report: compatReport, source: input.compat.source },
+    ...(delivery === null ? {} : { delivery: { stdout: delivery.result.stdout, status: delivery.result.status } }),
     ...(postApplied === null ? {} : { post: postApplied }),
   })
 }
@@ -169,7 +226,6 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
 function publishPath(dir: string, requested: string | undefined, name: string): string {
   return requested === undefined ? join(dir, 'out', `${name}.pptx`) : resolve(dir, requested)
 }
-
 
 /** @returns the staged path relative to the deck, which is what the front end receives. */
 function stagedRelative(file: string): string {
@@ -208,7 +264,7 @@ function emptyMergeReport(): MergeReport {
   return { replaced: [], imported: {}, reused: {}, layoutRemap: {}, multiMaster: false, dropped: [] }
 }
 
-/** Publish the artifact and write `out/manifest.json`. */
+/** Publish the artifact and write `out/manifest.json` plus `out/compat-report.json`. */
 function publish(input: {
   fs: CommandDependencies['fs']
   dir: string
@@ -221,6 +277,7 @@ function publish(input: {
   deps: CommandDependencies
   delivery?: { stdout: string; status: number | null }
   post?: PostReport
+  compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input
   fs.mkdirp(join(dir, 'out'))
@@ -228,6 +285,9 @@ function publish(input: {
   fs.writeBytes(temporary, bytes)
   fs.rename(temporary, outputFile)
   const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const reportFile = join(dir, 'out', 'compat-report.json')
+  fs.writeText(reportFile, serializeCompatReport(input.compat.report))
+  const reportSha256 = compatReportHash(input.compat.report)
   fs.writeText(
     join(dir, 'out', 'manifest.json'),
     toJsonDocument({
@@ -239,6 +299,14 @@ function publish(input: {
       postflight: input.postflight,
       merge: input.merge,
       staged: input.staged.map((path) => path.replace(dir, '').replace(/^[\\/]/, '').replace(/\\/g, '/')),
+      compat: {
+        level: input.compat.report.level,
+        levelSource: input.compat.source,
+        registryVersion: input.compat.report.registryVersion,
+        report: { file: 'compat-report.json', sha256: reportSha256 },
+        counts: input.compat.report.counts,
+        applied: input.compat.report.applied,
+      },
       ...(input.delivery === undefined ? {} : { delivery: { status: input.delivery.status, receipt: input.delivery.stdout.trim().split(/\r?\n/).slice(-3) } }),
       ...(input.post === undefined ? {} : { post: input.post }),
     }),
@@ -250,6 +318,7 @@ function publish(input: {
     slides: input.slides,
     postflight: input.postflight,
     merge: input.merge,
+    compat: { report: input.compat.report, reportFile, reportSha256 },
     staged: input.staged,
   }
 }

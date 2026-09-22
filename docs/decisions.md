@@ -42,6 +42,9 @@ the ADR wins.**
 | 029 | M4 progress: merge core and render chain landed, rest listed |
 | 030 | V4 sync: plan, architecture, README, docs index |
 | 031 | ADR-029 remaining list made explicit: M4.9 / M4.10 / M4.11 are separate items |
+| 032 | Animation owner: one post-merge pass in `bridge/post.ts` |
+| 033 | T1 canonicaliser, the golden v1 fixture, and `fixtures:verify` |
+| 034 | The compat pass v1: registered downgrades, the sharp PNG stamp, and refusals |
 
 ---
 
@@ -746,3 +749,52 @@ the ADR wins.**
   (`mc:AlternateContent` pair migration, `p14:creationId` de-duplication, plain zip / no
   duplicate entries); ④ compat goldens for the three levels; ⑥ the §3.8 unified
   `dsh-ppt audit` gate; and ⑤b — re-record the golden once the compat output settles.
+
+## ADR-034 — The compat pass: what v1 implements, what it refuses, and where it sits
+
+- **Date:** 2026-09-22
+- **Decision:** `bridge/compat.ts` implements plan 3.14 four steps (scan, transform, stamp,
+  lint) for the markers `src/compat/registry.json` lists, and `render` runs it after the post
+  pass and before the structural gates. `render --compat safe|standard|max` overrides the
+  manifest `compat` field, which overrides `standard`; `compat lint <file>` re-runs the
+  read-only half on any artifact; `out/compat-report.json` carries the occurrences, applied
+  changes and findings, and its sha256, the level, the level source, the registry version and
+  the counts enter `out/manifest.json`.
+- **Implemented transforms (only the registered ones).** (a) An over-level or
+  un-fallbacked morph/advanced transition becomes its registered `fade`: the
+  `mc:AlternateContent` block is unwrapped to its `mc:Fallback` when one exists, otherwise the
+  `p159:morph` attribute or the bare `p14:` child element is replaced with `p:fade`.
+  (b) An `asvg:svgBlip` without a raster sibling is stamped: `sharp` rasterises the
+  referenced SVG, the PNG part, its content type and its relationship are added, and the
+  `a:blip` `r:embed` is pointed at the PNG, so Office 2013+ shows the raster while 2016+ still
+  sees the SVG extension (B7; the Python-side renderers stay unusable per ADR-025).
+- **Refused, not guessed.** A downgrade the registry names but this build cannot build is an
+  error, never a silent no-op: `bar-chart` for the 2016/2019 chart tiers (the registry note
+  says it is a pre-export payload edit, not an XML rewrite) and `drop-narration` for a
+  non-mp3 media container (deleting narration is content loss). A missing fallback for
+  `formula-a14m` (`linear-text`) or `animation-bounce-extension` (fade over a timing tree this
+  pass did not build) is likewise an error. None of those paths is reachable from the current
+  fixture set, so their acceptance rows land with the content that produces them (M5/M8);
+  refusing keeps the no-implicit-edits rule true until then.
+- **Lint rules.** `mc:AlternateContent` must carry at least one `mc:Choice` and exactly one
+  non-empty `mc:Fallback`; each `Requires` prefix must be declared in its part and registered;
+  any other version-sensitive prefix (`p14`, `p15`, `p159`, `a14`, `a15`, `asvg`, `adec`) must
+  also be declared where it is used; a package without `ppt/presentation.xml` is rejected; and
+  every registry feature must have a scanner, so a registry edit cannot silently stop being
+  enforced. Duplicate `p14:creationId` values are an error (the merge-side rule is item 3),
+  while a CJK run without an `a:ea` slot is a warning that `--strict` promotes.
+- **Evidence.** `fixtures/golden/hello-merged.pptx` scans as five `p14:dur` occurrences with
+  zero findings at `safe`, `standard` and `max`, and the pass applies nothing, so the golden T1
+  comparison is unchanged (`pnpm fixtures:verify`: canonical equal for base/deep/merged).
+  `render --compat safe` on the scratch golden deck published a deck whose `out/manifest.json`
+  records `level: "safe", levelSource: "flag"`, with `out/compat-report.json` written and
+  hashed. The synthetic transform and stamp paths are covered by 23 unit tests, including a
+  real `sharp` rasterisation (PNG signature verified), the injected-rasteriser seam, the
+  unwrapped-morph downgrade and a missing-SVG refusal.
+- **Alternatives rejected:** implementing every registry downgrade up front (the two content
+  rewrites need M5/M8 material and would be untestable here); letting an unimplemented
+  downgrade pass as a warning (the deck would ship with markers its target Office cannot
+  render); running the pass before post (its stripper rewrites transitions, so the pass would
+  judge the wrong package); writing the pre-compat package to the staged `merged.pptx` (the
+  staged artifact must be the published bytes); leaving `sharp` a transitive dependency (a user
+  install could lose the binary the stamp needs).

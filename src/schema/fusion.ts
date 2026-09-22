@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { DeepPageSpecSchema } from './deep-page.ts'
 import { DshPptFailure } from '../engine/errors.ts'
+import { COMPAT_LEVELS } from '../compat/registry.ts'
 
 /**
  * `deck.fusion.json`: the authoritative manifest for a fusion deck.
@@ -16,6 +17,8 @@ export interface FusionDeck {
   readonly pptwiseIr: string
   readonly theme: { readonly preset: string } | { readonly file: string }
   readonly pages: readonly FusionPage[]
+  /** Compatibility target; the render flag overrides it (plan 3.14). */
+  readonly compat?: z.infer<typeof CompatLevelSchema>
   readonly post?: {
     readonly animations?: string | null
     readonly narration?: null | { readonly provider: string; readonly voice?: string }
@@ -39,6 +42,8 @@ const PostSchema = z.strictObject({
     .optional(),
 })
 
+const CompatLevelSchema = z.enum(COMPAT_LEVELS)
+
 const PageSchema = z.discriminatedUnion('route', [
   z.strictObject({ index: z.number().int().positive(), route: z.literal('pptwise') }),
   z.strictObject({ index: z.number().int().positive(), route: z.literal('ppt-master'), deep: DeepPageSpecSchema }),
@@ -51,6 +56,7 @@ export const FusionDeckSchema = z.strictObject({
   pptwiseIr: z.string().min(1),
   theme: ThemeBindingSchema,
   pages: z.array(PageSchema).min(1),
+  compat: CompatLevelSchema.optional(),
   post: PostSchema.optional(),
 })
 

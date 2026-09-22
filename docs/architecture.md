@@ -49,7 +49,7 @@ full/minimal checklist.
 | `src/bridge/route.ts` (M2) | per-page engine choice; deep-page file completeness | degrade silently when a deep page is incomplete |
 | `src/bridge/merge.ts` (M4 ✅) | slide-level OOXML merge, closure import, layout remap, content-aware reuse | parse or rewrite shape semantics |
 | `src/bridge/post.ts` (M4 part 2 ✅) | the single place animations, transitions and narration are applied | run before the merge |
-| `src/bridge/compat.ts` (M4 part 2 ⏳) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping, lint) against `src/compat/registry.json` | transform anything the registry does not name |
+| `src/bridge/compat.ts` (M4 part 2 ✅) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping through `sharp`, lint) against `src/compat/registry.json` | transform anything the registry does not name |
 | `src/engine/venv.ts` | venv lifecycle, uv resolution, lock-file install, repair | install anything on the DSH boot path |
 | `src/engine/master.ts` | the only spawn site for Python; timeouts, error classes, logs | accept an unregistered command or a path outside the workspace |
 | `src/engine/runner.ts` | the child-process primitive and the environment whitelist | inherit credentials by default |
@@ -126,7 +126,7 @@ src/bridge/opc.ts          OPC primitives: parts, rels, content types (M4 ✅)
 src/bridge/merge.ts        slide-level merge, layout remap, closure import (M4 ✅)
 src/bridge/theme.ts        ThemeFile v2 → tokens → master palette (M2 ✅)
 src/bridge/post.ts          animations/transitions applied post-merge (M4 part 2 ✓)
-src/bridge/compat.ts        compat pass: scan/transform/stamp/lint (M4 part 2, pending)
+src/bridge/compat.ts        compat pass: scan/transform/stamp/lint (M4 part 2 ✓)
 src/compat/registry.json   feature→minOffice→WPS→downgrade table (M0.G measured)
 src/engine/runner.ts       child-process primitive + environment whitelist
 src/engine/contracts.ts    engine command registry, enums, argv builders

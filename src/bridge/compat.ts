@@ -232,6 +232,7 @@ function* xmlParts(pkg: OpcPackage): Generator<{ name: string; xml: string }> {
 /** @returns slide part → 1-based position, from `p:sldIdLst`. */
 function slidePositions(pkg: OpcPackage): Map<string, number> {
   const positions = new Map<string, number>()
+  if (!pkg.has('ppt/presentation.xml')) return positions
   listSlides(pkg).forEach((part, offset) => positions.set(part, offset + 1))
   return positions
 }
@@ -581,6 +582,9 @@ function lintPackage(pkg: OpcPackage, registry: CompatRegistry): CompatFinding[]
     if (handlerFor(feature.feature) === undefined) {
       findings.push({ rule: 'feature-unscanned', level: 'error', part: '(registry)', message: `${feature.feature} is registered but no scanner exists for it` })
     }
+  }
+  if (!pkg.has('ppt/presentation.xml')) {
+    findings.push({ rule: 'package-presentation-missing', level: 'error', part: 'ppt/presentation.xml', message: 'the package has no presentation part, so it is not a deck' })
   }
   for (const { name, xml } of xmlParts(pkg)) {
     const blocks = findAlternateContents(xml)
