@@ -6,6 +6,7 @@ import {
   mirrorTemplateMaterialize,
   registerTemplate,
   pptxTemplateImport,
+  sourceToMarkdown,
   narrationSync,
   notesToAudio,
   pptxToSvg,
@@ -23,6 +24,7 @@ import {
   type ImageSearchParams,
   type MirrorTemplateParams,
   type PptxTemplateImportParams,
+  type SourceDispatchParams,
   type NarrationSyncParams,
   type NotesToAudioParams,
   type PptxToSvgParams,
@@ -200,6 +202,11 @@ export function createMasterEngine(options: MasterEngineOptions) {
      */
     imageSearch(params: ImageSearchParams, options: { credentials?: readonly string[] } = {}): MasterCall {
       return execute(imageSearch(params), options.credentials)
+    },
+
+    /** @see sourceToMarkdown */
+    sourceToMarkdown(params: SourceDispatchParams): MasterCall {
+      return execute(sourceToMarkdown(params))
     },
 
     /** @see sourceToMd */

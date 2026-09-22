@@ -187,6 +187,16 @@ command; `--strict` also fails on warnings. Without an artifact the command repo
 
 ## Implemented (M5)
 
+### `dsh-ppt source <input...> [-o <dir>] [--dir <dir>] [--type <type>] [--no-images]`
+
+Converts source documents into Markdown through the engine's unified dispatcher: PDF, DOCX
+(and HTML/EPUB), XLSX, PPTX, Markdown and plain text by extension, and http(s) URLs through
+`web-to-md`. Every URL passes the public-http policy first (scheme, credentials, port, length,
+local names and every resolved address); a refusal names the rule and no process is started.
+A directory input stands for its files. Outputs go to `sources/` (or `-o <dir>`) with a
+`source-manifest.json` recording each entry and the engine's conversion profile.
+
+
 ### `dsh-ppt deep native roundtrip <dir> --file <pptx> [-o <dir>] [--inheritance-mode <mode>] [--keep-hidden] [--strict]`
 
 Imports a published pptx back into the engine's source-preserving SVG workspace
@@ -229,7 +239,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 | Command | Milestone |
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
-| `deep check|chart`, `source`, `images search` | M3/M5 |
+| `deep check|chart`, `images search` | M3/M5 |
 | `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 

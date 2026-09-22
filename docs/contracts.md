@@ -415,3 +415,27 @@ and `skipped`.
 - **Evidence.** On the rendered golden deck the non-strict gate is green with 11 sources and
   five advisories from the SVG quality gate; `--strict` is red on those advisories until the
   fixture is compacted or the strict surface is scoped (ADR-035, M8).
+
+## 13. Source pipeline and URL policy (M5)
+
+- **Owner.** `src/policy/url-policy.ts` owns the URL guard; `src/commands/source.ts` owns
+  the conversion flow. Both are used only by `dsh-ppt source` today.
+- **URL policy.** http(s) only; no credentials; a host must be given; `localhost`,
+  `*.localhost`, `*.local`, `*.internal` and `metadata.google.internal` are refused before
+  DNS; the port must be 80 or 443; the URL is at most 2048 characters; and **every**
+  resolved address must be public (`loopback`, `private`, `link-local`, `CGNAT`,
+  `multicast`, `reserved`, `unspecified`, unique-local IPv6 and IPv4-mapped forms are
+  blocked). DNS failure fails closed. The engine also never receives
+  `--allow-private-hosts`.
+- **Routes.** `.pdf` → `pdf-to-md`, `.docx/.doc/.html/.htm/.epub` → `doc-to-md`,
+  `.xlsx/.xlsm/.xls` → `excel-to-md`, `.pptx` → `ppt-to-md`, `.md/.markdown` → `markdown`,
+  `.txt` → `text`, URLs → `web-to-md`; the unified `source-to-md` dispatcher is called with
+  `-t <type>`. A directory input stands for its files (one level).
+- **Outputs.** One Markdown file per input under `-o <dir>` (default `sources/`), named
+  after the input and de-duplicated with a `-2` suffix; the engine may also write
+  `<stem>.conversion_profile.json`, which is recorded in the manifest. `sources/` receives
+  `source-manifest.json` with `{input, type, output, bytes, profile?}` per entry.
+- **Caps.** The written Markdown must be non-empty and at most 5 MiB
+  (`SOURCE_MAX_BYTES`); anything larger is a `ContractViolation`. Fetch-time MIME and byte
+  limits stay the engine's responsibility (it writes Markdown text, and remote images stay
+  links unless the caller asks otherwise) — ADR-039.

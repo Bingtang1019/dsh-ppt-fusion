@@ -444,6 +444,42 @@ export function imageSearch(params: ImageSearchParams): EngineInvocation {
   return { id: 'image-search', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: [] }
 }
 
+/** Types the unified `source-to-md` dispatcher accepts via `-t`. */
+export const SOURCE_DISPATCH_TYPES = ['auto', 'pdf', 'doc', 'excel', 'pptx', 'web', 'markdown', 'text'] as const
+export type SourceDispatchType = (typeof SOURCE_DISPATCH_TYPES)[number]
+
+/** Parameters for the unified `source-to-md` dispatcher. */
+export interface SourceDispatchParams {
+  /** One or more files, directories or http(s) URLs. */
+  readonly inputs: readonly string[]
+  readonly type?: SourceDispatchType
+  readonly output?: string
+  readonly images?: PdfImageMode
+  readonly noImages?: boolean
+}
+
+/**
+ * Build the argv for the unified `ppt-master source-to-md` dispatcher.
+ *
+ * The per-converter builders below stay for callers that know their backend; this one
+ * lets a mixed list be converted in one process, which is what `dsh-ppt source` uses.
+ *
+ * @param params - inputs, forced type and output options.
+ * @returns the validated invocation.
+ * @throws DshPptFailure `ContractViolation` when no input is given.
+ */
+export function sourceToMarkdown(params: SourceDispatchParams): EngineInvocation {
+  if (params.inputs.length === 0) {
+    throw new DshPptFailure('ContractViolation', 'source-to-md needs at least one input', { detail: {} })
+  }
+  const argv = ['source-to-md', ...params.inputs]
+  if (params.type !== undefined) argv.push('-t', assertEnum('type', params.type, SOURCE_DISPATCH_TYPES))
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.images !== undefined) argv.push('--images', assertEnum('images', params.images, PDF_IMAGE_MODES))
+  if (params.noImages === true) argv.push('--no-images')
+  return { id: 'source-to-md', argv, timeoutMs: POST_TIMEOUTS.source, outputFiles: params.output === undefined ? [] : [params.output] }
+}
+
 /** Parameters for the `source-to-md` family. */
 export interface SourceToMdParams {
   readonly converter: SourceConverter

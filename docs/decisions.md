@@ -49,6 +49,7 @@ the ADR wins.**
 | 036 | Merge compatibility discipline: creationId renumbering, MCE migration, zip shape |
 | 037 | Compat goldens for all three levels, and the fixtureVersion 2 re-record |
 | 038 | M5 opens: native round trip, template routing, brand extraction |
+| 039 | Source pipeline: five routes, fail-closed URL policy, 5 MiB output cap |
 
 ---
 
@@ -972,3 +973,36 @@ the ADR wins.**
   directory (inconsistent with every other deck command and untestable); treating
   `register-template` as backlog (a template that is never registered cannot be reused, and the
   contract is already recorded).
+
+## ADR-039 — The source pipeline: five routes, a fail-closed URL policy, and a size cap
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt source <input...> -o <dir>` converts the five plan routes
+  (pdf/docx/xlsx/pptx/web, plus Markdown and plain text) through the engine unified
+  `source-to-md` dispatcher, one call per input so each output name and receipt is
+  deterministic. `src/policy/url-policy.ts` gates every URL before a process starts.
+- **URL policy.** http(s) only, no credentials, port 80/443, at most 2048 characters, local
+  names refused before DNS, and **every** resolved address must be public: loopback, private,
+  link-local, CGNAT, multicast, reserved and unspecified IPv4 ranges, unique-local and
+  link-local IPv6, and IPv4-mapped forms of any blocked address. DNS failure fails closed, and
+  the fusion never passes `--allow-private-hosts`. The resolver is injectable, so the rules are
+  unit-tested without network.
+- **Size and MIME.** The written Markdown must be non-empty and at most 5 MiB; a larger
+  document is a `ContractViolation`. Byte-size and MIME limits on the *fetched* response stay
+  the engine responsibility, because the fusion never sees that response: `web-to-md` writes
+  Markdown and keeps remote images as links by default. Inventing a second fetcher to measure
+  MIME would duplicate the engine and add its own SSRF surface.
+- **Evidence.** Generated inputs (openpyxl workbook, PyMuPDF page, a hand-built DOCX, the
+  recorded `hello-base.pptx`, a text file) converted for real: `pdf 54 B`, `excel 360 B`,
+  `doc 78 B`, `pptx 488 B` (5 slides), `text 69 B`, plus one
+  `<stem>.conversion_profile.json` per route, all recorded in `sources/source-manifest.json`.
+  The web route is network-blocked on this machine: `example.com` passed the policy (public
+  DNS answer) and then failed inside the engine with curl error 28 — the honest offline
+  outcome. `localhost`, `10.0.0.5`, `::1` and mixed public/private DNS answers are refused by
+  the guard before the engine is reached, and the web golden stays blocked until network access
+  exists (a proxy would have to be configured outside the repository).
+- **Alternatives rejected:** letting the engine own URL policy (the fusion cannot then name the
+  refusal, and `--allow-private-hosts` would be one typo away); rejecting hostnames that
+  resolve to any private address only when the *first* answer is private (a split-horizon answer
+  would slip through); a bespoke downloader for MIME/size (duplicate fetch path, new SSRF
+  surface); treating a DNS failure as "allow" (fail-open).

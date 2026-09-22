@@ -14,6 +14,7 @@ import { auditDeck } from './commands/audit.ts'
 import { brandExtract } from './commands/brand.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
+import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
@@ -239,6 +240,29 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.output === undefined ? {} : { output: options.output }),
       })
       process.stdout.write(`${result.stdout.trim()}\n`)
+    })
+
+  program
+    .command('source')
+    .description('convert pdf/docx/xlsx/pptx/web sources into Markdown')
+    .argument('<input...>', 'files, directories or http(s) URLs, resolved against --dir')
+    .option('-o, --output <dir>', 'output directory for the Markdown', 'sources')
+    .option('--dir <dir>', 'workspace the paths resolve against', '.')
+    .addOption(new Option('--type <type>', 'force a conversion type').choices([...SOURCE_TYPES]).default('auto'))
+    .option('--no-images', 'keep remote images as links instead of downloading them')
+    .action(async (inputs: string[], options: { output: string; dir: string; type: string; images: boolean }) => {
+      const result = await sourceConvert({
+        dir: options.dir,
+        inputs,
+        output: options.output,
+        type: options.type as (typeof SOURCE_TYPES)[number],
+        noImages: options.images === false,
+        deps,
+      })
+      for (const entry of result.entries) {
+        process.stdout.write(`${entry.type} ${entry.input} -> ${entry.output} (${String(entry.bytes)} bytes)\n`)
+      }
+      process.stdout.write(`wrote ${result.manifestPath}\n`)
     })
 
   const brand = program.command('brand').description('read a customer deck brand into a theme')
