@@ -6,7 +6,9 @@
 // their own times, so byte equality is reported for orientation but only required
 // of the base deck, which M0 measured to be byte-stable (ADR-014).
 import { readFileSync } from 'node:fs'
-import { assertCompatLevel, compatSnapshots, readCompatGolden, readGoldenManifest, verifyGolden, GOLDEN_DIR } from './support/golden.ts'
+import { auditDeck } from '../src/commands/audit.ts'
+import { defaultDependencies } from '../src/commands/context.ts'
+import { assertCompatLevel, compatSnapshots, readCompatGolden, readGoldenManifest, verifyGolden, GOLDEN_DIR, GOLDEN_WORKSPACE } from './support/golden.ts'
 
 const recorded = readGoldenManifest()
 if (recorded === null) {
@@ -56,3 +58,15 @@ for (const level of ['safe', 'standard', 'max'] as const) {
 }
 const baseBytesStable = result.lines[0]?.includes('bytes identical') === true
 console.log(`fixtures:verify: canonical equality holds for all three artifacts (base bytes ${baseBytesStable ? 'identical' : 'changed'})`)
+
+// The pixel (delta E) half of the theme audit: rasterise every deep SVG and
+// compare its dominant colours with the bound token palette. Zero findings is the
+// gate; the audit's own `--pixels` switch is the same code path users run (ADR-035).
+const pixelReport = await auditDeck({ dir: GOLDEN_WORKSPACE, strict: false, pixels: true, deps: defaultDependencies() })
+const paletteFindings = pixelReport.findings.filter((finding) => finding.source === 'palette' || finding.rule.startsWith('palette-'))
+if (paletteFindings.length > 0) {
+  console.error('fixtures:verify: the deep pages paint colours outside the token palette:')
+  for (const finding of paletteFindings) console.error(`  ${finding.rule}: ${finding.message}`)
+  process.exit(1)
+}
+console.log(`fixtures:verify: pixels clean (${String(pixelReport.sources.length)} audit source(s), ${String(pixelReport.findings.length)} finding(s) total)`)

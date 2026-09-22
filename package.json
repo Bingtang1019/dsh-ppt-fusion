@@ -55,7 +55,12 @@
     "com:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-com-smoke.ps1",
     "eval:run": "node --import tsx scripts/eval-run.ts",
     "dsh-ppt": "node --import tsx src/cli.ts",
-    "prepack": "pnpm build && node scripts/check-pack.mjs"
+    "prepack": "pnpm build && node scripts/check-pack.mjs",
+    "matrix:record": "node --import tsx tests/theme-matrix.ts --record",
+    "matrix:verify": "node --import tsx tests/theme-matrix.ts --verify",
+    "engine:provision": "node --import tsx scripts/engine-provision.ts",
+    "compat:matrix": "node --import tsx scripts/compat-matrix.ts",
+    "capacity:run": "node --import tsx tests/capacity.ts"
   },
   "dependencies": {
     "@liustack/pptwise": "0.35.0",

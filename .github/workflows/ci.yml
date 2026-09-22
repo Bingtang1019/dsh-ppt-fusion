@@ -31,9 +31,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Unit tests never start the engine, the front end, or PowerPoint: every
-      # process boundary is injected, so both platforms run the same suite. The
-      # real-engine e2e and the COM smoke gate run on Windows only, driven by
-      # `pnpm e2e` once M3 wires the engine path.
+      # process boundary is injected, so both platforms run the same suite.
       - name: Typecheck
         run: pnpm run typecheck
 
@@ -50,7 +48,7 @@ jobs:
         run: pnpm run themes:verify
 
       # Narration embedding reads audio durations with ffprobe, exactly as the engine
-      # does, so the golden gate needs ffmpeg on both legs.
+      # does, so the golden and matrix gates need ffmpeg on both legs.
       - name: Install ffmpeg (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -59,11 +57,38 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
 
+      # The Python engine venv is built from python-assets/requirements.lock by
+      # uv; `engine:provision` skips doctor's platform checks, whose png-renderer
+      # row is red by design on hosts without cairo (ADR-020/025).
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.12.17'
+
+      - name: Provision the engine venv
+        env:
+          DSH_PPT_UV: uv
+        run: pnpm run engine:provision
+
       # Renders fixtures/hello through both engines plus the merge and compares the
-      # result canonically (tier T1) against fixtures/golden. Needs the engine venv,
-      # so it runs where `dsh-ppt doctor --repair` has already provisioned one.
+      # result canonically (tier T1) against fixtures/golden.
       - name: Golden deck gate
         run: pnpm run fixtures:verify
+
+      # Six representative presets rendered over the same deck; the snapshot covers
+      # validate, the render receipt, canonical artifact fingerprints and the audit
+      # report with the opt-in pixel (delta E) findings.
+      - name: Theme matrix gate
+        run: pnpm run matrix:verify
+
+      # Rendering half of the compatibility matrix; the python-pptx half runs in
+      # `compat:matrix` on both platforms.
+      - name: Install LibreOffice Impress (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libreoffice-impress
+
+      - name: Compatibility matrix
+        run: pnpm run compat:matrix
 
       - name: Build the CLI bundle
         run: pnpm run build

@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "fixtureVersion": 1,
+  "upstream": {
+    "pptwise": "0.35.0",
+    "ppt-master": "0.1.128"
+  },
+  "themes": {
+    "brief": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "5e1c933a72273ad5878aaa73b73943c1634e23f5d86741e9bf8da2d009ae7be0",
+          "deep": null,
+          "merged": "83221e1e6921d6e6194ba754ab129e6a78369d79a69974790ef53ad39fecb8a2"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "6bb1566a700a05036b19450732e9b96f2d647eb9246566dc1b8ce61acec8873c"
+    },
+    "thesis": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "ea3c7549e5228a9dd61394fe68caf58e6d603a9358c27235a18a0bccc8440057",
+          "deep": null,
+          "merged": "ea79b775ab5cdf79a9b67fd7ef4f32928f81ed38471d69d4b4139a80c1a593ab"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "2b79c3c18bbb3f1e96f18e6a3f339988ee44fc3c2d576b70cd7a5bd747a32e6b"
+    },
+    "terminal": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "3ed7db868256681e186eaf6c72a5189518c333823c8775c30286cdb4a6eb6458",
+          "deep": null,
+          "merged": "afce77c791aac67d2c6fd24d413c68ac4286255f9b7e07d603f3a9a0b652a8be"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "9e2c7c6cc3ebb8ec574da16e9509abb58f9caeb0be08c0cdd36abb73d95c812d"
+    },
+    "runway": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "d1b1ba83ed88f844c318406293aba16c4b55a2a21d37dc0d4591518af350b812",
+          "deep": null,
+          "merged": "8f1119c868cf06812fdc1393882bb10237f04ad5fccf1801857388d7c7505e62"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "a70119fef6f858a869345ba5c01052a7ad1e4d2458a4e91567548f39a2861f62"
+    },
+    "heritage": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "36ca6bc118a7f713468ddc71fafbafeb053a4554292e421cae165abcf70627fd",
+          "deep": null,
+          "merged": "ffe41dc087cb152f4ef83a6a48f0ea39015425683ba4d4820e38449449152a7b"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "326c8f6682201b4b80054a32f4d3afffdf2b7a1217b7eb3f756f5460e762b2cc"
+    },
+    "ledger": {
+      "validate": {
+        "ok": true,
+        "sources": [
+          "ir",
+          "manifest",
+          "theme"
+        ],
+        "findings": []
+      },
+      "render": {
+        "slides": 2,
+        "merge": {
+          "replaced": 0,
+          "imported": 0,
+          "multiMaster": false
+        },
+        "compat": {
+          "level": "standard",
+          "counts": {
+            "occurrences": 2,
+            "downgrades": 0,
+            "stamps": 0,
+            "errors": 0,
+            "warnings": 0
+          }
+        },
+        "postflight": {
+          "status": "none",
+          "qualityGate": "none",
+          "slides": 0
+        },
+        "artifacts": {
+          "base": "7a1cd406653b6b7418430e8c2e10e4e7b3d804bd3825041dbf3160524fcebf4c",
+          "deep": null,
+          "merged": "771c409f312a16f3a5c930b5d67f83780eb3b7bcf88b39cb836e36d74f5b80c7"
+        }
+      },
+      "audit": {
+        "ok": true,
+        "sources": [
+          "compat-lint",
+          "ir",
+          "manifest",
+          "pptwise-audit",
+          "pptwise-validate",
+          "pptx",
+          "pptx-delivery-check",
+          "prompt-audit",
+          "theme"
+        ],
+        "findings": [],
+        "skipped": [
+          "pixels: no deep page with an in-sync tokens file to sample"
+        ]
+      },
+      "paletteFindings": 0,
+      "fingerprint": "54d09db8f12360e24b79c6e98a60090c6b16e64623b24fc52bf8f317ff0bd9fc"
+    }
+  }
+}

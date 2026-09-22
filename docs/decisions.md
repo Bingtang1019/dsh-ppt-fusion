@@ -1350,3 +1350,43 @@ the ADR wins.**
   verbatim (its CLI has no `assemble` step and no fusion render; identity and route would
   collide); a from-scratch card protocol (the lazy-CJS card and its failure vocabulary are
   battle-tested).
+
+## ADR-051 — M8 compatibility claims: T2 until the WPS row is signed off
+
+- **Date:** 2026-09-22
+- **Decision:** v1 release notes may claim tier T2 (our own bytes/canonical behaviour on
+  this toolchain) but not T1 until the S17 WPS checklist is executed on a WPS 2019+ machine
+  and recorded in `docs/compat/wps-report.md`. The LibreOffice half of the compatibility
+  matrix runs in CI (ubuntu-latest installs `libreoffice-impress`; `pnpm compat:matrix`
+  converts every artifact and compares the PDF page count against the slide count), and a
+  machine without `soffice` reports that column as `skipped` rather than passing it.
+- **Evidence on this machine.** `pnpm compat:matrix`: 10/10 artifacts (golden, six theme
+  matrix decks, three model-eval decks) reopen in python-pptx with recursive shape/text/
+  table/picture/chart counts and pass `compat lint` at `safe`, `standard` and `max`;
+  `pnpm fixtures:verify` compares the three compat-level snapshots and the new pixel (delta E)
+  pass reports no colour outside the token palette; `scripts/win-com-smoke.ps1` opens the
+  golden, the offline render and the eval decks with no repair.
+- **Alternatives rejected:** claiming cross-Office compatibility from ZIP-level checks alone
+  (that is what the S16/S17 split exists for); letting `compat:matrix` pass when LibreOffice
+  is missing (the skipped column is explicit, CI enforces the conversion); publishing before
+  the WPS checklist (the plan's release rule reserves T1 for a signed-off WPS machine).
+
+## ADR-052 — The M8 matrices: six themes, a pixel gate, and the capacity probe
+
+- **Date:** 2026-09-22
+- **Decision:** `pnpm matrix:record/verify` snapshots six representative presets (`brief`,
+  `thesis`, `terminal`, `runway`, `heritage`, `ledger`) through `init -> validate -> render ->
+  audit`, recording the render receipt, the three canonical artifact fingerprints (base/deep/
+  merged) and the audit findings. `pnpm fixtures:verify` also runs the pixel pass now and fails
+  on any `palette-*` finding. `pnpm capacity:run` synthesizes a 60-page standard deck and
+  records wall time/bytes in `docs/capacity.md` as a manual guardrail.
+- **Measured-basis change.** All 24 presets own distinct page menus, and pptwise refuses to
+  rebind a deck between menus; a matrix that re-themed `fixtures/hello` therefore cannot
+  render. The matrix builds a minimal deck per preset instead, while the deep-page, narration
+  and pixel (delta E) paths stay covered by the golden fixture.
+- **Evidence.** `matrix:verify` green for all six; `fixtures:verify` reports `pixels clean (12
+  audit source(s), 4 finding(s))`; `compat:matrix` 10/10; capacity numbers in
+  `docs/capacity.md`.
+- **Alternatives rejected:** re-theming the hello deck (impossible across menus); authoring
+  deep pages per theme (cost without new signal); making the pixel pass a per-command CI flag
+  (the gate belongs to the fixture, where the deep SVGs live).

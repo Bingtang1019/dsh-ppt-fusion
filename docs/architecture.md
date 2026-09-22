@@ -43,6 +43,9 @@ full/minimal checklist.
 | Layer | Owns | Must not |
 |---|---|---|
 | `dsh/index.js` (M7) | DSH plugin registration, skill registration, preview tool and route | contain generation logic |
+| `dsh/preview-tool.js` (M7) | the `dsh_ppt_preview` tool: snapshot, render through `src/commands/preview.ts`, serve the bundle/viewer/export route, cache under `$DSH_PPT_PREVIEW_HOME` | render page markup itself |
+| `dsh/client.js` (M7) | the web preview card (lazy-CJS slot keyed by the tool name) | own the preview protocol |
+| `src/commands/preview.ts` (M7) | pptwise page render plus the authored deep-page overlay and viewer patch | invent page markup |
 | `src/cli.ts` | argv parsing, exit codes, wiring | render anything |
 | `src/frontend.ts` | locating and driving the pptwise CLI, JSON parsing, its failure classes | import pptwise internals (its `exports` map seals them) |
 | `src/bridge/theme.ts` (M2) | ThemeFile → `tokens.json` → engine palette; colour-consistency audit | edit upstream theme files |
@@ -94,6 +97,8 @@ passes only when a caller names it in `allowCredentials`.
   `tests/support/canonicalize.ts`, run by `pnpm fixtures:verify`, which also re-checks the
   three compat-level snapshots) is the hard CI gate; T2 (our own bytes stable) is a goal; T3 (whole chain byte-identical) is never a
   v1 gate, because the upstream exporter timestamps its output (ADR-014, ADR-017).
+  `pnpm matrix:verify` extends the same comparison to six representative presets, and
+  `fixtures:verify` also runs the pixel (delta E) pass over the golden deep pages.
 - **Model-visible means logged.** Anything that reaches a model request is
   reconstructable from the DSH session log; this package also keeps its own per-run logs
   under `<deck>/.dsh-ppt/logs/`.
@@ -109,8 +114,10 @@ passes only when a caller names it in `allowCredentials`.
 
 Measured in M0 on the development machine (ADR-003, ADR-016):
 
-- `uv` is not on PATH; it lives in the Windows Store interpreter's `local-packages`
-  script directory, so `resolveUv` searches known absolute locations before PATH.
+- `uv` is not on PATH by default; it lives in the Windows Store interpreter's
+  `local-packages` script directory, so `resolveUv` searches known absolute locations
+  before PATH. This machine also carries a copy at `~/.local/bin/uv.exe`, and CI
+  installs it with `astral-sh/setup-uv` before `pnpm engine:provision`.
 - `uv`-created venvs have no `pip`; all Python package operations go through uv.
 - The harness shell is Windows PowerShell 5.1: no `pwsh` on PATH, `Set-Content -Encoding
   utf8` writes a BOM, and `[Content_Types].xml` needs `-LiteralPath` because PowerShell
