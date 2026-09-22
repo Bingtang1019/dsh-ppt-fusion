@@ -1461,6 +1461,9 @@ the ADR wins.**
 - **Renamed surfaces.** `package.json` `name`, `cordis.patch.yml`'s bundle row, the client
   module id in `dsh/client.js`, and the install/README/architecture/acceptance references. The
   DSH plugin card label derives from the package name, so it now reads `dsh-ppt-flashmade`.
+- **GitHub installs.** `package.json` gained `prepare: pnpm build`, verified against
+  `github:Bingtang1019/dsh-ppt-fusion`: the installed copy carries `dist/cli.js` and the
+  scratch profile composes its bundle layer. Without it a git install would have no built CLI.
 - **Secrets policy.** `.gitignore` now also excludes `.env.local`, `*.pem|key|pfx|p12`,
   `.credentials.yaml`, credential-shaped YAML, and release tarballs; `.npmrc` carries a
   never-put-a-token-here comment because it is tracked. A history scan over every blob found

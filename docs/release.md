@@ -44,6 +44,10 @@ git push -u origin main
 git push origin v0.1.0                   # annotated tag created in M9 prep
 ```
 
+The `github:` install path is verified (the package's `prepare` script builds `dist/`), and
+the release tag must point at the release commit: `git tag -fa v0.1.0 -m ... <commit>` then
+`git push origin v0.1.0 --force` after any post-tag release edit.
+
 The repository must exist first (create it on GitHub; private or public). No credentials are
 stored in this repository: use `gh auth login`, a Git credential manager, or an SSH remote.
 

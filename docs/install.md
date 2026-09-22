@@ -33,6 +33,11 @@ dsh plugin --profile <profile> add -w github:<owner>/dsh-ppt-fusion
 the package to the profile's `dependencies` **and** to `dsh.profile.bundles`, so
 the plugin loads on the next start.
 
+The `github:` form was verified on 2026-09-23 against
+`github:Bingtang1019/dsh-ppt-fusion` in the scratch profile: npm/pnpm runs the package's
+`prepare` script (`pnpm build`), so the installed copy carries `dist/cli.js`, and
+`--dump-config` composes the `@dsh-ppt/dsh-ppt-flashmade` layer.
+
 ## What the plugin adds
 
 | Surface | Name |
