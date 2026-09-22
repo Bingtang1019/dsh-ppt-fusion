@@ -1243,15 +1243,15 @@ the ADR wins.**
   unnecessary machine change); letting the model judge itself (a rubric read from the package
   is repeatable and independent).
 
-## ADR-047 — M6 verdict: GO, with a brand-fidelity finding and one confirmation run pending
+## ADR-047 — M6 verdict: GO; brand fidelity fixed and confirmed
 
 - **Date:** 2026-09-22
 - **Decision:** The M6 model evaluation passes its plan 6.6 line: 3/3 scenarios produced
   packages that pass the unified audit gate (topic-only 5 slides, doc-to-deck 6 slides with
   four native charts, branded-template 4 slides), and the doc-to-deck package passed the
   manual spot check (PowerPoint COM reads four editable charts with the brief's series values;
-  one slide master; the pixel audit finds no unknown colour; COM opens it unchanged). M7 may
-  start while the one confirmation run is scheduled.
+  one slide master; the pixel audit finds no unknown colour; COM opens it unchanged). M7
+  may start.
 - **Measured.** topic-only 811 s / 133 tools / checkpoint phase 7; doc-to-deck 1104 s / 147
   tools (two subagent calls) / three recovered gate failures / checkpoint phase 7;
   branded-template 339 s / 88 tools / four slides / one recovered gate failure. Every session
@@ -1263,11 +1263,16 @@ the ADR wins.**
   file-existence check could not. The SKILL now forbids restyling a bound brand without
   asking, and the next model round gains a rubric check comparing the bound palette with a
   reference extraction of the staged input.
-- **Quota abort.** The DeepSeek balance ran out mid-session (21:17): the branded-template
-  session ended before writing the checkpoint, and attempts 2 and 3 aborted in 15-17 s with
-  `QUOTA: Insufficient Balance`. The harness records a boot with no tool calls as an
-  infrastructure abort and does not retry it; the confirmation run is pending an account
-  top-up (`pnpm eval:run --scenario branded-template`).
+- **Confirmation run.** The 21:17 session ended on `402 QUOTA: Insufficient Balance` (attempts
+  2-3 aborted the same way); the same key answered HTTP 200 at 23:29, so `pnpm eval:run
+  --scenario branded-template` was re-run and passed in one attempt: 352 s, 83 tools, two
+  recovered gate failures, nine checkpoint commands, checkpoint phase 7, audit ok. The bound
+  `brand.theme.json` colours equal a fresh reference `brand extract` field for field
+  (`#4472C4`/`#ED7D31`, full `chartPalette`), so the SKILL's brand-fidelity rule closed the
+  finding.
+- **402 handling.** A no-tool-call `402 QUOTA` is recorded as an infrastructure abort and is not
+  retried immediately; it pauses the gate rather than judging the model, as this episode showed
+  (the provider state was transient).
 - **Alternatives rejected:** a capability NO-GO from the branded-template result (its package
   passes every error-level check, and the palette change was a deliberate edit rather than an
   inability to run the workflow); triggering L2-L4 (the observed gaps are instruction and

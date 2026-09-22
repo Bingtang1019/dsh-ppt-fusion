@@ -43,7 +43,7 @@ Inputs: `fixtures/scenarios/inputs/doc-to-deck/brief.md` and `fixtures/golden/he
 |---|---|---|---|---|---|---|---|---|---|
 | `topic-only` | PASS | 1 | 811 s | 5 | 1 native table (`a:tbl`) | ok, 12 sources, 0 error / 5 warning | 133 | 0 | 7 |
 | `doc-to-deck` | PASS | 1 | 1104 s | 6 | 4 native charts | ok, 12 sources, 0 error / 10 warning | 147 | 3 recovered | 6 |
-| `branded-template` | PASS (artifact), see finding | 1 real + 2 quota-aborted | 339 s | 4 | – | ok, 0 error | 88 | 1 recovered | 0 (warning) |
+| `branded-template` | PASS | 1 | 352 s | 4 | – | ok, 0 error | 83 | 2 recovered | 9 |
 
 Each session was a single turn: the model ran the seven phases inside one long turn and never
 needed a retry. All ten audit warnings are the same `compat-feature: ea-font-slot` advisory
@@ -63,38 +63,38 @@ outside this command surface.
   6 slides, `saved` and `unchanged` (no repair, no rewrite). The branded-template deck passes
   the same smoke with 4 slides.
 
-### Finding: the branded-template palette was replaced
+### Brand fidelity: caught by the spot check, then fixed and confirmed
 
-The scenario's semantic point is brand reuse. The model ran the right command first
-(`dsh-ppt brand extract brand/customer.pptx --bind deck ...`, which wrote the extracted palette
-`primary #4472C4`, `accent #ED7D31`), then edited `brand.theme.json` into a different scheme
-(`primary #1E2A4A`, `accent #F5C518`). A reference `brand extract` run on the staged file
-reproduces `#4472C4`/`#ED7D31`, so the bound theme does not carry the customer brand.
+The first branded-template session (21:17) ran `brand extract --bind` correctly — the bound
+theme carried the extracted palette `primary #4472C4`, `accent #ED7D31` — then edited
+`brand.theme.json` into a different scheme (`primary #1E2A4A`, `accent #F5C518`). The manual
+spot check caught what the file-existence check could not, so the SKILL gained an explicit
+brand-fidelity rule.
 
-- The automated `brand-theme` check only proves that a bound theme file exists; the manual
-  spot check is what caught this. The SKILL now states brand fidelity explicitly, and the
-  recommendation is to add a palette-equality check (bound theme versus a reference extraction
-  of the staged input) to the eval rubric before the next model round.
-- The same session was cut off by `QUOTA: Insufficient Balance` before writing the checkpoint
-  and printing the final audit line; its package still passes every error-level check, which is
-  why the artifact row reads PASS.
+The confirmation run (23:29, same scenario, 352 s) did it right: the bound
+`brand.theme.json` colours are field-for-field equal to a fresh reference `brand extract` of
+the staged customer deck — `primary #4472C4`, `accent #ED7D31`, the full six-colour
+`chartPalette`, every neutral included — and the package passes the audit with the checkpoint
+at phase 7. Brand fidelity is closed; the next model round still gets the automated
+palette-equality rubric check so a regression cannot pass silently.
 
 ## Decision
 
 **GO for M7.** The M6.6 pass line is met: 3/3 packages pass the unified audit gate, and the
 doc-to-deck spot check verifies editable charts, a single master and palette-consistent
-colours. Two of three sessions completed end-to-end in a single attempt, including deep pages
-and native objects, which is the capability this gate exists to measure.
+colours. All three sessions completed end-to-end in a single attempt each (the branded-template
+one on the confirmation run), including deep pages and native objects, which is the capability
+this gate exists to measure.
 
 - **Downgrade ladder.** L2–L4 are not triggered; the failure modes seen here are instruction
   and environment issues, not a context-length or phase-count ceiling. A targeted L1-style
   hardening is applied instead: the SKILL's doctor note (a red-by-design `png-renderer` row must
   not trigger `doctor --repair`), explicit brand fidelity, and explicit checkpoint discipline.
   `page-context-report` (the other half of L1) stays deferred until an eval shows context loss.
-- **Open confirmation run.** The branded-template session must be repeated once the DeepSeek
-  account balance is restored: `pnpm eval:run --scenario branded-template` (the report merges by
-  scenario name). Success criterion: the session completes, the checkpoint exists, and the bound
-  palette equals a reference extraction.
-- **Environment note.** The balance ran out at 21:17 while the branded-template attempt was in
-  progress; attempts 2 and 3 aborted in 15–17 s with `QUOTA: Insufficient Balance` and are
-  recorded as infrastructure aborts, not model failures.
+- **Confirmation note.** Two scenarios completed on the first attempt; branded-template needed
+  one confirmation run after the brand-fidelity rule landed, and that run passed.
+- **Transient 402, not a balance wall.** At 21:17 the provider answered the branded-template
+  session with `402 QUOTA: Insufficient Balance` and attempts 2–3 aborted the same way; the same
+  key answered HTTP 200 at 23:29 and the re-run completed. The harness still records a
+  no-tool-call 402 as an infrastructure abort (retrying immediately would not help), but such an
+  abort pauses the gate instead of judging the model.

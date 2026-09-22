@@ -12,7 +12,7 @@ the row.
 | S2 | technology stack is the project's choice | `docs/architecture.md` (dual runtime, boundaries, invariants) + ADRs 001–051 | verified (documentation) |
 | S3 | a deck that can be edited, not a picture | `pnpm eval:run --scenario topic-only`: PASS attempt 1, 811 s / 133 tool calls, 5 slides, single master, audit ok, native table page; `docs/m6-model-eval.md` | verified |
 | S4 | 24 themes are swappable | `pnpm themes:verify` (24 token snapshots), `theme list --json` returns 24 ids, `pnpm matrix:verify` covers six menu families end-to-end | verified |
-| S5 | reuse the company deck's colours | real `brand extract --bind` run + a reference extraction compared against the bound palette (M7 spot check); M6 found the model rewrote the palette once → SKILL brand-fidelity rule + rubric follow-up (ADR-047) | verified with the finding recorded |
+| S5 | reuse the company deck's colours | real `brand extract --bind` run + a reference extraction compared against the bound palette (M7 spot check); M6 first caught the model rewriting the palette; the SKILL rule was added and the confirmation run bound the reference palette field for field (ADR-047) | verified |
 | S6 | charts must be editable | M6 doc-to-deck: 4 native chart parts; PowerPoint COM reads series values `31,42`, `6.1,8.6`, `65,68`, `46,27,18,9`; golden `ppt/charts/chart101.xml` root `c:chartSpace` | verified |
 | S7 | animation and transitions | ADR-042 COM probe: emphasis type 61 and path type 149 with `behaviours >= 1`; golden v5 carries `p:transition` and `p:timing` | verified |
 | S8 | narration | M5: real edge-tts MP3s 93600 B / 82224 B plus SRTs; golden v5 embeds media with auto-advance timings; `fixtures:verify` recomputes them | verified |
