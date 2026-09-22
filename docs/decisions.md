@@ -1293,6 +1293,12 @@ the ADR wins.**
 - **Consequences.** The last M5 image-search acceptance row is one key away: set
   `PEXELS_API_KEY` (free at pexels.com/api) and run `dsh-ppt images search`; the recorded
   `assets/image_sources.json` then carries `provider: pexels` attributions.
+- **Confirmed 2026-09-22 21:52.** With a user-supplied Pexels key the real search ran end to end:
+  `dsh-ppt images search "bird migration flock flying" --provider pexels` downloaded
+  `assets/birds.jpg` (1687676 B, 6000x4000 JPEG) and wrote `assets/image_sources.json` with
+  `provider: pexels`, `license_name: Pexels License`, `author: Satyabrata Maiti`,
+  `license_tier: no-attribution` and a complete attribution text. The M5 image-search row is
+  closed on the keyed path; no accelerator change was needed.
 - **Alternatives rejected:** editing the accelerator rules (unsafe, and the service does not
   route those hosts); hardcoding a key into the repository or the eval harness (credentials
   never enter the repo); treating the no-key providers as the only path (they are unreachable
