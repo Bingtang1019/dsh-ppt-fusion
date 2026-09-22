@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { canonicalize, compareCanonical, type CanonicalPackage } from './canonicalize.ts'
+import { canonicalize, compareCanonical, describePartDifference, type CanonicalPackage } from './canonicalize.ts'
 import { applyCompatPass, inspectCompat, type CompatChange, type CompatFinding, type CompatOccurrence, type CompatReport } from '../../src/bridge/compat.ts'
 import { OpcPackage } from '../../src/bridge/opc.ts'
 import { COMPAT_LEVELS, loadCompatRegistry, type CompatLevel } from '../../src/compat/registry.ts'
@@ -137,7 +137,12 @@ export async function verifyGolden(recorded: GoldenManifest): Promise<{ ok: bool
     const recordedCanonical = await canonicalize(readFileSync(join(GOLDEN_DIR, reference.file)))
     const comparison = compareCanonical(freshCanonical, recordedCanonical)
     const byteStable = fresh.sha256 === reference.sha256
-    if (!comparison.equal) ok = false
+    if (!comparison.equal) {
+      ok = false
+      for (const difference of comparison.differences.slice(0, 4)) {
+        lines.push(`  ${label} ${describePartDifference(freshCanonical, recordedCanonical, difference.slice(difference.indexOf(': ') + 2))}`)
+      }
+    }
     lines.push(
       `${label}: canonical ${comparison.equal ? 'equal' : `DIFFERENT (${comparison.differences.slice(0, 4).join('; ')})`}, bytes ${byteStable ? 'identical' : 'differ (expected for deep/merged)'} [${String(fresh.bytes)} bytes]`,
     )

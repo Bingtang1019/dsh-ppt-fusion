@@ -171,8 +171,11 @@ export function resolveUv(options: {
   const env = options.env ?? process.env
   const platform = options.platform ?? process.platform
   const exeName = platform === 'win32' ? 'uv.exe' : 'uv'
+  // The override is judged by the platform under test, not the host: the same
+  // resolution runs in the win32 unit tests on the ubuntu CI leg.
+  const absolute = platform === 'win32' ? win32.isAbsolute : posix.isAbsolute
   const override = env.DSH_PPT_UV
-  if (override !== undefined && override.trim() !== '' && isAbsolute(override) && options.fs.exists(override)) {
+  if (override !== undefined && override.trim() !== '' && absolute(override) && options.fs.exists(override)) {
     return { command: override, baseArgs: [], source: 'DSH_PPT_UV' }
   }
 
@@ -224,6 +227,8 @@ export function resolveUv(options: {
  * @param options.runner - process runner.
  * @param options.fs - filesystem port.
  * @param options.env - environment for uv invocations.
+ * @param options.platform - platform whose venv layout and uv names apply;
+ *   defaults to the running one.
  * @returns the manager used by `doctor`, `engine/master.ts`, and the CLI.
  */
 export function createVenvManager(options: {
@@ -231,11 +236,13 @@ export function createVenvManager(options: {
   runner: Runner
   fs?: FileSystemPort
   env?: NodeJS.ProcessEnv
+  platform?: NodeJS.Platform
 }) {
   const fs = options.fs ?? nodeFileSystem
   const env = options.env ?? process.env
+  const platform = options.platform ?? process.platform
   const { config } = options
-  const paths = venvPaths(config.dshHome, config.engineVersion, config.pythonVersion)
+  const paths = venvPaths(config.dshHome, config.engineVersion, config.pythonVersion, platform)
 
   const runUv = (uv: UvResolution, args: readonly string[], timeoutMs: number): RunResult =>
     options.runner(uv.command, [...uv.baseArgs, ...args], {
@@ -274,9 +281,9 @@ export function createVenvManager(options: {
   }
 
   const install = (): { uv: UvResolution; created: boolean; installOutput: string } => {
-    const uv = resolveUv({ runner: options.runner, fs, env })
+    const uv = resolveUv({ runner: options.runner, fs, env, platform })
     const lockFile = assertLockFile()
-    fs.mkdirp(join(config.dshHome, 'ppt-fusion', 'venvs'))
+    fs.mkdirp((platform === 'win32' ? win32.join : posix.join)(config.dshHome, 'ppt-fusion', 'venvs'))
     if (!fs.exists(paths.pythonExe)) {
       const created = runUv(uv, ['venv', '--python', config.pythonVersion, paths.root], 600_000)
       if (created.status !== 0) {

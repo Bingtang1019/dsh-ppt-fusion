@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { join } from 'node:path'
+import { join, win32 } from 'node:path'
 import { createVenvManager, resolveUv, venvPaths } from './venv.ts'
 import { DshPptFailure } from './errors.ts'
 import { createFakeFileSystem, createFakeRunner, fail, ok, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
@@ -84,8 +84,8 @@ describe('resolveUv', () => {
 describe('venv layout across platforms', () => {
   it('uses Scripts and Lib\\site-packages on Windows', () => {
     const win = venvPaths('C:/home/.dsh', '0.1.128', '3.13', 'win32')
-    expect(win.pythonExe.endsWith(join('Scripts', 'python.exe'))).toBe(true)
-    expect(win.sitePackages.endsWith(join('Lib', 'site-packages'))).toBe(true)
+    expect(win.pythonExe.endsWith(win32.join('Scripts', 'python.exe'))).toBe(true)
+    expect(win.sitePackages.endsWith(win32.join('Lib', 'site-packages'))).toBe(true)
   })
 
   it('uses bin and lib/pythonX.Y/site-packages elsewhere, which is what the ubuntu CI leg sees', () => {
@@ -103,6 +103,7 @@ describe('venv state', () => {
       runner: createFakeRunner(),
       fs,
       env: {},
+      platform: 'win32',
     })
 
   it('is ok when the interpreter, engine and pinned distribution are present', () => {
@@ -162,6 +163,7 @@ describe('venv install and repair', () => {
       runner,
       fs,
       env: { DSH_PPT_UV: 'C:/tools/uv.exe' },
+      platform: 'win32',
     })
     const state = manager.ensure()
     expect(state.ok).toBe(true)
@@ -187,6 +189,7 @@ describe('venv install and repair', () => {
       runner,
       fs,
       env: {},
+      platform: 'win32',
     })
     expect(manager.ensure().ok).toBe(true)
     expect(runner.calls).toHaveLength(0)
@@ -198,6 +201,7 @@ describe('venv install and repair', () => {
       runner: createFakeRunner(),
       fs: createFakeFileSystem({ files: { 'C:/tools/uv.exe': 'binary' } }),
       env: { DSH_PPT_UV: 'C:/tools/uv.exe' },
+      platform: 'win32',
     })
     expect(codeOf(() => manager.ensure())).toBe('OutputMissing')
   })
@@ -210,6 +214,7 @@ describe('venv install and repair', () => {
       runner,
       fs,
       env: { DSH_PPT_UV: 'C:/tools/uv.exe' },
+      platform: 'win32',
     })
     expect(codeOf(() => manager.ensure())).toBe('EngineExit')
   })

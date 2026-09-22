@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { canonicalize, compareCanonical, describeComparison } from './support/canonicalize.ts'
+import { canonicalize, compareCanonical, describeComparison, describePartDifference } from './support/canonicalize.ts'
 
 /** The workbook's own core properties, in the shape a real embedded package uses. */
 function nestedCore(created: string): string {
@@ -64,5 +64,44 @@ describe('canonicalize', () => {
     const other = await canonicalize(await zip.generateAsync({ type: 'nodebuffer' }))
     const comparison = compareCanonical(await canonicalize(withExtra), other)
     expect(comparison.differences).toEqual(['only in B: ppt/slides/slide9.xml'])
+  })
+
+  it('explains a divergence with the surrounding text, a hash, or an absent part', async () => {
+    const base = await canonicalize(await packageBytes({ chart: '<c:chartSpace><c:ser><c:val>1000</c:val></c:ser></c:chartSpace>' }))
+    const other = await canonicalize(await packageBytes({ chart: '<c:chartSpace><c:ser><c:val>2000</c:val></c:ser></c:chartSpace>' }))
+    const text = describePartDifference(base, other, 'ppt/charts/chart1.xml')
+    expect(text).toContain('first difference at offset')
+    expect(text).toMatch(/fresh: {4}…<c:chartSpace><c:ser><c:val>1000/)
+    expect(text).toMatch(/recorded: …<c:chartSpace><c:ser><c:val>2000/)
+
+    const media = await canonicalize(await packageBytes())
+    const zip = await JSZip.loadAsync(await packageBytes())
+    zip.file('ppt/media/image1.png', Buffer.from([0x89, 0x50, 0x4e, 0x48]))
+    const changedMedia = await canonicalize(await zip.generateAsync({ type: 'nodebuffer' }))
+    expect(describePartDifference(media, changedMedia, 'ppt/media/image1.png')).toContain('bytes')
+    const extraZip = await JSZip.loadAsync(await packageBytes())
+    extraZip.file('ppt/slides/slide9.xml', '<p:sld/>')
+    const withExtra = await canonicalize(await extraZip.generateAsync({ type: 'nodebuffer' }))
+    expect(describePartDifference(withExtra, media, 'ppt/slides/slide9.xml')).toContain('only in the fresh package')
+  })
+
+  it('ignores the host-measured narration advance timing but keeps its presence', async () => {
+    const slide = (advance: string) => `<p:sld><p:transition advTm="${advance}"><p:fade/></p:transition></p:sld>`
+    const pack = async (xml: string) => {
+      const archive = new JSZip()
+      archive.file('ppt/slides/slide1.xml', xml)
+      return canonicalize(await archive.generateAsync({ type: 'nodebuffer' }))
+    }
+    expect(compareCanonical(await pack(slide('14600')), await pack(slide('15300'))).equal).toBe(true)
+    const withoutAttribute = await pack('<p:sld><p:transition><p:fade/></p:transition></p:sld>')
+    expect(compareCanonical(await pack(slide('14600')), withoutAttribute).equal).toBe(false)
+  })
+
+  it('walks into a nested package to name the divergent member', async () => {
+    const base = await canonicalize(await packageBytes({ workbook: { 'xl/worksheets/sheet1.xml': '<sheetData><row>1</row></sheetData>' } }))
+    const other = await canonicalize(await packageBytes({ workbook: { 'xl/worksheets/sheet1.xml': '<sheetData><row>2</row></sheetData>' } }))
+    const explanation = describePartDifference(base, other, 'ppt/embeddings/wb1.xlsx')
+    expect(explanation).toContain('ppt/embeddings/wb1.xlsx →')
+    expect(explanation).toContain('xl/worksheets/sheet1.xml')
   })
 })

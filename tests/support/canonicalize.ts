@@ -49,6 +49,10 @@ function normalizeXml(xml: string): string {
       .replace(/<TotalTime>[^<]*<\/TotalTime>/g, '<TotalTime/>')
       .replace(/<Application>[^<]*<\/Application>/g, '<Application/>')
       .replace(/<AppVersion>[^<]*<\/AppVersion>/g, '<AppVersion/>')
+      // Narration advance timing: the exporter measures the committed audio with the
+      // host's ffprobe, whose version changes the last digits. The gate compares the
+      // attribute's presence and the audio bytes, not the measured number.
+      .replace(/advTm="[^"]*"/g, 'advTm=""')
       // Whitespace between tags is formatting, not content.
       .replace(/>\s+</g, '><')
       .trim()
@@ -111,6 +115,67 @@ export function compareCanonical(left: CanonicalPackage, right: CanonicalPackage
     else if (partKey(a) !== partKey(b)) differences.push(`differs: ${name}`)
   }
   return { equal: differences.length === 0, differences, parts: left.parts.size }
+}
+
+/**
+ * Explain the first divergence of one part, for a failure log.
+ *
+ * The comparison reports part names only; a red leg on another host needs the
+ * surrounding text to tell a real regression from an environment difference.
+ *
+ * @param fresh - canonical package produced by this run.
+ * @param recorded - canonical package recorded in the golden.
+ * @param name - part name to explain.
+ * @returns a bounded excerpt of both sides at the first difference.
+ */
+export function describePartDifference(fresh: CanonicalPackage, recorded: CanonicalPackage, name: string): string {
+  const left = fresh.parts.get(name)
+  const right = recorded.parts.get(name)
+  if (left === undefined) return `${name}: only in the recorded package`
+  if (right === undefined) return `${name}: only in the fresh package`
+  if (typeof left === 'string' && typeof right === 'string') return `${name}: ${firstTextDifference(left, right)}`
+  if (isHashed(left) && isHashed(right)) return `${name}: bytes ${left.sha256.slice(0, 16)}… vs ${right.sha256.slice(0, 16)}…`
+  if (isNested(left) && isNested(right)) {
+    const nested = compareCanonical(left.nested, right.nested)
+    const first = nested.differences[0]
+    if (first === undefined) return `${name}: nested packages are equal`
+    return `${name} → ${describePartDifference(left.nested, right.nested, first.slice(first.indexOf(': ') + 2))}`
+  }
+  return `${name}: the two sides hold different kinds of part`
+}
+
+/** Characters of context shown on each side of the first divergence. */
+const DIFF_CONTEXT = 90
+
+/**
+ * @param part - canonical part to inspect.
+ * @returns whether the part holds a hash of binary bytes.
+ */
+function isHashed(part: CanonicalPart): part is { readonly sha256: string } {
+  return typeof part === 'object' && 'sha256' in part
+}
+
+/**
+ * @param part - canonical part to inspect.
+ * @returns whether the part wraps a nested package.
+ */
+function isNested(part: CanonicalPart): part is { readonly nested: CanonicalPackage } {
+  return typeof part === 'object' && 'nested' in part
+}
+
+/**
+ * @param left - fresh text.
+ * @param right - recorded text.
+ * @returns the first differing offset with a bounded excerpt of both sides.
+ */
+function firstTextDifference(left: string, right: string): string {
+  const shortest = Math.min(left.length, right.length)
+  let offset = 0
+  while (offset < shortest && left[offset] === right[offset]) offset += 1
+  const start = Math.max(0, offset - DIFF_CONTEXT)
+  const fresh = left.slice(start, offset + DIFF_CONTEXT)
+  const recorded = right.slice(start, offset + DIFF_CONTEXT)
+  return `first difference at offset ${String(offset)} (fresh ${String(left.length)} chars, recorded ${String(right.length)} chars)\n    fresh:    …${fresh}…\n    recorded: …${recorded}…`
 }
 
 /**

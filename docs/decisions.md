@@ -65,6 +65,7 @@ the ADR wins.**
 | 052 | M8 matrices: six theme menus, pixel ΔE gate, 60-page capacity probe |
 | 053 | Upstream drill: no newer patch exists; drift detection is the rehearsal |
 | 054 | V5 sync: plan, README, architecture, acceptance-report, docs index |
+| 055 | First CI run: platform threading in the venv manager, host-measured `advTm` normalised |
 
 ---
 
@@ -1476,3 +1477,43 @@ the ADR wins.**
   plugin/skill/CLI to FlashMade in the same step (breaks the plan's vocabulary and every
   document for no functional gain); committing the machine's credential files (they live in
   `~/.dsh` and stay there).
+
+## ADR-055 — First CI run: platform threading in the venv manager, host-measured `advTm`
+
+- **Date:** 2026-09-23
+- **Context:** The first four runs on the public repository (`35755350753`, `35755378986`,
+  `35755581330`, `35755733680`) failed on both legs at the same two steps: `ubuntu-latest` at
+  *Unit tests*, `windows-latest` at *Golden deck gate*.
+- **Decision (ubuntu leg).** `createVenvManager` gained an optional `platform` that reaches
+  `venvPaths` and `resolveUv`; `resolveUv` judges `DSH_PPT_UV` with the platform under test
+  (`win32.isAbsolute` / `posix.isAbsolute`) instead of the host's `path.isAbsolute`; the install
+  step creates the `venvs` directory with that platform's `join`; `runDoctor` forwards its
+  `platform`. `src/engine/venv.test.ts` builds its Windows expectations with `win32.join` and
+  passes `platform: 'win32'`, and `src/commands/doctor.test.ts`'s injected platform now reaches
+  the manager it exercises. Before this, those tests passed only where `DSH_HOME` already held a
+  provisioned venv built by the same platform.
+- **Decision (windows leg).** Tier T1 canonicalisation normalises the `advTm` attribute. The
+  upstream exporter derives slide auto-advance from the narration audio with **the host's
+  `ffprobe`**; the recorded golden therefore carries the number this machine's probe reported,
+  while `choco install ffmpeg` on the runner reports a different float, so the deep package
+  differed on `ppt/slides/slide2.xml` alone. The gate still compares the attribute's presence,
+  the timing tree that contains it, and the audio parts byte-for-byte; only the measured number
+  is dropped, beside the producer timestamps already normalised for the same reason.
+- **Decision (diagnosability).** A mismatch now prints the first divergence of each differing
+  part with bounded context (`tests/support/canonicalize.ts:describePartDifference`). The failing
+  CI run named the part but not the value, which costs an extra round trip per environment.
+- **Evidence:** a local reproduction of the Windows failure — a probe reporting 14.4 s where the
+  recording saw 13.7 s — passes `pnpm fixtures:verify` (deep, merged, compat levels and pixels
+  green) after the change and failed on `ppt/slides/slide2.xml` before it; `pnpm test` is
+  **317 tests / 43 files green** on 2026-09-23, `pnpm typecheck` and `pnpm lint` exit 0; CI job
+  logs `106840890272` (ubuntu) and `106840889846` (windows) name the two failing steps.
+- **Known gap recorded here.** The delivered deck keeps the narration audio (`p:pic` plus
+  `ppt/media/narration*.mp3`) but not the engine's audio-driven advance timing: `bridge/post.ts`
+  is the single motion owner and rewrites transitions and timings. v1 narrates without
+  auto-advance; deriving the advance inside `post.ts` from a deterministic source and
+  re-recording is a v0.2 backlog item.
+- **Alternatives rejected:** re-recording the golden against the runner's ffprobe (fails again on
+  the next runner image update); shipping an `ffprobe` shim with the gate (Windows
+  `CreateProcess` does not execute `.cmd`/`.bat`, so it would need a compiled launcher committed
+  to the repository); removing narration from the golden deck (loses the embedding coverage that
+  the audio parts and media hashes carry).

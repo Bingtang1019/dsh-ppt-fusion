@@ -45,6 +45,9 @@ DSH 插件 + CLI（`dsh-ppt`）。
 - **图片搜索**：openverse/wikimedia 在本网络不可达；`pexels`/`pixabay` 可用但需要用户
   自己的 key（`PEXELS_API_KEY`/`PIXABAY_API_KEY`，无 key 时跳过）。不支持 AI 生成图。
 - **LibreOffice 转换**只在 CI 执行（本机无 `soffice`），`compat:matrix` 会显式标 skipped。
+- **旁白自动前进**：成品保留旁白音频（`p:pic` + `ppt/media/narration*.mp3`），但音频时长驱动
+  的自动前进时间（`advTm`）会被 `bridge/post.ts` 这个单一动画施加点重写掉，所以 v0.1.0 只嵌入
+  旁白、不自动翻页；v0.2 计划在 `post.ts` 内改用确定性来源补齐（ADR-055）。
 - **`serve`、`deep check|chart`** 等命令未在本版实现（见 `docs/cli.md` 的 Planned）。
 - 原生对象（图表/表格/公式）与 `--native-charts-and-tables` 一起导出时会以 PowerPoint
   对象替换 SVG 回退的样式细节，需要精确回退画面时用默认 shape-based 导出。

@@ -185,6 +185,7 @@ export function runDoctor(options: {
     runner,
     fs,
     env,
+    platform,
   })
   if (options.repair === true) {
     try {
