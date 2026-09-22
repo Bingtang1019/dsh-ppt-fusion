@@ -1,0 +1,268 @@
+usage: svg_to_pptx.py [-h] [-o OUTPUT] [-s SOURCE]
+                      [-f {ppt169,ppt43,wechat,xiaohongshu,moments,story,banner,a4}]
+                      [-q] [--quick-generate] [--primary-language TAG]
+                      [--roundtrip]
+                      [--enable-dangerous-nonconforming-svg-export]
+                      [--reflow-text | --merge-paragraphs | --no-merge]
+                      [--conversion-trace [PATH]] [--native-charts-and-tables]
+                      [--pptx-structure {structured,flat,baseline,template,preserve,generated}]
+                      [--no-image-optimize]
+                      [--image-max-dimension IMAGE_MAX_DIMENSION]
+                      [--image-sizing {cap,display}]
+                      [--image-scale IMAGE_SCALE]
+                      [--image-quality IMAGE_QUALITY]
+                      [-t {none,morph,fade,push,wipe,split,reveal,cut,random_bars,shape,uncover,cover,flash,fall_over,drape,curtains,wind,prestige,fracture,crush,peel_off,page_curl,airplane,origami,dissolve,checkerboard,blinds,clock,ripple,honeycomb,glitter,vortex,shred,switch,flip,gallery,cube,doors,box,comb,zoom,random,pan,ferris_wheel,conveyor,rotate,window,orbit,fly_through,strips,circle,diamond,newsflash,plus,pull,wedge,wheel}]
+                      [--transition-duration TRANSITION_DURATION]
+                      [--auto-advance AUTO_ADVANCE] [--kiosk]
+                      [-a {none,entrance_appear,entrance_fly,entrance_blinds,entrance_box,entrance_checkerboard,entrance_circle,entrance_crawl,entrance_diamond,entrance_dissolve,entrance_fade,entrance_flash_once,entrance_peek,entrance_plus,entrance_random_bars,entrance_spiral,entrance_split,entrance_stretch,entrance_strips,entrance_swivel,entrance_wedge,entrance_wheel,entrance_wipe,entrance_zoom,entrance_random_effects,entrance_boomerang,entrance_bounce,entrance_color_reveal,entrance_credits,entrance_ease_in,entrance_float,entrance_grow_and_turn,entrance_light_speed,entrance_pinwheel,entrance_rise_up,entrance_swish,entrance_thin_line,entrance_unfold,entrance_whip,entrance_ascend,entrance_center_revolve,entrance_faded_swivel,entrance_descend,entrance_sling,entrance_spinner,entrance_stretchy,entrance_zip,entrance_arc_up,entrance_faded_zoom,entrance_glide,entrance_expand,entrance_flip,entrance_fold,entrance_3d_arrive,emphasis_shimmer,emphasis_change_fill_color,emphasis_change_font,emphasis_change_font_color,emphasis_change_font_size,emphasis_change_font_style,emphasis_grow_shrink,emphasis_change_line_color,emphasis_spin,emphasis_transparency,emphasis_bold_flash,emphasis_blast,emphasis_bold_reveal,emphasis_brush_on_color,emphasis_brush_on_underline,emphasis_color_blend,emphasis_color_wave,emphasis_complementary_color,emphasis_complementary_color2,emphasis_contrasting_color,emphasis_darken,emphasis_desaturate,emphasis_flash_bulb,emphasis_flicker,emphasis_grow_with_color,emphasis_lighten,emphasis_style_emphasis,emphasis_teeter,emphasis_vertical_grow,emphasis_wave,emphasis_3d_turntable,emphasis_3d_swing,emphasis_3d_jump_and_turn,path_circle,path_right_triangle,path_diamond,path_hexagon,path_5_point_star,path_crescent_moon,path_square,path_trapezoid,path_heart,path_octagon,path_6_point_star,path_football,path_equal_triangle,path_parallelogram,path_pentagon,path_4_point_star,path_8_point_star,path_teardrop,path_pointy_star,path_curved_square,path_curved_x,path_vertical_figure8,path_curvy_star,path_loopde_loop,path_buzzsaw,path_horizontal_figure8,path_peanut,path_figure8_four,path_neutron,path_swoosh,path_bean,path_plus,path_inverted_triangle,path_inverted_square,path_left,path_turn_right,path_arc_down,path_zigzag,path_s_curve2,path_sine_wave,path_bounce_left,path_down,path_turn_up,path_arc_up,path_heartbeat,path_spiral_right,path_wave,path_curvy_left,path_diagonal_down_right,path_turn_down,path_arc_left,path_funnel,path_spring,path_bounce_right,path_spiral_left,path_diagonal_up_right,path_turn_up_right,path_arc_right,path_s_curve1,path_decaying_wave,path_curvy_right,path_stairs_down,path_up,path_right,exit_appear,exit_fly,exit_blinds,exit_box,exit_checkerboard,exit_circle,exit_crawl,exit_diamond,exit_dissolve,exit_fade,exit_flash_once,exit_peek,exit_plus,exit_random_bars,exit_spiral,exit_split,exit_stretch,exit_strips,exit_swivel,exit_wedge,exit_wheel,exit_wipe,exit_zoom,exit_random_effects,exit_boomerang,exit_bounce,exit_color_reveal,exit_credits,exit_ease_in,exit_float,exit_grow_and_turn,exit_light_speed,exit_pinwheel,exit_rise_up,exit_swish,exit_thin_line,exit_unfold,exit_whip,exit_ascend,exit_center_revolve,exit_faded_swivel,exit_descend,exit_sling,exit_spinner,exit_stretchy,exit_zip,exit_arc_up,exit_faded_zoom,exit_glide,exit_expand,exit_flip,exit_fold,exit_3d_arrive,appear,fade,fly,fly_left,fly_right,fly_top,cut,zoom,wipe,wipe_left,wipe_right,wipe_up,wipe_down,split,blinds,checkerboard,dissolve,random_bars,peek,wheel,box,circle,diamond,plus,strips,wedge,stretch,expand,swivel,auto,mixed,random}]
+                      [--animation-duration ANIMATION_DURATION]
+                      [--animation-trigger {on-click,with-previous,after-previous}]
+                      [--animation-stagger ANIMATION_STAGGER]
+                      [--animation-config ANIMATION_CONFIG | --no-animations]
+                      [--with-notes | --no-notes]
+                      [--narration-audio-dir NARRATION_AUDIO_DIR]
+                      [--use-narration-timings]
+                      [--recorded-narration RECORDED_NARRATION]
+                      [--narration-padding NARRATION_PADDING]
+                      [--narration-start-floor NARRATION_START_FLOOR]
+                      [--inherit-motion-from BASE_POSTFLIGHT_REPORT]
+                      project_path
+
+PPT Master - SVG to native DrawingML PPTX Tool
+
+positional arguments:
+  project_path          Project directory path
+
+options:
+  -h, --help            show this help message and exit
+  -o, --output OUTPUT   Output file path
+  -s, --source SOURCE   Project-relative SVG source directory. Default:
+                        svg_output/. Pass another directory explicitly.
+  -f, --format {ppt169,ppt43,wechat,xiaohongshu,moments,story,banner,a4}
+                        Require SVG canvases to match this registered format
+  -q, --quiet           Quiet mode
+  --quick-generate      Export a Quick Generate SVG roster from svg_output/
+                        without spec_lock.md. Require a matching final quality
+                        report, infer one consistent canvas, infer flat versus
+                        structured output from the complete SVG roster, and
+                        support normal export capabilities.
+  --primary-language TAG
+                        Deck language as a BCP-47 tag (vi-VN, he-IL).
+                        Overrides spec_lock.md communication.primary_language
+                        and the root <svg lang="..."> of the first page; sets
+                        run proofing language, right-to-left defaults, theme
+                        script slots, and docProps.
+  --roundtrip           Source-preserving import export from authoring-svg-
+                        flat/ against the validated sources/source.pptx and
+                        analysis contracts emitted by pptx_to_svg.py
+                        --roundtrip. Unchanged authoring objects recover their
+                        source semantics; edited inline objects remain
+                        authored SVG, while atomic source-proxy edits fail
+                        closed. No other -s/--source directory is accepted in
+                        round-trip mode.
+  --enable-dangerous-nonconforming-svg-export
+                        Apply supported compatibility normalizations to
+                        svg_output/ or an explicit -s/--source, then run the
+                        ordinary strict converter. Cannot be combined with
+                        --roundtrip or --quick-generate. Unnormalized
+                        contract, resource, conversion, relationship, and
+                        package failures remain blocking.
+  --reflow-text         Let PowerPoint automatically reflow conservative dy-
+                        stacked text inside one editable text frame.
+  --merge-paragraphs    Compatibility alias for --reflow-text.
+  --no-merge            Emit every positioned visual line as its own text
+                        frame for strict per-line SVG positioning.
+  --conversion-trace [PATH]
+                        Write per-slide SVG conversion diagnostics. Without
+                        PATH, write
+                        <project>/validation/<output_stem>.trace.json;
+                        relative PATHs are resolved from the project root.
+  --native-charts-and-tables
+                        Replace opt-in data-pptx-replace-with chart/table
+                        groups with PowerPoint native Chart/Table objects.
+                        This data-object route may normalize styling or omit
+                        fallback-only visuals. Default-off markers export as
+                        editable SVG-derived DrawingML shapes. The default-
+                        flow output uses
+                        <project>_<ts>_native_charts_tables.pptx.
+  --pptx-structure {structured,flat,baseline,template,preserve,generated}
+                        PPTX structure strategy for native export. Omitting
+                        this flag reads spec_lock.md; a legacy lock without
+                        pptx_structure.mode defaults to flat. Quick Generate
+                        requires omission and infers flat/structured from its
+                        complete SVG roster. Flat is the style-reference/free-
+                        design/brand-only release mode and builds one clean
+                        project-owned Master plus Blank Layout while keeping
+                        all SVG objects slide-local; structured is the
+                        mirror/layout reuse mode and requires complete
+                        explicit metadata. baseline, template, preserve, and
+                        generated are accepted only to report a migration
+                        error.
+  --no-image-optimize   Disable native PPTX raster image optimization and
+                        always embed the original image bytes.
+  --image-max-dimension IMAGE_MAX_DIMENSION
+                        Preferred raster cap in pixels. Cap mode re-encodes
+                        only images that require resizing or EXIF geometry
+                        normalization, and may retain more pixels for
+                        cropped/stretched visible resolution (default: 2560).
+  --image-sizing {cap,display}
+                        Raster sizing mode: cap preserves original bytes
+                        unless resizing or EXIF geometry normalization is
+                        required; display targets the SVG rendered box for
+                        explicit compaction (default: cap).
+  --image-scale IMAGE_SCALE
+                        Target optimized image pixels per SVG display pixel
+                        when --image-sizing=display (default: 2.0).
+  --image-quality IMAGE_QUALITY
+                        JPEG quality for raster images re-encoded during
+                        optimization, 1-100 (default: 85).
+  -t, --transition {none,morph,fade,push,wipe,split,reveal,cut,random_bars,shape,uncover,cover,flash,fall_over,drape,curtains,wind,prestige,fracture,crush,peel_off,page_curl,airplane,origami,dissolve,checkerboard,blinds,clock,ripple,honeycomb,glitter,vortex,shred,switch,flip,gallery,cube,doors,box,comb,zoom,random,pan,ferris_wheel,conveyor,rotate,window,orbit,fly_through,strips,circle,diamond,newsflash,plus,pull,wedge,wheel}
+                        Page transition effect (default: fade; "none" removes
+                        visual motion)
+  --transition-duration TRANSITION_DURATION
+                        Transition duration in seconds (default: 0.4)
+  --auto-advance AUTO_ADVANCE
+                        Auto-advance interval in seconds (default: manual
+                        advance)
+  --kiosk               Export as a looping kiosk show: PowerPoint ignores
+                        click and keyboard advance, so only --auto-advance
+                        timings and hyperlinks move between slides
+  -a, --animation {none,entrance_appear,entrance_fly,entrance_blinds,entrance_box,entrance_checkerboard,entrance_circle,entrance_crawl,entrance_diamond,entrance_dissolve,entrance_fade,entrance_flash_once,entrance_peek,entrance_plus,entrance_random_bars,entrance_spiral,entrance_split,entrance_stretch,entrance_strips,entrance_swivel,entrance_wedge,entrance_wheel,entrance_wipe,entrance_zoom,entrance_random_effects,entrance_boomerang,entrance_bounce,entrance_color_reveal,entrance_credits,entrance_ease_in,entrance_float,entrance_grow_and_turn,entrance_light_speed,entrance_pinwheel,entrance_rise_up,entrance_swish,entrance_thin_line,entrance_unfold,entrance_whip,entrance_ascend,entrance_center_revolve,entrance_faded_swivel,entrance_descend,entrance_sling,entrance_spinner,entrance_stretchy,entrance_zip,entrance_arc_up,entrance_faded_zoom,entrance_glide,entrance_expand,entrance_flip,entrance_fold,entrance_3d_arrive,emphasis_shimmer,emphasis_change_fill_color,emphasis_change_font,emphasis_change_font_color,emphasis_change_font_size,emphasis_change_font_style,emphasis_grow_shrink,emphasis_change_line_color,emphasis_spin,emphasis_transparency,emphasis_bold_flash,emphasis_blast,emphasis_bold_reveal,emphasis_brush_on_color,emphasis_brush_on_underline,emphasis_color_blend,emphasis_color_wave,emphasis_complementary_color,emphasis_complementary_color2,emphasis_contrasting_color,emphasis_darken,emphasis_desaturate,emphasis_flash_bulb,emphasis_flicker,emphasis_grow_with_color,emphasis_lighten,emphasis_style_emphasis,emphasis_teeter,emphasis_vertical_grow,emphasis_wave,emphasis_3d_turntable,emphasis_3d_swing,emphasis_3d_jump_and_turn,path_circle,path_right_triangle,path_diamond,path_hexagon,path_5_point_star,path_crescent_moon,path_square,path_trapezoid,path_heart,path_octagon,path_6_point_star,path_football,path_equal_triangle,path_parallelogram,path_pentagon,path_4_point_star,path_8_point_star,path_teardrop,path_pointy_star,path_curved_square,path_curved_x,path_vertical_figure8,path_curvy_star,path_loopde_loop,path_buzzsaw,path_horizontal_figure8,path_peanut,path_figure8_four,path_neutron,path_swoosh,path_bean,path_plus,path_inverted_triangle,path_inverted_square,path_left,path_turn_right,path_arc_down,path_zigzag,path_s_curve2,path_sine_wave,path_bounce_left,path_down,path_turn_up,path_arc_up,path_heartbeat,path_spiral_right,path_wave,path_curvy_left,path_diagonal_down_right,path_turn_down,path_arc_left,path_funnel,path_spring,path_bounce_right,path_spiral_left,path_diagonal_up_right,path_turn_up_right,path_arc_right,path_s_curve1,path_decaying_wave,path_curvy_right,path_stairs_down,path_up,path_right,exit_appear,exit_fly,exit_blinds,exit_box,exit_checkerboard,exit_circle,exit_crawl,exit_diamond,exit_dissolve,exit_fade,exit_flash_once,exit_peek,exit_plus,exit_random_bars,exit_spiral,exit_split,exit_stretch,exit_strips,exit_swivel,exit_wedge,exit_wheel,exit_wipe,exit_zoom,exit_random_effects,exit_boomerang,exit_bounce,exit_color_reveal,exit_credits,exit_ease_in,exit_float,exit_grow_and_turn,exit_light_speed,exit_pinwheel,exit_rise_up,exit_swish,exit_thin_line,exit_unfold,exit_whip,exit_ascend,exit_center_revolve,exit_faded_swivel,exit_descend,exit_sling,exit_spinner,exit_stretchy,exit_zip,exit_arc_up,exit_faded_zoom,exit_glide,exit_expand,exit_flip,exit_fold,exit_3d_arrive,appear,fade,fly,fly_left,fly_right,fly_top,cut,zoom,wipe,wipe_left,wipe_right,wipe_up,wipe_down,split,blinds,checkerboard,dissolve,random_bars,peek,wheel,box,circle,diamond,plus,strips,wedge,stretch,expand,swivel,auto,mixed,random}
+                        Per-element object animation (native shapes mode
+                        only). Default "none" (no auto element builds; page
+                        transitions still apply). Pick a native
+                        entrance_*/emphasis_*/path_*/exit_* key or "auto" (map
+                        effect from group id — image-like ids cycle a richer
+                        canonical pool for visual variation, fallback cycles e
+                        ntrance_fade/entrance_wipe/entrance_fly/entrance_zoom)
+                        , "mixed" (canonical 16-preset entrance pool), or
+                        "random" (the same entrance pool). Use explicit keys
+                        for emphasis/path/exit. Legacy short names remain
+                        accepted only for compatibility.
+  --animation-duration ANIMATION_DURATION
+                        Per-element object-animation duration in seconds
+                        (default: 0.4; instantaneous native presets keep their
+                        PowerPoint-authored duration)
+  --animation-trigger {on-click,with-previous,after-previous}
+                        Per-element Start mode (matches PowerPoint Start
+                        dropdown): "on-click" (one click per element), "with-
+                        previous" (all start together on slide entry), "after-
+                        previous" (default, cascade after the previous
+                        element).
+  --animation-stagger ANIMATION_STAGGER
+                        Delay between elements in --animation-trigger=after-
+                        previous (seconds, default 0.5). Ignored in other
+                        modes.
+  --animation-config ANIMATION_CONFIG
+                        Per-slide/per-object animation config. While motion
+                        remains enabled, recorded narration without an
+                        explicit config selects
+                        <project>/narration_animations.json when either
+                        animation sidecar exists, or may inherit base
+                        postflight motion with --inherit-motion-from when
+                        neither exists. Other exports default to
+                        <project>/animations.json when present.
+  --no-animations       Export without object animations or page-transition
+                        motion. Narration audio and slide advance timings are
+                        preserved.
+  --with-notes          Embed speaker notes. Required to opt in during Quick
+                        Generate.
+  --no-notes            Disable speaker notes embedding (enabled by default
+                        outside Quick Generate)
+  --narration-audio-dir NARRATION_AUDIO_DIR
+                        Low-level audio embedding from this directory; allows
+                        partial matches. Default-flow exports get the
+                        _narrated name suffix.
+  --use-narration-timings
+                        Set slide auto-advance timings from narration audio
+                        durations
+  --recorded-narration RECORDED_NARRATION
+                        Prepare PowerPoint recorded timings and narrations
+                        from a complete audio directory. Default-flow exports
+                        get the _narrated name suffix
+                        (<project>_<ts>_narrated.pptx) to tell them apart from
+                        silent exports.
+  --narration-padding NARRATION_PADDING
+                        Seconds to add after each narration before auto-
+                        advance (default: 0.5)
+  --narration-start-floor NARRATION_START_FLOOR
+                        Minimum seconds from slide-transition start to
+                        narration start; set 0 to start immediately after the
+                        transition (default: 0.8)
+  --inherit-motion-from BASE_POSTFLIGHT_REPORT
+                        For recorded narration, inherit source-bound deck-wide
+                        transition, animation, and advance settings from a
+                        successful base export report
+
+Examples:
+    svg_to_pptx.py projects/ppt169_demo                         # Default: native pptx -> exports/, svg_output -> backup/<ts>/
+    svg_to_pptx.py projects/ppt169_demo -o out.pptx            # Explicit path (no backup/)
+    svg_to_pptx.py projects/quick_generate_demo --quick-generate # Lockless inferred structure + postflight
+    svg_to_pptx.py <import_workspace> --roundtrip               # authoring-svg-flat/ with source restoration
+
+    # Disable transition / change transition effect
+    svg_to_pptx.py projects/ppt169_demo -t none
+    svg_to_pptx.py projects/ppt169_demo -t push --transition-duration 1.0
+
+SVG source directory (-s):
+    output   - svg_output (hand-authored source; native default)
+    final    - svg_final (post-processed preview; diagnostic native input only)
+    <any>    - Specify a subdirectory name directly
+    Omit -s to use the default: native export reads svg_output.
+
+Transition effects (-t/--transition):
+    New selections use the 48 PowerPoint-native gallery keys. The 8 old
+    names remain accepted only as compatibility inputs. Run
+    scripts/pptx_animations.py --list for the categorized registry and
+    --describe-transition <effect> for its Effect Options.
+
+Per-element object animation (-a/--animation, native shapes mode):
+    Use PowerPoint-native entrance_*, emphasis_*, path_*, and exit_* keys for
+    new animation choices. The 29 old short names remain accepted only as
+    compatibility inputs. Run scripts/pptx_animations.py --list for the
+    complete categorized 232-key input registry.
+    Notes: applied to top-level <g id="..."> SVG groups in z-order. Default is
+           "none" (no auto element builds; page transitions still apply). Use
+           "-a auto" to map effects from group id: chart→entrance_wipe,
+           card-/step-/pillar-→entrance_fly,
+           title/takeaway→entrance_fade; image-like ids
+           hero/figure-/image/img-/kpi cycle canonical entrance presets;
+           unmatched ids cycle entrance_fade/entrance_wipe/entrance_fly/
+           entrance_zoom. Start mode set by --animation-trigger, matching
+           PowerPoint's Start dropdown:
+             on-click              one presenter click per group
+             with-previous         all groups start together on slide entry
+             after-previous (default)  cascade on slide entry;
+                                       gap = --animation-stagger seconds
+           mixed (compatible mode name) cycles a larger 16-preset canonical
+           PowerPoint entrance pool by group order; random samples from the
+           same entrance pool. Use explicit canonical keys for emphasis,
+           motion-path, or exit duties. Use "-a none" to disable element
+           builds explicitly.
+
+Speaker notes:
+    - Automatically reads Markdown notes files from the notes/ directory
+    - Supports two naming conventions:
+      1. Match by filename (recommended): 01_cover.md corresponds to 01_cover.svg
+      2. Match by index: slide01.md corresponds to the 1st SVG (backward compatible)
+    - Enabled by default outside Quick Generate; use --no-notes to disable
+    - Disabled by default in Quick Generate; use --with-notes to enable
+
+Recorded narration:
+    svg_to_pptx.py projects/ppt169_demo --recorded-narration audio \
+      --inherit-motion-from validation/<base>.report.json
+    - Keeps speaker notes when enabled
+    - Prepares PowerPoint recorded timings and narrations
+    - Requires one m4a/mp3/wav file per slide
+    - Unless --no-animations is set, recorded narration without an explicit
+      config selects narration_animations.json when either sidecar exists
+    - With no sidecar, --inherit-motion-from may restore base-report deck motion
+    - Use --animation-config animations.json for narration-independent custom motion
+    - Use --no-animations for narration and timings without animation motion
+    - Embeds per-slide audio matched by SVG filename / slide number
+    - Sets slide auto-advance from audio duration so video export can use
+      "recorded timings and narrations"
+    - Rejects on-click object animations; use after-previous or with-previous
+    svg_to_pptx.py projects/ppt169_demo --narration-audio-dir audio
+    - Lower-level audio embedding: embeds matched files but allows partial matches
+    - Use only when you do not need a complete recorded-timings export

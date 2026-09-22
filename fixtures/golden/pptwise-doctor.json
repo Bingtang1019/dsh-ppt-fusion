@@ -1,0 +1,117 @@
+{
+  "version": "0.35.0",
+  "runtime": {
+    "node": "v24.18.1",
+    "bun": null,
+    "minimum": "22.19",
+    "meetsMinimum": true
+  },
+  "skills": {
+    "scanned": [
+      "C:\\Users\\dell\\.claude\\skills",
+      "C:\\Users\\dell\\.codex\\skills",
+      "C:\\Users\\dell\\.agents\\skills"
+    ],
+    "copies": []
+  },
+  "dsh": {
+    "applicable": true,
+    "home": "C:\\Users\\dell\\.dsh",
+    "profiles": [
+      {
+        "name": "rc1-test",
+        "path": "C:\\Users\\dell\\.dsh\\profiles\\rc1-test",
+        "installed": true,
+        "version": "0.35.0",
+        "source": "node_modules",
+        "stale": false
+      },
+      {
+        "name": "web",
+        "path": "C:\\Users\\dell\\.dsh\\profiles\\web",
+        "installed": false,
+        "version": null,
+        "source": null,
+        "stale": false
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "name": "sharp",
+      "available": true,
+      "detail": "importable — preview rasterization and `audit --pixels` are available"
+    },
+    {
+      "name": "soffice",
+      "available": false,
+      "detail": "not on PATH — the PDF export path is unavailable. Rendering and validating .pptx files are unaffected",
+      "fix": "install LibreOffice (https://libreoffice.org) and make sure `soffice` is on PATH"
+    }
+  ],
+  "selfTest": {
+    "ok": true,
+    "elapsedMs": 1830,
+    "slides": 2,
+    "bytes": 20699
+  },
+  "workspace": {
+    "anchor": "C:\\Users\\dell\\Desktop\\dsh-ppt-fusion\\fixtures\\_m0-scratch\\doctor-run",
+    "root": "C:\\Users\\dell\\Desktop\\dsh-ppt-fusion\\fixtures\\_m0-scratch\\doctor-run\\.pptwise",
+    "configured": false,
+    "ignore": "not-a-repo"
+  },
+  "images": {
+    "configPath": "C:\\Users\\dell\\.pptwise\\config.json",
+    "configExists": false,
+    "groupOrOtherReadable": false,
+    "providers": [
+      {
+        "provider": "pexels",
+        "present": false,
+        "source": null
+      },
+      {
+        "provider": "pixabay",
+        "present": false,
+        "source": null
+      },
+      {
+        "provider": "openverse",
+        "present": false,
+        "source": null
+      }
+    ]
+  },
+  "generators": [
+    {
+      "id": "grok",
+      "found": false,
+      "bin": null,
+      "version": null,
+      "enabled": false
+    },
+    {
+      "id": "codex",
+      "found": false,
+      "bin": null,
+      "version": null,
+      "enabled": false
+    },
+    {
+      "id": "antigravity",
+      "found": false,
+      "bin": null,
+      "version": null,
+      "enabled": false
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    {
+      "check": "capability",
+      "message": "soffice: not on PATH — the PDF export path is unavailable. Rendering and validating .pptx files are unaffected",
+      "fix": "install LibreOffice (https://libreoffice.org) and make sure `soffice` is on PATH"
+    }
+  ]
+}

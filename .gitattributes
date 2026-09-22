@@ -1,0 +1,18 @@
+# OOXML and Office packages are binary; never diff or text-merge them.
+*.pptx binary
+*.potx binary
+*.ppsx binary
+*.docx binary
+*.xlsx binary
+*.xlsm binary
+*.tgz binary
+*.whl binary
+*.zstd binary
+
+# Fixture decks are recorded artifacts: mark them generated for review tools.
+fixtures/golden/*.pptx linguist-generated=true
+fixtures/golden/*.xml linguist-generated=true
+
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf

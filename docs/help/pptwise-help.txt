@@ -1,0 +1,61 @@
+Usage: pptwise [options] [command]
+
+Stable, editable PPTX generation for AI agents — semantic IR in, native
+DrawingML out
+
+Options:
+  -V, --version                    output the version number
+  -h, --help                       display help for command
+
+Commands:
+  render [options] <target>        Render an IR JSON file, deck project
+                                   directory, or bare deck name to a .pptx
+  validate <target>                Validate an IR JSON file, deck project
+                                   directory, or bare deck name against the
+                                   schema
+  audit [options] <target>         Deterministic geometry audit (overflow,
+                                   out-of-bounds, low-contrast, overlap,
+                                   content-truncated, content-dropped,
+                                   monotony), plus an optional --pixels contrast
+                                   pass — exits 1 when it finds anything
+  asset-brief [options] <target>   Image-generation brief for every image slot
+                                   in a deck: the real rendered frame, fit/crop
+                                   mode, suggested pixel size, theme
+                                   palette/mood, and a paste-ready prompt
+  schema [options]                 Print the IR JSON Schema (feed this to a
+                                   model before it writes IR)
+  spec                             Deck spec commands (spec §6)
+  assemble [options] <dir|name>    Assemble a deck project directory
+                                   (deck.spec.json + pages/ + assets/) into an
+                                   IR JSON file
+  disassemble [options] <ir.json>  Split an IR JSON file into a deck project
+                                   directory (deck.spec.json + pages/)
+  themes [options]                 List built-in themes
+  theme                            Copy, fork, and compare themes
+  layouts [options]                List registered layouts
+  brand                            Brand asset commands — extract your company's
+                                   colors/fonts from an Office template
+  narratives [options]             List named narrative presets
+                                   (strategy/pacing/audience axes + theme
+                                   recommendations)
+  config                           User-level settings (API keys for optional
+                                   stock-photo search)
+  images                           Search and pin stock photos into workspace
+                                   assets
+  init                             Scaffold a pptwise.config.json in the current
+                                   directory
+  preview [options] <target>       Render each slide to an SVG file for visual
+                                   self-check
+  serve [options] <target>         Serve a live-reloading HTML preview of an IR
+                                   JSON file, deck project directory, or bare
+                                   deck name over HTTP
+  doctor [options]                 Diagnose this machine's install: installed
+                                   skill copies and what each pins, dsh plugin
+                                   status, Node/Bun against the engines floor,
+                                   the optional sharp/soffice capabilities, and
+                                   a self-test render — exits 1 only on a hard
+                                   failure
+  check-update                     Check npm for a newer pptwise release
+  self-update                      Update the global pptwise install to the
+                                   latest release
+  help [command]                   display help for command

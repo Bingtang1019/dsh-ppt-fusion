@@ -1,0 +1,10 @@
+# Engine requirements for the pinned ppt-master release.
+#
+# `pnpm run engine:lock` regenerates requirements.lock from this file. The lock
+# is consumed by `dsh-ppt doctor --repair` through `uv pip install -r`.
+#
+# PyMuPDF (AGPL-3.0) arrives as a transitive dependency of ppt-master and is used
+# by the PDF source path only. It must never be redistributed with this package
+# or its venv: the venv is built locally by the user's own `doctor` run, and
+# `docs/licensing.md` records the distinction.
+ppt-master==0.1.128

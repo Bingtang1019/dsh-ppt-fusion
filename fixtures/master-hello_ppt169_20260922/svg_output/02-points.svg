@@ -1,0 +1,27 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-page-role="content">
+  <rect id="bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#F7F6F2"/>
+  <g id="page-heading" data-pptx-bounds="80 70 800 90">
+    <text x="80" y="110" font-family="Arial" font-size="42" font-weight="bold" fill="#1E2A4A">What the deep engine adds</text>
+    <rect id="heading-rule" data-pptx-role="decoration" x="80" y="140" width="120" height="8" fill="#F5C518"/>
+  </g>
+  <g id="card-native-chart" data-pptx-bounds="80 210 520 150">
+    <rect x="80" y="210" width="520" height="150" fill="#FFFFFF" stroke="#DDDCD4"/>
+    <text x="112" y="272" font-family="Arial" font-size="22" font-weight="bold" fill="#1E2A4A">Native chart objects</text>
+    <text x="112" y="316" font-family="Arial" font-size="22" fill="#5B6069">Editable data, not a picture</text>
+  </g>
+  <g id="card-native-table" data-pptx-bounds="680 210 520 150">
+    <rect x="680" y="210" width="520" height="150" fill="#FFFFFF" stroke="#DDDCD4"/>
+    <text x="712" y="272" font-family="Arial" font-size="22" font-weight="bold" fill="#1E2A4A">Native table objects</text>
+    <text x="712" y="316" font-family="Arial" font-size="22" fill="#5B6069">Rows keep their cells</text>
+  </g>
+  <g id="card-animation" data-pptx-bounds="80 420 520 150">
+    <rect x="80" y="420" width="520" height="150" fill="#FFFFFF" stroke="#DDDCD4"/>
+    <text x="112" y="482" font-family="Arial" font-size="22" font-weight="bold" fill="#1E2A4A">Animation timelines</text>
+    <text x="112" y="526" font-family="Arial" font-size="22" fill="#5B6069">Entrance and emphasis effects</text>
+  </g>
+  <g id="card-narration" data-pptx-bounds="680 420 520 150">
+    <rect x="680" y="420" width="520" height="150" fill="#FFFFFF" stroke="#DDDCD4"/>
+    <text x="712" y="482" font-family="Arial" font-size="22" font-weight="bold" fill="#1E2A4A">Narration audio</text>
+    <text x="712" y="526" font-family="Arial" font-size="22" fill="#5B6069">Per-slide voice with subtitles</text>
+  </g>
+</svg>

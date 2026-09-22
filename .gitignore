@@ -1,0 +1,19 @@
+node_modules/
+dist/
+lib/
+coverage/
+*.tsbuildinfo
+
+# Deck workspaces and engine scratch produced while testing by hand
+fixtures/_m0-scratch/
+fixtures/**/.dsh-ppt/
+fixtures/**/.pptwise/
+fixtures/**/.pptwise-preview/
+fixtures/**/exports/*.pptx
+fixtures/**/backup/
+fixtures/**/live_preview/
+
+# Local environment
+.env
+.env.*
+!.env.example

@@ -1,0 +1,9 @@
+usage: project_manager.py init [-h] [--format FORMAT] [--dir DIR] project_name
+
+positional arguments:
+  project_name     Project name
+
+options:
+  -h, --help       show this help message and exit
+  --format FORMAT  Canvas format (default: ppt169)
+  --dir DIR        Base directory for the project

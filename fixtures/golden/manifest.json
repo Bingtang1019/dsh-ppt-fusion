@@ -1,0 +1,81 @@
+{
+  "schema": "dsh-ppt-fusion.golden.v1",
+  "fixtureVersion": 1,
+  "generatedAt": "2026-09-22",
+  "planVersion": "v2",
+  "description": "M0 fixtures. Every pptx was opened in PowerPoint (Office16) through COM with ReadOnly+no-window, which reported the slide count and left the file byte-identical with Saved=true (no repair).",
+  "upstream": { "pptwise": "0.35.0", "pptMaster": "0.1.128" },
+  "verifyCommand": "node scripts/opc-invariants.mjs <deck> --expect-slides 5 --single-master; pwsh -File scripts/win-com-smoke.ps1 -Path <deck> -ExpectedSlides 5",
+  "decks": [
+    {
+      "name": "base",
+      "path": "fixtures/golden/base.pptx",
+      "sha256": "5dbf19c96d4daa0165a602df5b1d34afc9998230fe37740c58ede15cbba5f6d5",
+      "bytes": 30762,
+      "command": "pptwise render fixtures/hello/deck.ir.json -o out/hello.pptx",
+      "slides": 5,
+      "slideMasters": 1,
+      "repeatRenderEqual": true,
+      "slideSize": "959.75 x 540 pt",
+      "comSmoke": { "opened": true, "saved": true, "unchanged": true }
+    },
+    {
+      "name": "deep",
+      "path": "fixtures/golden/deep.pptx",
+      "sha256": "39ab274abdc2bac19009cb1cb06f952ada67ae1ff7b05c813bf3e2e9575bc1c4",
+      "bytes": 26535,
+      "command": "ppt-master svg-to-pptx fixtures/master-hello_ppt169_20260922 --quick-generate --native-charts-and-tables --with-notes",
+      "slides": 5,
+      "slideMasters": 1,
+      "postflight": "status=passed-with-warnings quality_gate=passed slides=5",
+      "repeatRenderEqual": false,
+      "repeatRenderNote": "identical parts except docProps/core.xml and the embedded workbook timestamps; T3 only, never a v1 gate (plan v2 7.2, ADR-014)",
+      "slideSize": "960 x 540 pt",
+      "comSmoke": { "opened": true, "saved": true, "unchanged": true }
+    },
+    {
+      "name": "merged-proto",
+      "path": "fixtures/golden/merged-proto.pptx",
+      "sha256": "f6ae924e1548ed478a0989c230ab8def486fe9360c6a762454bd28a3571e2c29",
+      "bytes": 30213,
+      "command": "node scripts/m0/merge-slide.mjs fixtures/golden/base.pptx fixtures/golden/deep.pptx 3 3",
+      "slides": 5,
+      "slideMasters": 1,
+      "note": "shape-only deep page moved; layout relationship remapped to the receiving deck's layout (the v2 3.5 main strategy)",
+      "slideSize": "959.75 x 540 pt",
+      "comSmoke": { "opened": true, "saved": true, "unchanged": true }
+    },
+    {
+      "name": "merged-chart",
+      "path": "fixtures/golden/merged-chart.pptx",
+      "sha256": "9e5c1aa6daf3e6d27f9e5d5e68076ee04acab7a3bfd5600f3b752d0f05881e5b",
+      "bytes": 36317,
+      "command": "node scripts/m0/merge-slide.mjs fixtures/golden/base.pptx fixtures/golden/deep.pptx 3 4",
+      "slides": 5,
+      "slideMasters": 1,
+      "note": "the native-chart deep page moved with its full non-layout closure: ppt/charts/chart401.xml -> ppt/charts/chart1.xml, ppt/embeddings/Microsoft_Excel_Sheet401.xlsx -> ...Sheet1.xlsx, two [Content_Types].xml overrides added, chart rels and slide rels rewritten, layout remapped",
+      "opcInvariants": "OK parts=47 slides=5 masters=1 layouts=5 themes=1 charts=1 embeddings=1, no dangling rels, no duplicate rIds",
+      "slideSize": "959.75 x 540 pt",
+      "comSmoke": { "opened": true, "saved": true, "unchanged": true }
+    }
+  ],
+  "capturedParts": [
+    {
+      "name": "chart401",
+      "path": "fixtures/golden/chart401.xml",
+      "sha256": "6007ff55aa0b541d3c8e14cc45a39f2b149ec7b38f603cafe3abcfae3ba56c5b",
+      "bytes": 3662,
+      "note": "source chart part from deep.pptx: root <c:chartSpace>, c:numCache cached data, series name Deck pages"
+    },
+    {
+      "name": "pptwise-doctor",
+      "path": "fixtures/golden/pptwise-doctor.json",
+      "note": "pptwise doctor --json for the rc1-test scratch profile: exit 0, selfTest {ok:true, slides:2, elapsedMs:1830}, errors [], one warning (soffice absent, PDF export path only)"
+    }
+  ],
+  "qualityGate": {
+    "path": "fixtures/golden/svg-quality-final.txt",
+    "command": "ppt-master svg-quality-check fixtures/master-hello_ppt169_20260922 --quick-generate --canonical-authoring --stage final --json",
+    "result": "exit 0, 0 blocking findings"
+  }
+}

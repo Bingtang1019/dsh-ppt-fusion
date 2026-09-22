@@ -1,0 +1,106 @@
+{
+  "schema": "dsh-ppt-fusion.manifest.v1",
+  "generatedAt": "2026-09-22",
+  "generatedBy": "M0 environment and upstream feasibility verification",
+  "upstreams": {
+    "ppt-master": {
+      "repo": "https://github.com/hugohe3/ppt-master",
+      "license": "MIT",
+      "role": "deep engine: SVG to DrawingML, native chart/table/formula objects, animations, transitions, narration",
+      "pins": {
+        "pypiDistribution": "ppt-master",
+        "pypiVersion": "0.1.128",
+        "requiresPython": ">=3.12",
+        "wheel": {
+          "file": "ppt_master-0.1.128-py3-none-any.whl",
+          "sha256": "029A22C62EB7D54F2D74C228934617950B6993B2F5C9F734AC5328943BE24940",
+          "bytes": 15400327
+        },
+        "sourceTarball": {
+          "ref": "refs/heads/main (github.com/hugohe3/ppt-master/archive/refs/heads/main.tar.gz)",
+          "sha256": "AC061405611A44ADB70C3ABFD64606019135E1CA4FA5AB57511EF888F57ED41C",
+          "bytes": 90471828,
+          "headShaAtCapture": "fb478a93cbb8d359dea33b75687a1bfdb6f504cd"
+        }
+      },
+      "packagingFacts": {
+        "consoleScript": "ppt-master = cli:main",
+        "subcommandCount": 74,
+        "wheelContains": [
+          "skills/ppt-master/scripts/",
+          "skills/ppt-master/templates/ (12452 files)",
+          "skills/ppt-master/cli.py",
+          "skills/ppt-master/SKILL.md"
+        ],
+        "wheelOmits": [
+          "skills/ppt-master/references/ (165 files, tarball only)",
+          "skills/ppt-master/workflows/ (23 files, tarball only)"
+        ],
+        "installedBytes": 222400000,
+        "installedFiles": 18047
+      },
+      "licenseWatch": [
+        "PyMuPDF (fitz) is AGPL-3.0 and arrives through the ppt-master dependency set; it must never be redistributed with the fusion package or its venv",
+        "edge-tts is LGPL-3.0: install unmodified as an independent dependency",
+        "python-pptx MIT, skia-pathops BSD-3, uharfbuzz Apache-2.0, XlsxWriter BSD-2"
+      ]
+    },
+    "pptwise": {
+      "repo": "https://github.com/liustack/pptwise",
+      "license": "MIT",
+      "role": "front end: DSH plugin shape, IR v5, factory themes, brand extraction, validate/render/audit/preview/serve/doctor CLI",
+      "pins": {
+        "npmPackage": "@liustack/pptwise",
+        "npmVersion": "0.35.0",
+        "engines": "node >=22.19",
+        "tarballSRI": "sha512-fH0/7xXOaQ92kAvfbWFGC1w7ZZgN25uF2Z+Fogo4UOMIhmXdLmHZ/n1004YbBu1RPLVBbb4YIHF9xu+6xO3e9w==",
+        "tarballShasum": "b5805e66ce11df8f50449232cdf8744d28fe0ae8",
+        "npmTarball": {
+          "url": "https://registry.npmmirror.com/@liustack/pptwise/-/pptwise-0.35.0.tgz",
+          "sha256": "3e53b7351b4e5ddc93d0929915a06a274ef6a76ef4cf7c28cff02a8727c03065",
+          "bytes": 2394551
+        },
+        "unpackedBytes": 10655791,
+        "sourceTarball": {
+          "ref": "refs/heads/main (github.com/liustack/pptwise/archive/refs/heads/main.tar.gz)",
+          "sha256": "EE760325C2B0A39752820D51CE505F80161FAC5520367AA4203FA5C683B9DF6B",
+          "bytes": 5134111,
+          "headShaAtCapture": "fa2444bc45396d4fcf987891b332f5ac0e5933b6"
+        }
+      },
+      "packagingFacts": {
+        "dshEntry": "dsh/index.js via exports[\".\"], bundle patch cordis.patch.yml",
+        "jsApiSealed": "dist/index.js exports the full API but is absent from the exports map; consumers use the CLI",
+        "chartsArePictures": "no chartSpace anywhere in the source: pptwise charts are SVG rendered into DrawingML shapes"
+      }
+    }
+  },
+  "capturedEnvironment": {
+    "node": "v24.18.1",
+    "python": "3.13.12 (Windows Store CPython)",
+    "uv": "0.12.17 at %LOCALAPPDATA%\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\Scripts\\uv.exe (not on PATH)",
+    "pnpm": "8.15.9",
+    "powerpointCom": "Office16, COM automation verified",
+    "dshRuntime": "C:\\Users\\dell\\dsh-rc1-runtime, @deepseek-ai/dsh 0.1.2-rc.1",
+    "scratchProfile": "rc1-test"
+  },
+  "derivedVenv": {
+    "path": "%DSH_HOME%\\ppt-fusion\\venvs\\ppt-master-0.1.128",
+    "python": "3.13.12",
+    "pythonExe": "Scripts\\python.exe",
+    "engineExe": "Scripts\\ppt-master.exe",
+    "bytes": 222400000,
+    "files": 18047,
+    "hasPip": false
+  },
+  "captureLog": {
+    "helpSnapshots": [
+      "docs/help/ppt-master-help.txt",
+      "docs/help/ppt-master-project.txt",
+      "docs/help/ppt-master-project-init.txt",
+      "docs/help/ppt-master-svg-to-pptx.txt",
+      "docs/help/pptwise-help.txt"
+    ],
+    "pinMethod": "git ls-remote for the moving branch head, SHA-256 over the downloaded artifacts as the binding pin"
+  }
+}

@@ -1,0 +1,72 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-page-role="content">
+  <rect id="bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#F7F6F2"/>
+  <g id="page-heading" data-pptx-bounds="80 70 900 90">
+    <text x="80" y="110" font-family="Arial" font-size="42" font-weight="bold" fill="#1E2A4A">Which engine owns which object</text>
+    <rect id="heading-rule" data-pptx-role="decoration" x="80" y="140" width="120" height="8" fill="#F5C518"/>
+  </g>
+  <g id="engine-table" data-pptx-bounds="80 220 1120 180" data-pptx-replace-with="table" data-pptx-fallback-sha256="f125bd0a176c92bb55fc40ea85baa231ae16e1301ea6bd976617973523fce85b">
+    <metadata type="application/json">
+      {
+        "schema": "ppt-master.semantic-table.v2",
+        "name": "engine-table",
+        "x": 80,
+        "y": 220,
+        "width": 1120,
+        "height": 180,
+        "strict_grid": true,
+        "column_widths": [400, 440, 280],
+        "row_heights": [60, 60, 60],
+        "style": {
+          "font_family": "Arial",
+          "font_size": 15,
+          "header_font_size": 13,
+          "header_fill": "#F1F5F9",
+          "header_text": "#475569",
+          "body_fill": "#FFFFFF",
+          "body_text": "#0F172A",
+          "band_row": false,
+          "border_color": "#CBD5E1",
+          "border_width": 1,
+          "padding": { "left": 12, "right": 12, "top": 6, "bottom": 6 },
+          "valign": "middle"
+        },
+        "columns": [
+          { "text": "Capability", "align": "l", "bold": true },
+          { "text": "Engine", "align": "l", "bold": true },
+          { "text": "Native object", "align": "l", "bold": true }
+        ],
+        "rows": [
+          [
+            { "text": "Charts", "align": "l" },
+            { "text": "ppt-master", "align": "l" },
+            { "text": "chartSpace", "align": "l" }
+          ],
+          [
+            { "text": "Tables", "align": "l" },
+            { "text": "ppt-master", "align": "l" },
+            { "text": "graphicFrame", "align": "l" }
+          ]
+        ]
+      }
+    </metadata>
+    <g id="table-fallback">
+      <rect id="header-band" x="80" y="220" width="1120" height="60" fill="#F1F5F9"/>
+      <rect id="row-1" x="80" y="280" width="1120" height="60" fill="#FFFFFF"/>
+      <rect id="row-2" x="80" y="340" width="1120" height="60" fill="#FFFFFF"/>
+      <rect id="table-grid" x="80" y="220" width="1120" height="180" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+      <line x1="480" y1="220" x2="480" y2="400" stroke="#CBD5E1" stroke-width="1"/>
+      <line x1="920" y1="220" x2="920" y2="400" stroke="#CBD5E1" stroke-width="1"/>
+      <line x1="80" y1="280" x2="1200" y2="280" stroke="#CBD5E1" stroke-width="1"/>
+      <line x1="80" y1="340" x2="1200" y2="340" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="92" y="255" font-family="Arial" font-size="13" font-weight="bold" fill="#475569">Capability</text>
+      <text x="492" y="255" font-family="Arial" font-size="13" font-weight="bold" fill="#475569">Engine</text>
+      <text x="932" y="255" font-family="Arial" font-size="13" font-weight="bold" fill="#475569">Native object</text>
+      <text x="92" y="315" font-family="Arial" font-size="15" fill="#0F172A">Charts</text>
+      <text x="492" y="315" font-family="Arial" font-size="15" fill="#0F172A">ppt-master</text>
+      <text x="932" y="315" font-family="Arial" font-size="15" fill="#0F172A">chartSpace</text>
+      <text x="92" y="375" font-family="Arial" font-size="15" fill="#0F172A">Tables</text>
+      <text x="492" y="375" font-family="Arial" font-size="15" fill="#0F172A">ppt-master</text>
+      <text x="932" y="375" font-family="Arial" font-size="15" fill="#0F172A">graphicFrame</text>
+    </g>
+  </g>
+</svg>

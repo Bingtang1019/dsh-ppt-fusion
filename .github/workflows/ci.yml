@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Unit tests never start the engine, the front end, or PowerPoint: every
+      # process boundary is injected, so both platforms run the same suite. The
+      # real-engine e2e and the COM smoke gate run on Windows only, driven by
+      # `pnpm e2e` once M3 wires the engine path.
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: Build the CLI bundle
+        run: pnpm run build

@@ -1,0 +1,77 @@
+Usage: ppt-master <command> [args...]
+
+Commands:
+  align-embed-images           Single-pass image alignment + Base64 embedding
+  analyze-images               Analyze images and compute layout sizes
+  animation-config             Create/validate animation configuration
+  apply-template               Apply template workspace roots to a project
+  attribution-guard            Enforce skill integrity and attribution guard
+  auto-fix-uvx                 Auto fix uvx command references in .md files
+  batch-validate               Batch project validator
+  beautify-identity            Extract visual identity from PPTX
+  beautify-inventory           Extract slide inventory from PPTX
+  chart-recall                 Recall chart style catalog by tag/keyword
+  check-annotations            Scan SVGs for edit annotations
+  check-deps-sync              Verify dependency manifest sync
+  check-spec-annotations       Print pending spec annotations and direct-edit summaries
+  check-uvx-migration          Check for old-style command patterns
+  check-uvx-repository         Scan tracked command documents for old-style references
+  compact-svg-coordinates      Compact SVG coordinates in template files
+  compact-svg-styles           Compact SVG styles in template files
+  config                       List canvas formats and color presets
+  confirm-ui                   Launch Eight Confirmations interactive UI
+  doc-to-md                    Convert DOCX/HTML/EPUB to Markdown
+  embed-icons                  Embed external icons as inline SVG in slide files
+  error-helper                 Error explanation lookup
+  excel-to-md                  Convert Excel to Markdown
+  extract-svg-assets           Extract and deduplicate SVG assets
+  extract-svg-pictures         Extract complex SVG groups as picture assets
+  finalize-svg                 Post-process SVGs (icons, images, text)
+  flatten-tspan                Flatten tspan elements into text elements
+  gemini-watermark-remove      Remove watermarks from Gemini images
+  generate-examples-index      Generate examples README index
+  icon-sync                    Copy library icons into project icons/
+  image-gen                    AI image generation (multi-backend)
+  image-search                 Search and download web images
+  image-treat                  Apply non-destructive bitmap treatments
+  latex-render                 Render LaTeX formulas to PNG
+  mirror-template-materialize  Materialize deterministic mirror template
+  narration-sync               Synchronize narration with animations and subtitles
+  notes-to-audio               Generate per-slide narration audio (TTS)
+  pdf-to-md                    Convert PDF to Markdown
+  powerpoint-video             Export narrated PPTX to MP4 via PowerPoint
+  ppt-to-md                    Convert PPTX to Markdown
+  pptx-animations              Animation demo and list utilities
+  pptx-delivery-check          Validate native PPTX delivery output
+  pptx-intake                  Standard PPTX intake enrichment
+  pptx-template-import         Extract SVG references from PPTX template
+  pptx-to-svg                  Convert PPTX to SVG
+  preset-shape-svg             Render native PowerPoint preset shapes
+  project                      Create/validate/manage PPT projects
+  project-utils                Project utility helpers
+  prompt-audit                 Prompt budget and governance lint
+  register-template            Register layout template
+  rotate-images                Rotate images (EXIF + manual)
+  shape-boolean-svg            Render native PowerPoint merge-shape SVGs
+  slice-images                 Slice AI illustration sheet into individual elements
+  sound-sync                   Copy bundled sound files into project sounds/
+  source-to-md                 Unified source document to Markdown converter
+  spec-review                  Serve local Markdown spec review UI
+  stamp-native-fallbacks       Stamp native fallback baselines on chart/table prototypes
+  svg-authoring-view           Create lightweight SVG authoring projection
+  svg-editor                   Launch web-based SVG editor (live preview)
+  svg-position-calc            Chart coordinate calculator
+  svg-quality-check            Validate SVG against PPT constraints
+  svg-to-pptx                  Export SVGs to PPTX
+  template-preview-pptx        Export structured template review deck
+  text-measure                 Measure and wrap text before writing SVG
+  total-md-split               Split total.md into per-page files
+  update-repo                  Git pull + uv sync repository updater
+  update-spec                  Propagate color/font changes to all SVGs
+  video-motion-plan            Derive effect-aware video motion plan from trace
+  video-sound-mix              Mix animation sounds into narrated video export
+  video-subtitles              Align frozen narration text against video audio track
+  visual-review                Visual review via Playwright (PNG renderer)
+  visualization-recall         Visualization template recall and validation
+  web-to-md                    Convert URL/webpage to Markdown
+  workflow-log                 Write audit note to workflow log

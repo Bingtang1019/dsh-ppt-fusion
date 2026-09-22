@@ -1,0 +1,60 @@
+
+[SCAN] Checking 5 SVG file(s)...
+
+[WARN] 01-cover.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (4 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[6]:font-family 'Arial' -> None; text[7]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Quick roster declares no deck language: put lang="<BCP-47>" (vi-VN, he-IL, ...) on the first page's root <svg>; export reads it for run proofing language, right-to-left defaults, theme script slots and docProps (advisory)
+
+[WARN] 02-points.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (10 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[8]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+
+[WARN] 03-bars.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (13 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[9]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+
+[WARN] 04-native-chart.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[14]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+
+[WARN] 05-native-table.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (11 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[17]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+
+================================================================================
+[SUMMARY] Check Summary
+================================================================================
+
+Total files: 5
+  [OK] Fully passed: 0 (0%)
+  [WARN] With warnings: 5 (100%)
+  [ERROR] With errors: 0 (0%)
+
+Provenance categories:
+  blocking: 0          hard findings; gate also requires exit 0
+  introduced: 11       advisory; new or changed
+  inherited: 0         informational; prototype-identical
+  source-import: 0     informational; source-conversion loss
+
+[CARRIERS] Actual-use receipt (informational; not a quota)
+  Pages: 5 | text: 39 | images: 0 | icons: 0
+  Geometry: SVG elements 34 | native presets 0 | page-frame elements 10 | marker uses 0
+  Effects: inline emphasis 0 (pages 0) | gradients 0 (pages 0) | filters 0 (pages 0) | text effects 0 (pages 0)
+  Native objects: charts 1 | tables 1 | formulas 0
+  Presets: (none)
+  Pages carrying a preset or connector: 0
+
+[TIP] Common fixes:
+  1. XML well-formedness: write typography as raw Unicode (—, ©, →, NBSP); escape XML reserved chars as &amp; &lt; &gt; &quot; &apos; — never use HTML named entities like &nbsp; &mdash; &copy;
+  2. viewBox issues: root viewBox is the canvas authority (see references/canvas-formats.md)
+  3. Paint recommendation: generated SVG prefers uppercase #RRGGBB plus channel-specific opacity; compatible alternatives remain non-blocking
+  4. foreignObject: Use <text> + <tspan> for manual line breaks
+  5. Font issues: use PPT-safe exported typefaces (e.g. Arial / Consolas, with the CJK face of the deck language)
+
+[REPORT] JSON quality report exported: fixtures\master-hello_ppt169_20260922\validation\svg_quality_report.json

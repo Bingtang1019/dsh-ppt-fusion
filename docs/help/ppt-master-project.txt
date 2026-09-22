@@ -1,0 +1,25 @@
+usage: project_manager.py [-h]
+                          {init,import-sources,validate,info,page-context,page-context-report} ...
+
+PPT Master project management helpers.
+
+positional arguments:
+  {init,import-sources,validate,info,page-context,page-context-report}
+    init                Create a project directory
+    import-sources      Import source files or URLs into a project
+    validate            Validate a project directory
+    info                Print project metadata
+    page-context        Print one deterministic per-page execution view
+    page-context-report
+                        Summarize fresh per-page context telemetry
+
+options:
+  -h, --help            show this help message and exit
+
+Examples:
+  python3 scripts/project_manager.py init demo --format ppt169
+  python3 scripts/project_manager.py import-sources projects/demo file.md --move
+  python3 scripts/project_manager.py validate projects/demo
+  python3 scripts/project_manager.py info projects/demo
+  uvx ppt-master project page-context projects/demo P07 --record-usage
+  uvx ppt-master project page-context-report projects/demo
