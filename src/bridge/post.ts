@@ -1,5 +1,12 @@
 import { DshPptFailure } from '../engine/errors.ts'
-import { PostConfigSchema, type EntranceEffect, type PostConfig, type TransitionEffect } from '../schema/post.ts'
+import {
+  PostConfigSchema,
+  type EmphasisEffect,
+  type EntranceEffect,
+  type PathEffect,
+  type PostConfig,
+  type TransitionEffect,
+} from '../schema/post.ts'
 import { listSlides, type OpcPackage } from './opc.ts'
 import type { FileSystemPort } from '../engine/venv.ts'
 
@@ -16,6 +23,32 @@ import type { FileSystemPort } from '../engine/venv.ts'
 export function transitionXml(effect: Exclude<TransitionEffect, 'none'>, durationMs = 400): string {
   const element = effect === 'fade' ? '<p:fade/>' : effect === 'push' ? '<p:push dir="r"/>' : '<p:wipe dir="r"/>'
   return `<p:transition p14:dur="${String(durationMs)}" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">${element}</p:transition>`
+}
+
+/**
+ * Emphasis presets, ported from ppt-master's MIT preset catalog (`row_xml` for
+ * `emphasis_spin` and `emphasis_grow_shrink`). The outer `p:cTn` carries the preset id;
+ * the behaviour inside is per shape.
+ */
+const EMPHASIS_PRESET: Record<EmphasisEffect, { presetID: number; behavior: (spid: number, durationMs: number, nextId: () => number) => string }> = {
+  spin: {
+    presetID: 8,
+    behavior: (spid, durationMs, nextId) =>
+      `<p:animRot by="21600000"><p:cBhvr><p:cTn id="${String(nextId())}" dur="${String(durationMs)}" fill="hold"/>` +
+      `<p:tgtEl><p:spTgt spid="${String(spid)}"/></p:tgtEl><p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>`,
+  },
+  'grow-shrink': {
+    presetID: 6,
+    behavior: (spid, durationMs, nextId) =>
+      `<p:animScale><p:cBhvr><p:cTn id="${String(nextId())}" dur="${String(durationMs)}" fill="hold"/>` +
+      `<p:tgtEl><p:spTgt spid="${String(spid)}"/></p:tgtEl></p:cBhvr><p:by x="150000" y="150000"/></p:animScale>`,
+  },
+}
+
+/** Motion paths, ported from the same catalog (`path_right`, `path_down`). */
+const PATH_PRESET: Record<PathEffect, { presetID: number; path: string }> = {
+  right: { presetID: 63, path: 'M 0 0 L 0.25 0 E' },
+  down: { presetID: 42, path: 'M 0 0 L 0 0.25 E' },
 }
 
 /** animEffect filter and preset ids per entrance effect, from pptwise's mapping. */
@@ -107,6 +140,74 @@ function entranceParXml(entry: { effect: EntranceEffect; spids: readonly number[
   return `<p:par><p:cTn id="${String(nextId())}" fill="hold"><p:stCondLst><p:cond delay="${String(delayMs)}"/></p:stCondLst><p:childTnLst>${leaves}</p:childTnLst></p:cTn></p:par>`
 }
 
+/** One block the motion timeline can carry: an entrance, an emphasis or a path. */
+export interface MotionBlock {
+  readonly kind: 'entrance' | 'emphasis' | 'path'
+  readonly effect: string
+  readonly spids: readonly number[]
+  readonly durationMs: number
+  readonly delayMs: number
+}
+
+/**
+ * One effect `<p:par>` per targeted shape, wrapped the way PowerPoint itself wraps an
+ * emphasis or a path: a hold group, then the preset `p:cTn` with its `p:iterate` and the
+ * behaviour. The extra wrapper is what makes PowerPoint register the behaviour at all.
+ */
+function effectParXml(input: {
+  presetID: number
+  presetClass: 'emph' | 'path'
+  extraAttributes: string
+  spids: readonly number[]
+  delayMs: number
+  nextId: () => number
+  behavior: (spid: number, nextId: () => number) => string
+}): string {
+  return input.spids
+    .map(
+      (spid) =>
+        `<p:par><p:cTn id="${String(input.nextId())}" fill="hold"><p:stCondLst><p:cond delay="${String(input.delayMs)}"/></p:stCondLst><p:childTnLst>` +
+        `<p:par><p:cTn id="${String(input.nextId())}" presetID="${String(input.presetID)}" presetClass="${input.presetClass}" presetSubtype="0"${input.extraAttributes} fill="hold" nodeType="clickEffect">` +
+        `<p:stCondLst><p:cond delay="0"/></p:stCondLst><p:iterate type="lt"><p:tmPct val="0"/></p:iterate>` +
+        `<p:childTnLst>${input.behavior(spid, input.nextId)}</p:childTnLst></p:cTn></p:par>` +
+        `</p:childTnLst></p:cTn></p:par>`,
+    )
+    .join('')
+}
+
+/** One effect wrapped the PowerPoint way, carrying a spin or grow/shrink behaviour. */
+function emphasisParXml(effect: EmphasisEffect, spids: readonly number[], delayMs: number, durationMs: number, nextId: () => number): string {
+  const preset = EMPHASIS_PRESET[effect]
+  return effectParXml({
+    presetID: preset.presetID,
+    presetClass: 'emph',
+    extraAttributes: '',
+    spids,
+    delayMs,
+    nextId,
+    behavior: (spid, id) => preset.behavior(spid, durationMs, id),
+  })
+}
+
+/** One effect wrapped the PowerPoint way, carrying an `p:animMotion` path. */
+function pathParXml(effect: PathEffect, spids: readonly number[], delayMs: number, durationMs: number, nextId: () => number): string {
+  const preset = PATH_PRESET[effect]
+  return effectParXml({
+    presetID: preset.presetID,
+    presetClass: 'path',
+    extraAttributes: ' accel="50000" decel="50000"',
+    spids,
+    delayMs,
+    nextId,
+    behavior: (spid, id) =>
+      `<p:animMotion origin="layout" path="${preset.path}" pathEditMode="relative" ptsTypes=""><p:cBhvr>` +
+      `<p:cTn id="${String(id())}" dur="${String(durationMs)}" fill="hold"/>` +
+      `<p:tgtEl><p:spTgt spid="${String(spid)}"/></p:tgtEl>` +
+      `<p:attrNameLst><p:attrName>ppt_x</p:attrName><p:attrName>ppt_y</p:attrName></p:attrNameLst>` +
+      `</p:cBhvr></p:animMotion>`,
+  })
+}
+
 /**
  * Build the `<p:timing>` block for one slide.
  *
@@ -125,18 +226,47 @@ export function entranceTimingXml(
   staggerMs = 200,
   defaultDurationMs = 400,
 ): string {
-  const withTargets = entries.filter((entry) => entry.spids.length > 0)
+  return motionTimingXml(
+    entries.map((entry, offset) => ({
+      kind: 'entrance' as const,
+      effect: entry.effect,
+      spids: entry.spids,
+      durationMs: entry.durationMs ?? defaultDurationMs,
+      delayMs: offset * staggerMs,
+    })),
+  )
+}
+
+/**
+ * Build one `<p:timing>` tree for every block of a slide, in the order given.
+ *
+ * The nesting is `tmRoot -> mainSeq -> click par -> one par per block`, exactly what
+ * pptwise's writer produces and what its tests verify against a sample deck; a fourth
+ * `p:par` layer is known to make PowerPoint drop the animation, so the shape is
+ * deliberately kept. Entrances, emphases and paths are separate blocks at the same
+ * level, each starting after the deck's stagger.
+ *
+ * @param blocks - the slide's motion blocks, already resolved to shape ids.
+ * @returns the `p:timing` fragment, or an empty string when nothing is targeted.
+ */
+export function motionTimingXml(blocks: readonly MotionBlock[]): string {
+  const withTargets = blocks.filter((block) => block.spids.length > 0)
   if (withTargets.length === 0) return ''
   let id = 3 // 1 = tmRoot, 2 = mainSeq, 3 = the shared click wrapper
   const nextId = (): number => {
     id += 1
     return id
   }
-  const blocks = withTargets
-    .map((entry, offset) => entranceParXml(entry, offset * staggerMs, entry.durationMs ?? defaultDurationMs, nextId))
+  const body = withTargets
+    .map((block) =>
+      block.kind === 'entrance'
+        ? entranceParXml({ effect: block.effect as EntranceEffect, spids: block.spids }, block.delayMs, block.durationMs, nextId)
+        : block.kind === 'emphasis'
+          ? emphasisParXml(block.effect as EmphasisEffect, block.spids, block.delayMs, block.durationMs, nextId)
+          : pathParXml(block.effect as PathEffect, block.spids, block.delayMs, block.durationMs, nextId),
+    )
     .join('')
-  const build = withTargets
-    .flatMap((entry) => entry.spids)
+  const build = [...new Set(withTargets.flatMap((block) => block.spids))]
     .map((spid) => `<p:bldP spid="${String(spid)}" grpId="0"/>`)
     .join('')
   return (
@@ -144,7 +274,7 @@ export function entranceTimingXml(
     `<p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq">` +
     `<p:childTnLst><p:par><p:cTn id="3" fill="hold">` +
     `<p:stCondLst><p:cond delay="indefinite"/><p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond></p:stCondLst>` +
-    `<p:childTnLst>${blocks}</p:childTnLst>` +
+    `<p:childTnLst>${body}</p:childTnLst>` +
     `</p:cTn></p:par></p:childTnLst></p:cTn>` +
     `<p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>` +
     `<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>` +
@@ -168,7 +298,10 @@ export interface PostSlideReport {
   readonly index: number
   readonly slidePart: string
   readonly transition: TransitionEffect | null
+  /** Every shape the timeline targets, whatever the block kind. */
   readonly animatedSpids: readonly number[]
+  readonly emphasis: EmphasisEffect | null
+  readonly path: PathEffect | null
 }
 
 /** Result of a post pass. */
@@ -214,26 +347,43 @@ export function applyPost(pkg: OpcPackage, config: PostConfig): PostReport {
     if (entry.transition !== undefined && entry.transition !== 'none') {
       xml = xml.replace('</p:sld>', `${transitionXml(entry.transition, entry.durationMs ?? 400)}</p:sld>`)
     }
-    let animatedSpids: number[] = []
+    const blocks: MotionBlock[] = []
+    const animatedSpids: number[] = []
+    const stagger = config.staggerMs ?? 200
+    const resolve = (selector: Parameters<typeof resolveTargets>[1]): number[] => {
+      const found = resolveTargets(xml, selector)
+      if (found.length === 0) unmatched.push(index)
+      else animatedSpids.push(...found)
+      return found
+    }
     if (entry.entrance !== undefined) {
-      const targets = resolveTargets(xml, entry.entrance.target)
-      if (targets.length === 0) {
-        unmatched.push(index)
-      } else {
-        const timing = entranceTimingXml(
-          [{ effect: entry.entrance.effect, spids: targets, ...(entry.entrance.durationMs === undefined ? {} : { durationMs: entry.entrance.durationMs }) }],
-          config.staggerMs ?? 200,
-        )
-        xml = xml.replace('</p:sld>', `${timing}</p:sld>`)
-        animatedSpids = targets
+      const targets = resolve(entry.entrance.target)
+      if (targets.length > 0) {
+        blocks.push({ kind: 'entrance', effect: entry.entrance.effect, spids: targets, durationMs: entry.entrance.durationMs ?? 400, delayMs: blocks.length * stagger })
       }
     }
+    if (entry.emphasis !== undefined) {
+      const targets = resolve(entry.emphasis.target)
+      if (targets.length > 0) {
+        blocks.push({ kind: 'emphasis', effect: entry.emphasis.effect, spids: targets, durationMs: entry.emphasis.durationMs ?? 2000, delayMs: (entry.emphasis.delayMs ?? 0) + blocks.length * stagger })
+      }
+    }
+    if (entry.path !== undefined) {
+      const targets = resolve(entry.path.target)
+      if (targets.length > 0) {
+        blocks.push({ kind: 'path', effect: entry.path.effect, spids: targets, durationMs: entry.path.durationMs ?? 2000, delayMs: (entry.path.delayMs ?? 0) + blocks.length * stagger })
+      }
+    }
+    const timing = motionTimingXml(blocks)
+    if (timing !== '') xml = xml.replace('</p:sld>', `${timing}</p:sld>`)
     pkg.setPart(slidePart, xml)
     reports.push({
       index,
       slidePart,
       transition: entry.transition ?? null,
-      animatedSpids,
+      animatedSpids: [...new Set(animatedSpids)],
+      emphasis: entry.emphasis?.effect ?? null,
+      path: entry.path?.effect ?? null,
     })
   }
 
@@ -245,7 +395,7 @@ export function applyPost(pkg: OpcPackage, config: PostConfig): PostReport {
     }
   }
 
-  return { slides: reports, unmatched }
+  return { slides: reports, unmatched: [...new Set(unmatched)] }
 }
 
 /**

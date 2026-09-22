@@ -8,6 +8,14 @@ export type TransitionEffect = (typeof TRANSITION_EFFECTS)[number]
 export const ENTRANCE_EFFECTS = ['fade', 'wipe', 'fly'] as const
 export type EntranceEffect = (typeof ENTRANCE_EFFECTS)[number]
 
+/** Emphasis effects ported from the engine's MIT preset catalog (`emph` preset ids 6 and 8). */
+export const EMPHASIS_EFFECTS = ['spin', 'grow-shrink'] as const
+export type EmphasisEffect = (typeof EMPHASIS_EFFECTS)[number]
+
+/** Motion paths ported from the same catalog (`path` preset ids 63 and 42). */
+export const PATH_EFFECTS = ['right', 'down'] as const
+export type PathEffect = (typeof PATH_EFFECTS)[number]
+
 /**
  * Which shapes an entrance applies to.
  *
@@ -29,6 +37,21 @@ const EntranceSchema = z.strictObject({
   target: SelectorSchema,
 })
 
+const EmphasisSchema = z.strictObject({
+  effect: z.enum(EMPHASIS_EFFECTS),
+  durationMs: z.number().int().positive().max(10_000).optional(),
+  /** Delay before the effect, on top of the deck's stagger. */
+  delayMs: z.number().int().min(0).max(10_000).optional(),
+  target: SelectorSchema,
+})
+
+const PathSchema = z.strictObject({
+  effect: z.enum(PATH_EFFECTS),
+  durationMs: z.number().int().positive().max(10_000).optional(),
+  delayMs: z.number().int().min(0).max(10_000).optional(),
+  target: SelectorSchema,
+})
+
 const SlideSchema = z.strictObject({
   /** 1-based deck position. */
   index: z.number().int().positive(),
@@ -36,6 +59,10 @@ const SlideSchema = z.strictObject({
   /** Slide transition duration in milliseconds. */
   durationMs: z.number().int().positive().max(10_000).optional(),
   entrance: EntranceSchema.optional(),
+  /** Emphasis effect, applied after the entrance on the same click. */
+  emphasis: EmphasisSchema.optional(),
+  /** Motion path, applied after the emphasis. */
+  path: PathSchema.optional(),
 })
 
 /** `post/animations.json`: the single place a deck's motion is declared. */

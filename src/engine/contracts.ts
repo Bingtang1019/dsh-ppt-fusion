@@ -352,6 +352,8 @@ export interface NotesToAudioParams {
   readonly volume?: string
   /** Audio output directory, workspace-relative. */
   readonly output?: string
+  /** Print the curated edge-tts voice list and exit; needs no network. */
+  readonly listCommonVoices?: boolean
 }
 
 /**
@@ -367,6 +369,7 @@ export function notesToAudio(params: NotesToAudioParams): EngineInvocation {
   if (params.rate !== undefined) argv.push('--rate', params.rate)
   if (params.volume !== undefined) argv.push('--volume', params.volume)
   if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.listCommonVoices === true) argv.push('--list-common-voices')
   return { id: 'notes-to-audio', argv, timeoutMs: POST_TIMEOUTS.narration, outputFiles: [] }
 }
 

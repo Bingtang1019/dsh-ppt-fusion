@@ -8,6 +8,7 @@ coverage/
 tmp/
 
 # Deck workspaces and engine scratch produced while testing by hand
+.dsh-ppt/
 fixtures/_m0-scratch/
 fixtures/**/.dsh-ppt/
 fixtures/**/.pptwise/

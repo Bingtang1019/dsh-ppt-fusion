@@ -41,6 +41,78 @@ function miniPackage(slides: number): OpcPackage {
   return pkg
 }
 
+describe('emphasis and motion paths (M5 breadth)', () => {
+  it('writes the catalog XML for a spin emphasis and a rightward path', () => {
+    const pkg = miniPackage(1)
+    const config = PostConfigSchema.parse({
+      slides: [
+        {
+          index: 1,
+          emphasis: { effect: 'spin', target: { match: 'milestone-chart' }, durationMs: 1200 },
+          path: { effect: 'right', target: { match: 'page-heading' }, durationMs: 900 },
+        },
+      ],
+    })
+    const report = applyPost(pkg, config)
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    expect(xml).toContain('presetClass="emph"')
+    expect(xml).toContain('presetID="8"')
+    expect(xml).toContain('<p:animRot by="21600000">')
+    expect(xml).toContain('dur="1200"')
+    expect(xml).toContain('presetClass="path"')
+    expect(xml).toContain('presetID="63"')
+    expect(xml).toContain('path="M 0 0 L 0.25 0 E"')
+    expect(xml).toContain('dur="900"')
+    // Two shapes are targeted, so the build list names both exactly once.
+    expect(xml.match(/<p:bldP spid=/g)).toHaveLength(2)
+    expect(report.slides[0]).toMatchObject({ emphasis: 'spin', path: 'right' })
+    expect([...(report.slides[0]?.animatedSpids ?? [])].sort()).toEqual([5, 6])
+    expect(report.unmatched).toEqual([])
+  })
+
+  it('stays idempotent when all three block kinds share one target', () => {
+    const pkg = miniPackage(1)
+    const config = PostConfigSchema.parse({
+      slides: [
+        {
+          index: 1,
+          entrance: { effect: 'fade', target: { spids: [5] } },
+          emphasis: { effect: 'grow-shrink', target: { spids: [5] }, delayMs: 100 },
+          path: { effect: 'down', target: { spids: [5] } },
+        },
+      ],
+    })
+    const first = applyPost(pkg, config)
+    expect(first.unmatched).toEqual([])
+    expect(pkg.text('ppt/slides/slide1.xml')).toContain('presetID="6"')
+    expect(pkg.text('ppt/slides/slide1.xml')).toContain('path="M 0 0 L 0 0.25 E"')
+    const once = pkg.text('ppt/slides/slide1.xml')
+    applyPost(pkg, config)
+    expect(pkg.text('ppt/slides/slide1.xml')).toBe(once)
+    // The entrance and the two effects target shape 5, so the build list has one entry.
+    expect(once.match(/<p:bldP spid=/g)).toHaveLength(1)
+  })
+
+  it('reports a selector that matches nothing without dropping the blocks that did', () => {
+    const pkg = miniPackage(1)
+    const config = PostConfigSchema.parse({
+      slides: [
+        {
+          index: 1,
+          emphasis: { effect: 'spin', target: { match: 'no-such-shape' } },
+          path: { effect: 'down', target: { spids: [5] } },
+        },
+      ],
+    })
+    const report = applyPost(pkg, config)
+    expect(report.unmatched).toEqual([1])
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    expect(xml).toContain('presetClass="path"')
+    expect(xml).not.toContain('presetClass="emph"')
+    expect(report.slides[0]).toMatchObject({ emphasis: 'spin', path: 'down', animatedSpids: [5] })
+  })
+})
+
 const codeOf = (run: () => unknown): string => {
   try {
     run()

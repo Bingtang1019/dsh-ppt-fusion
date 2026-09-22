@@ -16,12 +16,14 @@ import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
 import { formatImagesSearch, imagesSearch } from './commands/images.ts'
+import { postAnimate } from './commands/post.ts'
+import { narrate, narrationVoices } from './commands/narrate.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
-import { IMAGE_ORIENTATIONS, IMAGE_PROVIDERS, INHERITANCE_MODES, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
+import { IMAGE_ORIENTATIONS, IMAGE_PROVIDERS, INHERITANCE_MODES, NARRATION_PROVIDERS, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
 
 /**
  * Read the package version from the manifest next to this file.
@@ -264,6 +266,73 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         process.stdout.write(`${entry.type} ${entry.input} -> ${entry.output} (${String(entry.bytes)} bytes)\n`)
       }
       process.stdout.write(`wrote ${result.manifestPath}\n`)
+    })
+
+  program
+    .command('narrate')
+    .description('generate per-slide narration audio for the deck\'s deep pages')
+    .argument('<dir>', 'deck workspace')
+    .addOption(new Option('--provider <provider>', 'TTS provider; edge needs no key').choices([...NARRATION_PROVIDERS]).default('edge'))
+    .option('--voice <voice>', 'provider voice name')
+    .option('--rate <rate>', 'speaking rate, for example +10%')
+    .option('--volume <volume>', 'speaking volume, for example +0%')
+    .option('--project <dir>', 'project directory; defaults to the newest .dsh-ppt/deep/*')
+    .option('-o, --output <dir>', 'audio output directory')
+    .option('--sync', 'also derive narration_animations.json from the audio and SRTs')
+    .option('--list-voices', 'print the curated edge-tts voice list and exit')
+    .action((dir: string, options: { provider: string; voice?: string; rate?: string; volume?: string; project?: string; output?: string; sync?: boolean; listVoices?: boolean }) => {
+      if (options.listVoices === true) {
+        process.stdout.write(narrationVoices(deps, dir))
+        return
+      }
+      const result = narrate({
+        dir,
+        provider: options.provider as (typeof NARRATION_PROVIDERS)[number],
+        sync: options.sync === true,
+        deps,
+        ...(options.voice === undefined ? {} : { voice: options.voice }),
+        ...(options.rate === undefined ? {} : { rate: options.rate }),
+        ...(options.volume === undefined ? {} : { volume: options.volume }),
+        ...(options.project === undefined ? {} : { project: options.project }),
+        ...(options.output === undefined ? {} : { output: options.output }),
+      })
+      process.stdout.write(`narrated ${result.projectDir}: ${String(result.audio.length)} audio file(s), ${String(result.subtitles.length)} SRT file(s)${result.synced ? ', timeline synced' : ''}
+`)
+      for (const file of result.audio) process.stdout.write(`  ${file}
+`)
+    })
+
+  const post = program.command('post').description('apply a deck\'s motion configuration')
+  post
+    .command('animate')
+    .description('apply post/animations.json to a published package, then re-run the compat pass')
+    .argument('<dir>', 'deck workspace')
+    .option('--config <file>', 'config override, resolved against the deck')
+    .option('--file <pptx>', 'package to animate; defaults to out/<name>.pptx')
+    .option('-o, --out <file>', 'output package; defaults to replacing the input')
+    .option('--json', 'print the applied report as JSON')
+    .action(async (dir: string, options: { config?: string; file?: string; out?: string; json?: boolean }) => {
+      const result = await postAnimate({
+        dir,
+        deps,
+        ...(options.config === undefined ? {} : { config: options.config }),
+        ...(options.file === undefined ? {} : { file: options.file }),
+        ...(options.out === undefined ? {} : { output: options.out }),
+      })
+      if (options.json === true) {
+        printJson({ file: result.file, outputFile: result.outputFile, sha256: result.sha256, bytes: result.bytes, slides: result.slides, post: result.report, compat: { level: result.compat.level, counts: result.compat.counts } })
+      } else {
+        process.stdout.write(`animated ${result.file} -> ${result.outputFile} (${String(result.slides)} slide(s))
+`)
+        for (const slide of result.report.slides) {
+          const parts = [slide.transition === null ? null : `transition ${slide.transition}`, slide.emphasis === null ? null : `emphasis ${slide.emphasis}`, slide.path === null ? null : `path ${slide.path}`].filter((part): part is string => part !== null)
+          if (parts.length === 0) continue
+          process.stdout.write(`  slide ${String(slide.index)}: ${parts.join(', ')}
+`)
+        }
+        process.stdout.write(`sha256 ${result.sha256}
+`)
+      }
     })
 
   const images = program.command('images').description('find openly licensed images for a deck')

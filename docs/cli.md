@@ -187,6 +187,26 @@ command; `--strict` also fails on warnings. Without an artifact the command repo
 
 ## Implemented (M5)
 
+### `dsh-ppt post animate <dir> [--config <file>] [--file <pptx>] [-o <out>] [--json]`
+
+Applies the deck's motion configuration to an already published package — the standalone form
+of the pass `render` runs between the merge and the compat pass — then re-runs the compat pass
+at the deck's level and refreshes `out/compat-report.json` and the compat/post blocks of
+`out/manifest.json`. Entrance (`fade`/`wipe`/`fly`), emphasis (`spin`/`grow-shrink`) and
+motion paths (`right`/`down`) are supported; blocks play entrance → emphasis → path, and a
+selector that matches nothing fails the command. Without `--out`, the input package is
+replaced atomically.
+
+### `dsh-ppt narrate <dir> [--provider <p>] [--voice <v>] [--rate <r>] [--volume <v>] [--project <dir>] [-o <dir>] [--sync] [--list-voices]`
+
+Generates per-slide narration audio for the deck's newest deep project with
+`notes-to-audio` (provider default `edge`, no key needed) and, with `--sync`, derives
+`narration_animations.json` through `narration-sync animations`. The project must carry a
+per-slide notes roster (`notes/<exported-stem>.md`); the command refuses early when it does
+not, and it picks a default edge voice from the deck's script (Chinese or English). TTS itself
+needs network access to the provider; `--list-voices` is offline.
+
+
 ### `dsh-ppt images search [query] [--dir <dir>] [--provider <p>] [--orientation <o>] [--filename <name>] [--min-width <n>] [--strict-no-attribution] [-o <dir>] [--manifest <file>] [--save-candidates] [--max-candidates <n>] [--from-url <url>] [--purpose <text>] [--slide <n>]`
 
 Searches the openly licensed providers the engine knows (openverse/wikimedia need no key),
@@ -251,7 +271,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
 | `deep check|chart` | M3/M5 |
-| `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
+| `preview`, `serve` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 
 Options are registered with commander in `src/commands/*.ts`; a change to a documented

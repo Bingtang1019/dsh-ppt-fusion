@@ -6,7 +6,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 - 本包：`@dsh-ppt/dsh-ppt-fusion`，MIT，Node >= 22.19，bin `dsh-ppt`
 - 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）；本仓库 `docs/decisions.md` 是裁决记录（ADR），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5 进行中（`deep native roundtrip`、`deep template create/apply/register`、`brand extract`、`source` 五路 + URL 策略、`images search`（署名清单）已落地，ADR-038/039/040；`narrate`/`post animate` 与旁白黄金待做）、M6–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
+> 状态：**M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5 进行中（`deep native roundtrip`、`deep template create/apply/register`、`brand extract`、`source` 五路 + URL 策略、`images search`（署名清单）、`post animate`（emphasis/路径广度）、`narrate`（edge 默认 + 声音清单）已落地，ADR-038…042；旁白黄金待网络与 notes roster）、M6–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
 
 ---
 
@@ -67,11 +67,12 @@ deck/
 - **失败分类**：每个错误是 `src/engine/errors.ts` 的封闭枚举，CLI 打印 `dsh-ppt: <code> <message>`。
 - **交付门**：`dsh-ppt audit` 聚合八源（validate、pptwise、引擎门、OPC+P1、delivery、compat、可选 ΔE）；缺产物是 error 并把跳过的源记入 `skipped`（ADR-035）。
 - **素材署名**：`images search` 的每个下载项都进 `assets/image_sources.json`，缺许可或缺署名文本即失败；`--strict-no-attribution` 直接拒绝需署名的许可（ADR-040）。
+- **动效单一 owner**：`post/animations.json` 的 entrance/emphasis/path 由 `bridge/post.ts` 写；emphasis/路径必须按 PowerPoint 自己的包装结构书写，否则 COM 读回 behaviours=0（ADR-042）。
 - **非目标不可达**：`image-gen`、`video-*`、`gemini-watermark-remove` 不在 contracts 白名单（ADR-013）。
 
 ## 已实现的命令
 
-`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · deep native roundtrip · deep template create|apply|register · brand extract · source <input...> · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
+`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · deep native roundtrip · deep template create|apply|register · brand extract · source <input...> · post animate · narrate [--sync --list-voices] · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
 
 - `doctor` 八项：Node / uv / Python / engine venv / ppt-master / **png-renderer**（本机红=设计使然，B7 用 Node `sharp` 兜底）/ pptwise / PowerPoint COM / self-test。
 - `render` 的动画/切换由 `bridge/post.ts` 在合并后单一施加（ADR-032）；选择器匹配不到时是硬失败 `ContractViolation`，不静默忽略。

@@ -52,6 +52,7 @@ the ADR wins.**
 | 039 | Source pipeline: five routes, fail-closed URL policy, 5 MiB output cap |
 | 040 | Image search records provenance and refuses unattributed images |
 | 041 | T2 fix: pin every zip entry date, folders included |
+| 042 | Motion breadth (emphasis/paths) and narration: COM-verified wrapper, two TTS blockers |
 
 ---
 
@@ -1065,3 +1066,49 @@ the ADR wins.**
   `createFolders: false` (legal OPC, but Office writes them and the recorded artifacts already
   have them, so keeping the shape is the smaller change); accepting the flake (a determinism gate
   that fails one run in four trains people to ignore it).
+
+## ADR-042 — Motion breadth and narration: what PowerPoint actually accepted, and the two TTS blockers
+
+- **Date:** 2026-09-22
+- **Decision:** the post layer gains emphasis (`spin`, `grow-shrink`) and motion paths
+  (`right`, `down`) ported from ppt-master's MIT preset catalog, plus the standalone
+  `dsh-ppt post animate`; `dsh-ppt narrate` wraps `notes-to-audio` (+ `narration-sync
+  animations`) with an edge voice default and an offline voice list. The fixture motion now
+  uses emphasis and a path, so the golden moved to `fixtureVersion: 4`.
+- **The wrapper is the difference between showing and playing.** Inserting the catalog rows
+  verbatim made PowerPoint report each effect with the right duration but **zero behaviours**
+  (`MainSequence.Item(2).Behaviors.Count = 0`), i.e. nothing would animate. Comparing with
+  XML PowerPoint itself wrote showed the missing structure: a hold group, then the preset
+  `p:cTn` with `nodeType="clickEffect"` and a `p:iterate` element, then the behaviour. With
+  that wrapper the recorded golden reads back through COM as slide 3: fade entrance
+  (`type=10`, 2 behaviours, 0.4 s), spin (`type=61`, 1 behaviour, 1.0 s), path right
+  (`type=149`, 1 behaviour, 0.8 s); slide 4: wipe entrance (`type=12`, 2 behaviours) and
+  grow/shrink (`type=59`, 1 behaviour, 0.9 s). The entrance-only output is byte-identical to
+  the pre-M5 writer, which the unchanged entrance tests assert.
+- **`post animate` is the same pass, standalone.** It applies the deck config to the published
+  package, re-runs the compat pass at the deck level (a new path becomes a compatibility fact),
+  writes the package atomically and refreshes `out/compat-report.json` plus the compat/post
+  blocks of `out/manifest.json`. Measured: three unit tests cover replace-in-place, `--out`
+  and the three refusal paths.
+- **Narration has two blockers on this machine, both recorded rather than worked around.**
+  (1) `notes-to-audio` requires a per-slide notes roster (`<project>/notes/<exported-stem>.md`);
+  our deep projects have an empty `notes/` because the fixture SVGs carry no notes, and
+  authoring that text is the M6 workflow's job — so `narrate` refuses before spawning with that
+  instruction. (2) TTS needs the provider network; the machine is offline (the same block as
+  ADR-039/040). The engine also requires `--voice` for `edge`, so `narrate` defaults it from the
+  deck script (`zh-CN-XiaoxiaoNeural` for CJK, `en-US-JennyNeural` otherwise) using
+  `detectPrimaryLanguage`.
+- **Voices.** `docs/compat/voices.md` records the engine's curated offline list
+  (`notes-to-audio --list-common-voices`, captured on this machine: 14 zh/en voices).
+  `narrate --list-voices` prints it.
+- **Golden v4 (the M5.6 re-record, animation half).** fixtureVersion 3 → 4 adds the emphasis
+  and path blocks to the fixture motion: merged 36551 bytes, canonical `c893198f…`, base
+  byte-identical. `pnpm fixtures:verify` reports canonical equality and the three compat
+  snapshots equal, and the recorded golden carries the vendor wrapper above. The narration half
+  of M5.6 stays blocked on the two blockers named here; on a networked machine with an authored
+  notes roster, `dsh-ppt narrate` then `pnpm fixtures:record` completes it without code changes.
+- **Alternatives rejected:** shipping the catalog rows without the wrapper (COM proves nothing
+  would play); changing the entrance writer to the wrapper shape as well (risks the verified
+  pptwise output and is unnecessary); generating placeholder notes text in `narrate` (narration
+  text is model work, and a stub would make the golden a lie); requiring an explicit `--voice`
+  (the engine already has a curated default per language, and the deck knows its script).

@@ -346,10 +346,13 @@ recurse into `ppt/embeddings/*` (ADR-017).
 - **Owner.** `bridge/post.ts` is the only writer of `p:transition` and `p:timing`. It strips
   any motion an engine produced before writing its own, so re-running is byte-idempotent.
 - **Config.** `<deck>/post/animations.json`, referenced by `manifest.post.animations`:
-  `{ staggerMs?, slides: [{ index, transition?, durationMs?, entrance? }] }` with
-  `transition ∈ {fade, push, wipe, none}` and `entrance = { effect ∈ {fade, wipe, fly},
-  durationMs?, target }`, where `target` is `{match: "<name substring>"}` or
-  `{spids: [n, …]}`. Unknown fields and unknown effects are rejected with their field path.
+  `{ staggerMs?, slides: [{ index, transition?, durationMs?, entrance?, emphasis?, path? }] }`
+  with `transition ∈ {fade, push, wipe, none}`, `entrance = { effect ∈ {fade, wipe, fly},
+  durationMs?, target }`, `emphasis = { effect ∈ {spin, grow-shrink}, durationMs?, delayMs?,
+  target }` and `path = { effect ∈ {right, down}, durationMs?, delayMs?, target }`, where
+  `target` is `{match: "<name substring>"}` or `{spids: [n, …]}`. Unknown fields and unknown
+  effects are rejected with their field path. Blocks play in the order entrance, emphasis,
+  path; each `delayMs` adds to the deck stagger.
 - **Target resolution.** `match` is a substring of `p:cNvPr name`: deep pages carry SVG group
   ids, standard pages carry `blk<slide>-<block>` only when the IR sets
   `meta.animation.elements = "auto"`. A selector that matches nothing fails the render;
@@ -359,8 +362,17 @@ recurse into `ppt/embeddings/*` (ADR-017).
 - **Verification.** `scripts/win-com-anim-probe.ps1` reads the deck back through PowerPoint
   COM and reports `MainSequence.Count`, per-effect `EffectType` and `EntryEffect` per slide —
   what the animation pane shows. XML structure alone is not accepted as proof.
+- **Effect XML.** Entrance filters, emphasis rotations/scales and motion paths are ported from
+  ppt-master's MIT preset catalog (`row_xml`), but an emphasis or a path only registers with
+  PowerPoint when it is wrapped the way PowerPoint wraps its own: a hold group, then the preset
+  `p:cTn` with `nodeType="clickEffect"` and a `p:iterate` element, then the behaviour. Measured:
+  without the wrapper PowerPoint reported the effect with the right duration but **zero
+  behaviours** (nothing would play); with it, COM reads spin as effect type 61 and the rightward
+  path as 149, each with one behaviour (ADR-042).
 - **Recorded data.** `render` writes its post report into `out/manifest.json` (`post`), so a
-  published deck records which shapes were animated.
+  published deck records which shapes were animated. `dsh-ppt post animate` re-applies the
+  configuration to a published package, re-runs the compat pass and refreshes
+  `out/compat-report.json` plus the compat and post blocks of `out/manifest.json`.
 
 ## 11. Determinism gate and the golden fixture (M4 part 2)
 
@@ -438,6 +450,16 @@ and `skipped`.
   after the input and de-duplicated with a `-2` suffix; the engine may also write
   `<stem>.conversion_profile.json`, which is recorded in the manifest. `sources/` receives
   `source-manifest.json` with `{input, type, output, bytes, profile?}` per entry.
+- **Narration.** `dsh-ppt narrate <deck> [--provider edge] [--voice V] [--rate R] [--volume V]
+  [--project <dir>] [-o <dir>] [--sync] [--list-voices]` runs `notes-to-audio` on the deck's
+  newest `.dsh-ppt/deep/*` project and, with `--sync`, `narration-sync animations`.
+  `notes-to-audio` requires a per-slide notes roster: `<project>/notes/<exported-stem>.md`, one
+  file per slide; the command refuses before spawning when that roster is empty, because the
+  engine would refuse later with a less actionable message. `edge` is the default provider and
+  needs no key, but it **requires a voice**: the command defaults to
+  `zh-CN-XiaoxiaoNeural` for a CJK deck and `en-US-JennyNeural` otherwise, detected from the
+  deep pages' text with the same helper the spec lock uses (ADR-042). `--list-voices` prints the
+  engine's curated offline list; `docs/compat/voices.md` records it.
 - **Images.** `dsh-ppt images search <query> [--from-url <url>]` calls `image-search` with
   `-o assets` and `--manifest assets/image_sources.json`, so the engine appends one entry
   per download: `filename`, `provider`, `author`, `license_name`, `license_url`,

@@ -3,8 +3,8 @@
   "slides": [
     { "index": 1, "transition": "fade", "durationMs": 400 },
     { "index": 2, "transition": "fade", "durationMs": 400 },
-    { "index": 3, "transition": "fade", "durationMs": 400, "entrance": { "effect": "fade", "target": { "match": "milestone-chart" } } },
-    { "index": 4, "transition": "wipe", "durationMs": 500, "entrance": { "effect": "wipe", "target": { "match": "engine-table" } } },
+    { "index": 3, "transition": "fade", "durationMs": 400, "entrance": { "effect": "fade", "target": { "match": "milestone-chart" } }, "emphasis": { "effect": "spin", "target": { "match": "milestone-chart" }, "durationMs": 1000 }, "path": { "effect": "right", "target": { "match": "milestone-chart" }, "durationMs": 800 } },
+    { "index": 4, "transition": "wipe", "durationMs": 500, "entrance": { "effect": "wipe", "target": { "match": "engine-table" } }, "emphasis": { "effect": "grow-shrink", "target": { "match": "engine-table" }, "durationMs": 900 } },
     { "index": 5, "transition": "fade", "durationMs": 400 }
   ]
 }
