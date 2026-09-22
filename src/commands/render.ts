@@ -7,6 +7,7 @@ import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from
 import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
+import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
 import type { PostflightReceipt } from '../engine/deep-render.ts'
@@ -29,6 +30,8 @@ export interface RenderResult {
   /** The exporter receipts, one per engine that contributed pages. */
   readonly postflight: { deep?: PostflightReceipt }
   readonly merge: MergeReport
+  /** What the post pass applied, when the manifest declared motion. */
+  readonly post?: PostReport
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
   readonly staged: readonly string[]
 }
@@ -68,13 +71,13 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   if (context.tokens === null) {
     throw new DshPptFailure('OutputMissing', 'tokens.json is absent or stale; run `dsh-ppt theme ensure` before rendering', { detail: { dir } })
   }
-  if (context.deck.post?.animations !== undefined && context.deck.post.animations !== null) {
-    // The post stage is the remaining half of M4: it must refuse to publish a deck
-    // whose manifest asks for animation rather than ignoring the request.
-    throw new DshPptFailure('ContractViolation', 'post.animations is configured but the post stage is not implemented yet (M4 remaining work)', {
-      detail: { animations: context.deck.post.animations },
-    })
-  }
+  // The post configuration is read up front so a malformed one fails before any
+  // engine runs; it is applied after the merge, which is the single application
+  // point for a deck's motion (plan 3.6, ADR-032).
+  const postConfig =
+    context.deck.post?.animations === undefined || context.deck.post.animations === null
+      ? null
+      : readPostConfig(fs, join(dir, context.deck.post.animations))
 
   const stagedRoot = join(dir, '.dsh-ppt', 'render')
   fs.mkdirp(stagedRoot)
@@ -126,6 +129,14 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   const deep = await OpcPackage.read(readBytes(fs, deepResult.pptxPath))
   const routes: SlideRoute[] = deepPages.map((page, offset) => ({ index: page.index, deepSlide: offset + 1 }))
   const { merged, report: mergeReport } = await mergeDeep({ base, deep, routes })
+  const postApplied = postConfig === null ? null : applyPost(merged, postConfig)
+  if (postApplied !== null && postApplied.unmatched.length > 0) {
+    throw new DshPptFailure(
+      'ContractViolation',
+      `post/animations.json selected shapes that do not exist on slide ${postApplied.unmatched.join(', ')}; check the target names against the authored pages`,
+      { detail: { unmatched: postApplied.unmatched } },
+    )
+  }
   const mergedPath = join(stagedRoot, 'merged.pptx')
   fs.writeBytes(mergedPath, await merged.write())
   staged.push(mergedPath)
@@ -150,6 +161,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
     staged,
     deps: options.deps,
     delivery: { stdout: delivery.result.stdout, status: delivery.result.status },
+    ...(postApplied === null ? {} : { post: postApplied }),
   })
 }
 
@@ -208,6 +220,7 @@ function publish(input: {
   staged: readonly string[]
   deps: CommandDependencies
   delivery?: { stdout: string; status: number | null }
+  post?: PostReport
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input
   fs.mkdirp(join(dir, 'out'))
@@ -227,6 +240,7 @@ function publish(input: {
       merge: input.merge,
       staged: input.staged.map((path) => path.replace(dir, '').replace(/^[\\/]/, '').replace(/\\/g, '/')),
       ...(input.delivery === undefined ? {} : { delivery: { status: input.delivery.status, receipt: input.delivery.stdout.trim().split(/\r?\n/).slice(-3) } }),
+      ...(input.post === undefined ? {} : { post: input.post }),
     }),
   )
   return {

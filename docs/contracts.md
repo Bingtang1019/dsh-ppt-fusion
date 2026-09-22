@@ -317,3 +317,24 @@ working directory) because the engine may only write inside the workspace; `deep
 identical inputs give identical bytes (T2). The engines themselves stamp their own times,
 so a full-chain byte comparison is not a gate (T3); semantic comparison is, and it must
 recurse into `ppt/embeddings/*` (ADR-017).
+
+## 10. Post-processing contract (M4 part 2)
+
+- **Owner.** `bridge/post.ts` is the only writer of `p:transition` and `p:timing`. It strips
+  any motion an engine produced before writing its own, so re-running is byte-idempotent.
+- **Config.** `<deck>/post/animations.json`, referenced by `manifest.post.animations`:
+  `{ staggerMs?, slides: [{ index, transition?, durationMs?, entrance? }] }` with
+  `transition ∈ {fade, push, wipe, none}` and `entrance = { effect ∈ {fade, wipe, fly},
+  durationMs?, target }`, where `target` is `{match: "<name substring>"}` or
+  `{spids: [n, …]}`. Unknown fields and unknown effects are rejected with their field path.
+- **Target resolution.** `match` is a substring of `p:cNvPr name`: deep pages carry SVG group
+  ids, standard pages carry `blk<slide>-<block>` only when the IR sets
+  `meta.animation.elements = "auto"`. A selector that matches nothing fails the render;
+  it is never a no-op.
+- **Shape ids.** `p:spTgt spid` references require unique ids inside the slide, so the pass
+  renumbers duplicate `p:cNvPr id` values (first occurrence keeps its id) before writing.
+- **Verification.** `scripts/win-com-anim-probe.ps1` reads the deck back through PowerPoint
+  COM and reports `MainSequence.Count`, per-effect `EffectType` and `EntryEffect` per slide —
+  what the animation pane shows. XML structure alone is not accepted as proof.
+- **Recorded data.** `render` writes its post report into `out/manifest.json` (`post`), so a
+  published deck records which shapes were animated.

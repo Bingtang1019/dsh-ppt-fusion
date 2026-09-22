@@ -154,8 +154,11 @@ receipts, merge report, staged artifacts).
 
 Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
 leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.
-A manifest that asks for `post.animations` is refused until the post stage lands, rather
-than publishing a deck that silently ignores the request.
+
+When the manifest declares `post.animations`, the post pass applies that configuration after
+the merge (transitions and entrances from one place, stripping whatever the engines wrote),
+records what it applied in `out/manifest.json`, and fails the render if a selector matches no
+shape. `--compat` levels arrive with the compatibility pass (M4 part 2, remaining).
 
 ## Planned
 

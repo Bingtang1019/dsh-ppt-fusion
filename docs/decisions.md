@@ -643,3 +643,36 @@ the ADR wins.**
   of the compat pass (then a pass that lints but never renders would look complete);
   rewriting ADR-029 in place (the entry stands as the part-1 landing record, this entry
   refines its open list).
+
+## ADR-032 — Animation application point: one post-merge pass, and it works
+
+- **Date:** 2026-09-22
+- **Decision:** a deck's motion has a **single owner**: `bridge/post.ts`, applied after the
+  merge and before the structural gates. `render` reads `post/animations.json` (the path in
+  the manifest), strips whatever `p:transition`/`p:timing` the engines wrote, and writes the
+  configured transitions and entrances itself. Targets resolve by **shape name** — deep
+  pages carry their SVG group id (`milestone-chart`), standard pages carry pptwise's
+  `blk<slide>-<block>` markers when the IR sets `meta.animation.elements = "auto"` — with
+  explicit `spids` as the escape hatch. `post animate` as a standalone command stays in M5
+  (§3.9), and narration-after-animation stays forbidden (M5 wires the check).
+- **Evidence:** the XML is ported from pptwise's own byte-verified writer (`transitionXml`,
+  the `set`+`animEffect` pair, the `tmRoot → mainSeq → click par → effect par` nesting,
+  and its `dedupeShapeIds` guard for the duplicate `p:cNvPr id` values it hit in the wild).
+  PowerPoint itself confirms the result: opening the rendered deck reports
+  `MainSequence.Count = 1` with `EffectType = 10` (`msoAnimEffectFade`) on the fade slide and
+  `EffectType = 12` (`msoAnimEffectWipe`) on the wipe slide, `EntryEffect = 3849`
+  (`ppEffectFade`) / `2819` (`ppEffectWipeRight`) for the transitions, and `Saved = msoTrue`
+  (no repair). The pass is **byte-idempotent** — re-applying over its own output produces an
+  identical package — and the package audit stays clean. v4 §3.6's fallback (letting pptwise
+  own the standard pages' motion per page) is therefore **not needed**.
+- **Scope note for M6:** a standard page can only be targeted by name when its IR declares
+  `meta.animation.elements = "auto"`; otherwise the author must either rely on the default
+  deck-level transition or address shapes by explicit `spids`. The SKILL must state this,
+  because a name selector that matches nothing is a hard failure (`ContractViolation`), not a
+  silent no-op.
+- **Alternatives rejected:** two owners (engines writing what they like, post filling gaps) —
+  a mixed deck would need both timelines reconcilable and neither side knows about the other;
+  making `post animate` the only entry point and leaving `render` unanimated — the plan's
+  data flow (§2.3 step d) applies motion inside the render chain; silently ignoring a
+  selector that matches nothing — that is how a deck ships with the motion its author
+  declared missing.
