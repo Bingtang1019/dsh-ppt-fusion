@@ -25,7 +25,7 @@ Every failure line starts with the package name and a stable code from
 `src/engine/errors.ts`:
 
 ```
-dsh-ppt: VenvMissing engine venv is absent at C:\Users\dell\.dsh\ppt-fusion\venvs\ppt-master-0.1.128; run `dsh-ppt doctor --repair`
+dsh-ppt: VenvMissing engine venv is absent at %USERPROFILE%\.dsh\ppt-fusion\venvs\ppt-master-0.1.128; run `dsh-ppt doctor --repair`
 ```
 
 Codes: `PptwiseMissing`, `PptwiseFailed`, `VenvMissing`, `EngineVersionMismatch`,

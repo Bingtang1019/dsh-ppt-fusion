@@ -628,7 +628,7 @@ the ADR wins.**
 ## ADR-030 — V4 sync: plan, architecture, README, docs index
 
 - **Date:** 2026-09-22
-- **Decision:** The external plan `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md` is advanced
+- **Decision:** The external plan file (not shipped with this repository) is advanced
   to **v4** and made consistent with ADR-001…029: EPERM premise refuted (ADR-004), uv-only
   venv (ADR-003/006), ThemeFile v2 `style.*` and gradient/font-array shapes (ADR-012/021),
   wheel pin 15,400,327 bytes / 74 subcommands (ADR-005/020), seven deep authoring rules and
@@ -1430,7 +1430,7 @@ the ADR wins.**
 ## ADR-054 — V5 sync: plan, README, architecture, acceptance-report, docs index
 
 - **Date:** 2026-09-23
-- **Decision:** The external plan `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md` is advanced to
+- **Decision:** The external plan file (not shipped with this repository) is advanced to
   **v5**: M0–M8 are recorded as verified/complete from ADR-001…053, M9 as "prep done, two
   items pending user" (npm publish channel and the real `web`-profile install), and the
   remaining work is consolidated into plan §4.5's eight-item closing list. The repo docs are
@@ -1466,6 +1466,9 @@ the ADR wins.**
   never-put-a-token-here comment because it is tracked. A history scan over every blob found
   no provider key, npm token or credential value (the Pexels and DeepSeek keys were only ever
   passed through process environment variables).
+- **Path sanitization.** The machine paths in tracked prose and engine logs were replaced with
+  placeholders (`<repo>`, `%USERPROFILE%`, `<runtime>`, `<backup dir>`) so the public repository
+  does not carry the developer's Windows user name; no evidence value was removed.
 - **Alternatives rejected:** publishing the mixed-case name (npm rejects it); renaming the
   plugin/skill/CLI to FlashMade in the same step (breaks the plan's vocabulary and every
   document for no functional gain); committing the machine's credential files (they live in

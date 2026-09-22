@@ -1,5 +1,5 @@
 command: svg-to-pptx
-cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+cwd: <repo>\tmp\m3-deep
 argv: svg-to-pptx .dsh-ppt/deep/deep-p02-p03_ppt169_20260922 -o out/deep-batch.pptx -f ppt169 --quick-generate --native-charts-and-tables --with-notes
 status: 0
 durationMs: 6996

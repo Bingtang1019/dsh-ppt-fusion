@@ -1,7 +1,7 @@
 # M0 report — environment and upstream feasibility
 
-Date: 2026-09-22. Machine: Windows, `%DSH_HOME%` = `C:\Users\dell\.dsh`, DSH runtime
-`@deepseek-ai/dsh@0.1.2-rc.1` at `C:\Users\dell\dsh-rc1-runtime`.
+Date: 2026-09-22. Machine: Windows, `%DSH_HOME%` = `C:\Users\<user>\.dsh`, DSH runtime
+`@deepseek-ai/dsh@0.1.2-rc.1` at `<runtime>\`.
 
 This file is the **evidence log**. The gate decision it feeds — the per-experiment
 conclusions and chosen fallbacks required by plan v2 §5 — is `docs/m0-decision.md`.
@@ -89,7 +89,7 @@ quality reports and error captures used while measuring.
    matching `dsh.profile.bundles` entry (via `dsh plugin --profile rc1-test add -w`).
 2. `%DSH_HOME%\ppt-fusion\venvs\ppt-master-0.1.128\` — new uv venv, 212 MB, 18047 files.
 3. Backup of the pre-change configuration at
-   `C:\Users\dell\Desktop\dsh-backups\20260922-1307\` (`cordis.patch.yml`,
+   `<backup dir>\` (`cordis.patch.yml`,
    `web/package.json`, `rc1-test/package.json`, `Dsh-Web-UI.bat`).
 
 No change was made to the live `web` profile, `~/.dsh/cordis.patch.yml`, or the launcher.

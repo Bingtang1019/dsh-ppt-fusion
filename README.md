@@ -4,7 +4,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
 - 本包：`@dsh-ppt/dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
-- 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v5）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…054），冲突时 **ADR 比计划新**。
+- 权威计划：仓库外的 `PPT-FUSION-PLAN.md`（v5，不随仓库分发）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…054），冲突时 **ADR 比计划新**。
 
 > 状态：**M0–M8 已验收，M9 发布准备完成（v1 功能交付）。** 剩余收尾：① npm 发布渠道确认（`private:true` 待移除）；② 按 `dsh-ops-discipline` 安装到真实 `web` profile；③ WPS 版本明细回填、LibreOffice CI 首跑、浏览器卡片复核等外部资源项（完整清单见计划 §4.5 / `docs/acceptance-report.md`）。
 
@@ -118,11 +118,12 @@ tests/         vitest 单元与契约回放；themes:record/verify、fixtures:re
 - 引擎/主题/IR/工作区契约：[`docs/contracts.md`](docs/contracts.md)
 - 中文用户指南：[`docs/guide.zh.md`](docs/guide.zh.md)
 - 安装与卸载：[`docs/install.md`](docs/install.md)；许可清单：[`docs/licensing.md`](docs/licensing.md)
+- 发布清单：[`docs/release.md`](docs/release.md)
 - M6 模型评估结论：[`docs/m6-model-eval.md`](docs/m6-model-eval.md)；验收报告 S1–S17：[`docs/acceptance-report.md`](docs/acceptance-report.md)
 - 兼容矩阵与 WPS 记录：[`docs/compat/matrix.md`](docs/compat/matrix.md)、[`docs/compat/wps-report.md`](docs/compat/wps-report.md)
 - ADR 裁决记录：[`docs/decisions.md`](docs/decisions.md)（ADR-001…053）
 - M0 决策门与兼容探针：[`docs/m0-decision.md`](docs/m0-decision.md)、[`docs/compat/probe.md`](docs/compat/probe.md)
-- 权威计划（仓库外）：`C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）
+- 权威计划：仓库外的 `PPT-FUSION-PLAN.md`（v5，本机保留）
 
 ## License
 

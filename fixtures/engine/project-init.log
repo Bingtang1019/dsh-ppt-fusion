@@ -1,5 +1,5 @@
 command: project-init
-cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+cwd: <repo>\tmp\m3-deep
 argv: project init deep-p02-p03 --format ppt169 --dir .dsh-ppt/deep
 status: 0
 durationMs: 1678

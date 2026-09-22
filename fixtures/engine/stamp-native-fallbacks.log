@@ -1,11 +1,11 @@
 command: stamp-native-fallbacks
-cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+cwd: <repo>\tmp\m3-deep
 argv: stamp-native-fallbacks .dsh-ppt/deep/deep-p02-p03_ppt169_20260922/svg_output --write
 status: 0
 durationMs: 1461
 outcome: ok
 
 --- stdout ---
-C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep\.dsh-ppt\deep\deep-p02-p03_ppt169_20260922\svg_output\002-p02.svg: unchanged; SVG-first=1, JSON-first=0
-C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep\.dsh-ppt\deep\deep-p02-p03_ppt169_20260922\svg_output\003-p03.svg: unchanged; SVG-first=1, JSON-first=0
+<repo>\tmp\m3-deep\.dsh-ppt\deep\deep-p02-p03_ppt169_20260922\svg_output\002-p02.svg: unchanged; SVG-first=1, JSON-first=0
+<repo>\tmp\m3-deep\.dsh-ppt\deep\deep-p02-p03_ppt169_20260922\svg_output\003-p03.svg: unchanged; SVG-first=1, JSON-first=0
 Native fallback baselines: mode=write, files=2, changed=0, SVG-first=2, JSON-first=0
