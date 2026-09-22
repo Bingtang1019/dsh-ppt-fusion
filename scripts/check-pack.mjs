@@ -32,6 +32,7 @@ const required = [
   'docs/contracts.md',
   'docs/decisions.md',
   'NOTICE',
+  'CHANGELOG.md',
 ]
 
 /** Directory entries the `files` list must cover. */

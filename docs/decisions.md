@@ -1359,9 +1359,10 @@ the ADR wins.**
 ## ADR-051 — M8 compatibility claims: T2 until the WPS row is signed off
 
 - **Date:** 2026-09-22
-- **Decision:** v1 release notes may claim tier T2 (our own bytes/canonical behaviour on
-  this toolchain) but not T1 until the S17 WPS checklist is executed on a WPS 2019+ machine
-  and recorded in `docs/compat/wps-report.md`. The LibreOffice half of the compatibility
+- **Decision:** v1 release notes may claim tier T1: the user reported on 2026-09-22 that
+  the S17 WPS 2019+ checklist was executed and passed, recorded in `docs/compat/wps-report.md`
+  as user-confirmed (the concrete WPS build and per-item notes are to be captured on the next
+  real-machine run; a future failure reverts the claim to T2). The LibreOffice half of the compatibility
   matrix runs in CI (ubuntu-latest installs `libreoffice-impress`; `pnpm compat:matrix`
   converts every artifact and compares the PDF page count against the slide count), and a
   machine without `soffice` reports that column as `skipped` rather than passing it.

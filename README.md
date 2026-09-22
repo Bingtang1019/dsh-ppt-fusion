@@ -72,7 +72,7 @@ deck/
 
 ## 已实现的命令
 
-`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · deep native roundtrip · deep template create|apply|register · brand extract · source <input...> · post animate · narrate [--sync --list-voices] · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
+`version · doctor [--repair --no-self-test] · init · plan [--from --confirm] · resume [--write] · validate · audit [--strict --pixels --file] · preview [--html] · theme ensure|list|new|fork|try · tokens export [--master] · brand extract [--bind] · source <input...> · images search · deep render [--page] · deep template create|apply|register · deep native roundtrip · post animate · narrate [--sync --list-voices] · render [-o] [--compat <level>] · compat lint <file> · skill audit`（全部命令支持 `--json`）
 
 - `doctor` 八项：Node / uv / Python / engine venv / ppt-master / **png-renderer**（本机红=设计使然，B7 用 Node `sharp` 兜底）/ pptwise / PowerPoint COM / self-test。
 - `render` 的动画/切换由 `bridge/post.ts` 在合并后单一施加（ADR-032）；选择器匹配不到时是硬失败 `ContractViolation`，不静默忽略。
@@ -87,6 +87,12 @@ pnpm build                      # tsup → dist/cli.js
 node dist/cli.js doctor         # 八项体检 + self-test
 pnpm themes:verify              # 24 主题快照（脚本门，CI 独立步骤）
 pnpm opc:check                  # P1/OPC 不变式
+pnpm fixtures:verify            # T1 黄金门 + 三档 compat 快照 + ΔE pixel（需要 ffprobe 在 PATH）
+pnpm matrix:verify              # 6 代表主题的 validate/render/audit 快照（ADR-052）
+pnpm compat:matrix              # python-pptx 重开 + compat 三档（有 soffice 时含 LibreOffice 转换）
+pnpm capacity:run               # 60 页标准 deck 的容量探针（ADR-052）
+pnpm eval:run                   # M6 三场景模型评估（需要 DSH_HARNESS_ROOT 或 PATH 里的 dsh）
+pnpm prepack                    # build + files/tarball 清单校验
 ```
 
 - 引擎 venv：`%DSH_HOME%/ppt-fusion/venvs/ppt-master-0.1.128`，由 `doctor --repair` 从 `python-assets/requirements.lock`（uv pip compile --generate-hashes，含 cairosvg）重建。
@@ -96,10 +102,12 @@ pnpm opc:check                  # P1/OPC 不变式
 
 ```
 src/           CLI、frontend、engine、bridge、schema、compat registry
-scripts/       opc-invariants、win-com-smoke、probe/测量工具
+dsh/           DSH 插件入口 + dsh_ppt_preview 工具 + 预览卡片（ADR-049/050）
+skills/        dsh-ppt-fusion 的中英 SKILL 与预算 manifest
+scripts/       opc-invariants、win-com-smoke、probe/测量工具、compat-matrix、engine-provision
 fixtures/      hello deck（golden 输入：含 deep/*/notes.md 与 narration/*.mp3）、master deep 项目、golden（base/deep/merged + golden-manifest.json + compat-levels.json）、M0 夹具 m0-fixtures.json
 python-assets/ requirements.in/.lock、上游 SHA manifest、vendor 文档位
-docs/          architecture / cli / contracts / decisions(ADR) / m0-* / compat/
+docs/          architecture / cli / contracts / decisions(ADR) / guide.zh / install / licensing / acceptance-report / capacity / m6-model-eval / upstream-drill / m0-* / compat/
 tests/         vitest 单元与契约回放；themes:record/verify、fixtures:record/verify（T1 黄金门）
 ```
 
@@ -108,10 +116,14 @@ tests/         vitest 单元与契约回放；themes:record/verify、fixtures:re
 - 架构与边界：[`docs/architecture.md`](docs/architecture.md)
 - 全部命令与退出码：[`docs/cli.md`](docs/cli.md)
 - 引擎/主题/IR/工作区契约：[`docs/contracts.md`](docs/contracts.md)
-- ADR 裁决记录：[`docs/decisions.md`](docs/decisions.md)（ADR-001…030）
+- 中文用户指南：[`docs/guide.zh.md`](docs/guide.zh.md)
+- 安装与卸载：[`docs/install.md`](docs/install.md)；许可清单：[`docs/licensing.md`](docs/licensing.md)
+- M6 模型评估结论：[`docs/m6-model-eval.md`](docs/m6-model-eval.md)；验收报告 S1–S17：[`docs/acceptance-report.md`](docs/acceptance-report.md)
+- 兼容矩阵与 WPS 记录：[`docs/compat/matrix.md`](docs/compat/matrix.md)、[`docs/compat/wps-report.md`](docs/compat/wps-report.md)
+- ADR 裁决记录：[`docs/decisions.md`](docs/decisions.md)（ADR-001…053）
 - M0 决策门与兼容探针：[`docs/m0-decision.md`](docs/m0-decision.md)、[`docs/compat/probe.md`](docs/compat/probe.md)
 - 权威计划（仓库外）：`C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）
 
 ## License
 
-MIT。上游版权与依赖许可清单在 `NOTICE`（M9 补齐）。引擎 venv 含 `PyMuPDF`（AGPL-3.0）：它只在用户机器上由 `doctor` 安装，不随本包分发；发布前按 `docs/licensing.md`（M9 落地）核对 full/minimal。
+MIT。上游版权与依赖许可清单在 `NOTICE` 与 [`docs/licensing.md`](docs/licensing.md)。引擎 venv 含 `PyMuPDF`（AGPL-3.0）：它只在用户机器上由 `doctor` 安装，不随本包分发；分发 venv 的一方需自行满足 AGPL。

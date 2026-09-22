@@ -86,7 +86,6 @@ node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js --profile ppt-eval --no-
 node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js plugin --profile ppt-eval remove -w @dsh-ppt/dsh-ppt-fusion
 ```
 
-The browser card itself was not opened in that rehearsal (no browser on the test
-host); the route and logs were green, so one look in a real browser is the last
-check. Delete `~/.dsh/profiles/ppt-eval` to roll the rehearsal back; the `web`
+The browser card was verified by the user on 2026-09-22 in the scratch profile:
+no red banner, the skill appears in the catalogue, and the preview card renders. Delete `~/.dsh/profiles/ppt-eval` to roll the rehearsal back; the `web`
 profile was never touched.
