@@ -1,0 +1,13 @@
+usage: stamp_native_fallbacks.py [-h] [--write] input
+
+Validate native Chart/Table payloads and stamp current visible fallback hashes
+on SVG-authoritative markers.
+
+positional arguments:
+  input       One SVG file or a directory whose direct *.svg files are checked
+
+options:
+  -h, --help  show this help message and exit
+  --write     Atomically update SVG files. Omit for a read-only preview; use
+              only after visible fallback and embedded JSON were updated
+              together.

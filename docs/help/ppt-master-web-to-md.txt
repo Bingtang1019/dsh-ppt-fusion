@@ -1,0 +1,27 @@
+usage: web_to_md.py [-h] [-f FILE] [-o OUTPUT] [-d DIR]
+                    [--emit-result EMIT_RESULT] [--no-images] [--insecure]
+                    [--allow-private-hosts]
+                    [urls ...]
+
+Web to Markdown Converter (Python)
+
+positional arguments:
+  urls                  URLs to process
+
+options:
+  -h, --help            show this help message and exit
+  -f, --file FILE       File containing URLs (one per line)
+  -o, --output OUTPUT   Output file (single URL only)
+  -d, --dir DIR         Output directory
+  --emit-result EMIT_RESULT
+                        On success, write the saved output path as JSON to
+                        this file (single-URL dispatcher use, so a title-named
+                        file can be located)
+  --no-images           Keep remote image links without downloading image
+                        files
+  --insecure            Disable TLS certificate verification (only for self-
+                        signed development targets)
+  --allow-private-hosts
+                        Allow pages, images, and redirect targets on loopback,
+                        link-local, and private networks (intranet or
+                        localhost pages you trust)

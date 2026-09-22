@@ -1,6 +1,12 @@
 import { isAbsolute } from 'node:path'
 import {
   deliveryCheck,
+  imageSearch,
+  mirrorTemplateMaterialize,
+  narrationSync,
+  notesToAudio,
+  pptxToSvg,
+  sourceToMd,
   parseCreatedProjectDir,
   projectInit,
   qualityCheck,
@@ -9,6 +15,12 @@ import {
   assertInsideWorkspace,
   toWorkspaceRelative,
   type DeliveryCheckParams,
+  type ImageSearchParams,
+  type MirrorTemplateParams,
+  type NarrationSyncParams,
+  type NotesToAudioParams,
+  type PptxToSvgParams,
+  type SourceToMdParams,
   type ProjectInitParams,
   type QualityCheckParams,
   type StampFallbacksParams,
@@ -54,10 +66,13 @@ export interface MasterCall {
 export function createMasterEngine(options: MasterEngineOptions) {
   const now = options.now ?? (() => Date.now())
 
-  const execute = (invocation: EngineInvocation): MasterCall => {
+  const execute = (invocation: EngineInvocation, allowCredentials?: readonly string[]): MasterCall => {
     const started = now()
     try {
-      const { result, outputFiles } = options.venv.run(invocation, { workspace: options.workspace })
+      const { result, outputFiles } = options.venv.run(invocation, {
+        workspace: options.workspace,
+        ...(allowCredentials === undefined ? {} : { allowCredentials }),
+      })
       options.log?.write(
         invocation.id,
         formatCommandLog({
@@ -96,6 +111,9 @@ export function createMasterEngine(options: MasterEngineOptions) {
   }
 
   return {
+    /** Absolute deck workspace: the child''s cwd and the only writable root. */
+    workspace: options.workspace,
+
     /** @see projectInit */
     projectInit(params: ProjectInitParams): MasterCall & { projectDir: string } {
       const invocation = projectInit({
@@ -142,7 +160,73 @@ export function createMasterEngine(options: MasterEngineOptions) {
       return execute(invocation)
     },
 
-    /** Run a already-built invocation; used by tests and by callers that need a custom order. */
+    /** @see notesToAudio */
+    notesToAudio(params: NotesToAudioParams): MasterCall {
+      const invocation = notesToAudio({
+        ...params,
+        projectDir: relative(params.projectDir, 'projectDir'),
+        ...(params.output === undefined ? {} : { output: relative(params.output, 'output') }),
+      })
+      return execute(invocation)
+    },
+
+    /** @see narrationSync */
+    narrationSync(params: NarrationSyncParams): MasterCall {
+      const invocation = narrationSync({
+        ...params,
+        projectDir: relative(params.projectDir, 'projectDir'),
+        ...(params.pptx === undefined ? {} : { pptx: relative(params.pptx, 'pptx') }),
+        ...(params.subtitleDir === undefined ? {} : { subtitleDir: relative(params.subtitleDir, 'subtitleDir') }),
+        ...(params.audioDir === undefined ? {} : { audioDir: relative(params.audioDir, 'audioDir') }),
+        ...(params.animationConfig === undefined ? {} : { animationConfig: relative(params.animationConfig, 'animationConfig') }),
+        ...(params.plan === undefined ? {} : { plan: relative(params.plan, 'plan') }),
+        ...(params.output === undefined ? {} : { output: relative(params.output, 'output') }),
+      })
+      return execute(invocation)
+    },
+
+    /**
+     * @see imageSearch
+     * @param params.query - search terms.
+     * @param options.credentials - parent environment variables this provider may
+     *   read; only names listed here reach the child, so a stock-photo key never
+     *   leaks into an unrelated call.
+     */
+    imageSearch(params: ImageSearchParams, options: { credentials?: readonly string[] } = {}): MasterCall {
+      return execute(imageSearch(params), options.credentials)
+    },
+
+    /** @see sourceToMd */
+    sourceToMd(params: SourceToMdParams): MasterCall {
+      const invocation = sourceToMd({
+        ...params,
+        inputs: params.inputs.map((input) => (/^https?:\/\//.test(input) ? input : relative(input, 'input'))),
+        ...(params.output === undefined ? {} : { output: relative(params.output, 'output') }),
+      })
+      return execute(invocation)
+    },
+
+    /** @see mirrorTemplateMaterialize */
+    mirrorTemplateMaterialize(params: MirrorTemplateParams): MasterCall {
+      const invocation = mirrorTemplateMaterialize({
+        ...params,
+        importWorkspace: relative(params.importWorkspace, 'importWorkspace'),
+        templateWorkspace: relative(params.templateWorkspace, 'templateWorkspace'),
+      })
+      return execute(invocation)
+    },
+
+    /** @see pptxToSvg */
+    pptxToSvg(params: PptxToSvgParams): MasterCall {
+      const invocation = pptxToSvg({
+        ...params,
+        file: relative(params.file, 'file'),
+        ...(params.output === undefined ? {} : { output: relative(params.output, 'output') }),
+      })
+      return execute(invocation)
+    },
+
+    /** Run an already-built invocation; used by tests and by callers that need a custom order. */
     execute,
   }
 }

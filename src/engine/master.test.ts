@@ -65,7 +65,7 @@ describe('master engine path handling', () => {
     })
     const { engine, fs } = buildEngine({ runner })
     fs.writeText(join(workspace, 'out', 'deep.pptx'), 'PK')
-    fs.writeText(join(workspace, 'validation', 'deep.report.json'), '{}')
+    fs.writeText(join(workspace, 'deep', 'project', 'validation', 'deep.report.json'), '{}')
     engine.renderDeep({ projectDir: join(workspace, 'deep', 'project'), outputFile: join(workspace, 'out', 'deep.pptx') })
     const call = runner.calls[0]
     expect(call?.command).toBe(paths.engineExe)

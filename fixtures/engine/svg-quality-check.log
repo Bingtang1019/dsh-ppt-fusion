@@ -1,0 +1,53 @@
+command: svg-quality-check
+cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+argv: svg-quality-check .dsh-ppt/deep/deep-p02-p03_ppt169_20260922 --stage final --quick-generate --canonical-authoring --json
+status: 0
+durationMs: 4016
+outcome: ok
+
+--- stdout ---
+
+[SCAN] Checking 2 SVG file(s)...
+
+[WARN] 002-p02.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[14]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Quick roster declares no deck language: put lang="<BCP-47>" (vi-VN, he-IL, ...) on the first page's root <svg>; export reads it for run proofing language, right-to-left defaults, theme script slots and docProps (advisory)
+
+[WARN] 003-p03.svg - Passed (with warnings)
+   viewBox: 0 0 1280 720
+   [WARN] Noncanonical compact authoring: Visible text requires one direct root font-family default; semantic groups and text elements keep only real overrides (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+   [WARN] Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (11 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): svg[1]:font-family None -> 'Arial'; text[4]:font-family 'Arial' -> None; text[17]:font-family 'Arial' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)
+
+================================================================================
+[SUMMARY] Check Summary
+================================================================================
+
+Total files: 2
+  [OK] Fully passed: 0 (0%)
+  [WARN] With warnings: 2 (100%)
+  [ERROR] With errors: 0 (0%)
+
+Provenance categories:
+  blocking: 0          hard findings; gate also requires exit 0
+  introduced: 5        advisory; new or changed
+  inherited: 0         informational; prototype-identical
+  source-import: 0     informational; source-conversion loss
+
+[CARRIERS] Actual-use receipt (informational; not a quota)
+  Pages: 2 | text: 15 | images: 0 | icons: 0
+  Geometry: SVG elements 17 | native presets 0 | page-frame elements 4 | marker uses 0
+  Effects: inline emphasis 0 (pages 0) | gradients 0 (pages 0) | filters 0 (pages 0) | text effects 0 (pages 0)
+  Native objects: charts 1 | tables 1 | formulas 0
+  Presets: (none)
+  Pages carrying a preset or connector: 0
+
+[TIP] Common fixes:
+  1. XML well-formedness: write typography as raw Unicode (—, ©, →, NBSP); escape XML reserved chars as &amp; &lt; &gt; &quot; &apos; — never use HTML named entities like &nbsp; &mdash; &copy;
+  2. viewBox issues: root viewBox is the canvas authority (see references/canvas-formats.md)
+  3. Paint recommendation: generated SVG prefers uppercase #RRGGBB plus channel-specific opacity; compatible alternatives remain non-blocking
+  4. foreignObject: Use <text> + <tspan> for manual line breaks
+  5. Font issues: use PPT-safe exported typefaces (e.g. Arial / Consolas, with the CJK face of the deck language)
+
+[REPORT] JSON quality report exported: .dsh-ppt\deep\deep-p02-p03_ppt169_20260922\validation\svg_quality_report.json

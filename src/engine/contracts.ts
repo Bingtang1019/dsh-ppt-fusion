@@ -182,11 +182,14 @@ export function svgToPptx(params: SvgToPptxParams): EngineInvocation {
   if (params.nativeObjects !== false) argv.push('--native-charts-and-tables')
   if (params.withNotes !== false) argv.push('--with-notes')
   const stem = params.outputFile.replace(/^.*\//, '').replace(/\.pptx$/i, '')
+  const projectRoot = params.projectDir.replace(/[\\/]+$/, '')
   return {
     id: 'svg-to-pptx',
     argv,
     timeoutMs: ENGINE_TIMEOUTS.svgToPptx,
-    outputFiles: [params.outputFile, `validation/${stem}.report.json`],
+    // The exporter writes its own report inside the project it exported, named
+    // after the output stem (measured in M0).
+    outputFiles: [params.outputFile, `${projectRoot}/validation/${stem}.report.json`],
   }
 }
 
@@ -211,11 +214,13 @@ export function qualityCheck(params: QualityCheckParams): EngineInvocation {
   if (params.canonicalAuthoring === true) argv.push('--canonical-authoring')
   if (params.roundtrip === true) argv.push('--roundtrip')
   argv.push('--json')
+  const targetRoot = params.target.replace(/[\\/]+$/, '')
   return {
     id: 'svg-quality-check',
     argv,
     timeoutMs: ENGINE_TIMEOUTS.qualityCheck,
-    outputFiles: ['validation/svg_quality_report.json'],
+    // The recorded report lives inside the checked project, not in the deck root.
+    outputFiles: [`${targetRoot}/validation/svg_quality_report.json`],
   }
 }
 
@@ -262,6 +267,16 @@ export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
   'svg-quality-check',
   'pptx-delivery-check',
   'stamp-native-fallbacks',
+  'notes-to-audio',
+  'narration-sync',
+  'image-search',
+  'pdf-to-md',
+  'doc-to-md',
+  'excel-to-md',
+  'ppt-to-md',
+  'web-to-md',
+  'mirror-template-materialize',
+  'pptx-to-svg',
 ]
 
 /**
@@ -274,4 +289,222 @@ export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
 export function parseCreatedProjectDir(stdout: string): string | null {
   const match = /Project created:\s*(.+)/.exec(stdout)
   return match?.[1]?.trim() ?? null
+}
+
+/** Narration providers the engine registers; `edge` needs no key. */
+export const NARRATION_PROVIDERS = ['edge', 'elevenlabs', 'minimax', 'qwen', 'cosyvoice'] as const
+export type NarrationProvider = (typeof NARRATION_PROVIDERS)[number]
+
+/** `narration-sync` modes. Each takes a project path; `subtitles` also needs a pptx. */
+export const NARRATION_SYNC_MODES = ['fingerprint', 'animations', 'subtitles'] as const
+export type NarrationSyncMode = (typeof NARRATION_SYNC_MODES)[number]
+
+/** Openly licensed image sources. Only the first two work without a key. */
+export const IMAGE_PROVIDERS = ['openverse', 'wikimedia', 'pexels', 'pixabay'] as const
+export type ImageProvider = (typeof IMAGE_PROVIDERS)[number]
+
+/** Image orientation filter. */
+export const IMAGE_ORIENTATIONS = ['any', 'landscape', 'portrait', 'square'] as const
+export type ImageOrientation = (typeof IMAGE_ORIENTATIONS)[number]
+
+/** How `pdf-to-md` treats embedded images. */
+export const PDF_IMAGE_MODES = ['all', 'filtered', 'none'] as const
+export type PdfImageMode = (typeof PDF_IMAGE_MODES)[number]
+
+/** Source-to-markdown converters, all registered under the engine dispatch. */
+export const SOURCE_CONVERTERS = ['pdf-to-md', 'doc-to-md', 'excel-to-md', 'ppt-to-md', 'web-to-md'] as const
+export type SourceConverter = (typeof SOURCE_CONVERTERS)[number]
+
+/** Template materialisation kinds. */
+export const TEMPLATE_KINDS = ['deck', 'layout'] as const
+export type TemplateKind = (typeof TEMPLATE_KINDS)[number]
+
+/** Layout inheritance modes `pptx-to-svg` accepts. */
+export const INHERITANCE_MODES = ['both', 'layered', 'flat'] as const
+export type InheritanceMode = (typeof INHERITANCE_MODES)[number]
+
+/** Timeouts for the post-processing and material commands. */
+export const POST_TIMEOUTS = {
+  narration: 1_800_000,
+  images: 300_000,
+  source: 300_000,
+  template: 600_000,
+  roundtrip: 600_000,
+} as const
+
+/** Parameters for `ppt-master notes-to-audio`. */
+export interface NotesToAudioParams {
+  /** Project directory the notes live in, workspace-relative. */
+  readonly projectDir: string
+  readonly provider?: NarrationProvider
+  /** Provider voice name; edge uses ShortNames such as `zh-CN-YunxiNeural`. */
+  readonly voice?: string
+  /** edge-tts speaking rate, for example `+10%`. */
+  readonly rate?: string
+  readonly volume?: string
+  /** Audio output directory, workspace-relative. */
+  readonly output?: string
+}
+
+/**
+ * Build the argv for `ppt-master notes-to-audio`.
+ *
+ * @param params - project, provider and voice selection.
+ * @returns the validated invocation.
+ */
+export function notesToAudio(params: NotesToAudioParams): EngineInvocation {
+  const argv = ['notes-to-audio', params.projectDir]
+  if (params.provider !== undefined) argv.push('--provider', assertEnum('provider', params.provider, NARRATION_PROVIDERS))
+  if (params.voice !== undefined) argv.push('--voice', params.voice)
+  if (params.rate !== undefined) argv.push('--rate', params.rate)
+  if (params.volume !== undefined) argv.push('--volume', params.volume)
+  if (params.output !== undefined) argv.push('-o', params.output)
+  return { id: 'notes-to-audio', argv, timeoutMs: POST_TIMEOUTS.narration, outputFiles: [] }
+}
+
+/** Parameters for `ppt-master narration-sync`. */
+export interface NarrationSyncParams {
+  readonly mode: NarrationSyncMode
+  /** Project directory, workspace-relative; positional for every mode. */
+  readonly projectDir: string
+  /** Required by `subtitles`: the narrated pptx. */
+  readonly pptx?: string
+  readonly subtitleDir?: string
+  readonly audioDir?: string
+  readonly animationConfig?: string
+  readonly plan?: string
+  /** Output path for `animations` and `subtitles`. */
+  readonly output?: string
+  readonly force?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master narration-sync`.
+ *
+ * @param params - mode plus the paths that mode needs.
+ * @returns the validated invocation.
+ * @throws DshPptFailure `ContractViolation` when `subtitles` is asked for without a pptx.
+ */
+export function narrationSync(params: NarrationSyncParams): EngineInvocation {
+  const mode = assertEnum('mode', params.mode, NARRATION_SYNC_MODES)
+  const argv = ['narration-sync', mode]
+  if (mode === 'subtitles') {
+    if (params.pptx === undefined) {
+      throw new DshPptFailure('ContractViolation', 'narration-sync subtitles requires --pptx', { detail: { mode } })
+    }
+    argv.push('--pptx', params.pptx)
+  }
+  if (params.subtitleDir !== undefined) argv.push('--subtitle-dir', params.subtitleDir)
+  if (params.audioDir !== undefined) argv.push('--audio-dir', params.audioDir)
+  if (params.animationConfig !== undefined) argv.push('--animation-config', params.animationConfig)
+  if (params.plan !== undefined) argv.push('--plan', params.plan)
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.force === true) argv.push('--force')
+  argv.push(params.projectDir)
+  return { id: 'narration-sync', argv, timeoutMs: POST_TIMEOUTS.narration, outputFiles: params.output === undefined ? [] : [params.output] }
+}
+
+/** Parameters for `ppt-master image-search`. */
+export interface ImageSearchParams {
+  /** Search terms; passed as a single argument, never a path. */
+  readonly query: string
+  readonly provider?: ImageProvider
+  readonly orientation?: ImageOrientation
+  readonly filename?: string
+  /** Refuse results that require attribution (CC BY / CC BY-SA). */
+  readonly strictNoAttribution?: boolean
+  readonly minWidth?: number
+}
+
+/**
+ * Build the argv for `ppt-master image-search`.
+ *
+ * The command downloads into the project it runs in, so the caller sets the
+ * engine working directory to the deck workspace and records the attribution
+ * file afterwards.
+ *
+ * @param params - query and filters.
+ * @returns the validated invocation.
+ */
+export function imageSearch(params: ImageSearchParams): EngineInvocation {
+  const argv = ['image-search', params.query]
+  if (params.provider !== undefined) argv.push('--provider', assertEnum('provider', params.provider, IMAGE_PROVIDERS))
+  if (params.orientation !== undefined) argv.push('--orientation', assertEnum('orientation', params.orientation, IMAGE_ORIENTATIONS))
+  if (params.filename !== undefined) argv.push('--filename', params.filename)
+  if (params.strictNoAttribution === true) argv.push('--strict-no-attribution')
+  if (params.minWidth !== undefined) argv.push('--min-width', String(params.minWidth))
+  return { id: 'image-search', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: [] }
+}
+
+/** Parameters for the `source-to-md` family. */
+export interface SourceToMdParams {
+  readonly converter: SourceConverter
+  /** Input files or one http(s) URL for `web-to-md`; workspace-relative. */
+  readonly inputs: readonly string[]
+  /** Output markdown path, workspace-relative. */
+  readonly output?: string
+  readonly images?: PdfImageMode
+  readonly maxRows?: number
+}
+
+/**
+ * Build the argv for a source-to-markdown converter.
+ *
+ * @param params - converter, inputs and options.
+ * @returns the validated invocation.
+ * @throws DshPptFailure `ContractViolation` when no input is given.
+ */
+export function sourceToMd(params: SourceToMdParams): EngineInvocation {
+  const converter = assertEnum('converter', params.converter, SOURCE_CONVERTERS)
+  if (params.inputs.length === 0) {
+    throw new DshPptFailure('ContractViolation', `${converter} needs at least one input`, { detail: { converter } })
+  }
+  const argv = [converter, ...params.inputs]
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.images !== undefined) argv.push('--images', assertEnum('images', params.images, PDF_IMAGE_MODES))
+  if (params.maxRows !== undefined) argv.push('--max-rows', String(params.maxRows))
+  return { id: converter, argv, timeoutMs: POST_TIMEOUTS.source, outputFiles: params.output === undefined ? [] : [params.output] }
+}
+
+/** Parameters for `ppt-master mirror-template-materialize`. */
+export interface MirrorTemplateParams {
+  readonly importWorkspace: string
+  readonly templateWorkspace: string
+  readonly kind?: TemplateKind
+}
+
+/**
+ * Build the argv for `ppt-master mirror-template-materialize`.
+ *
+ * @param params - the import workspace and the template workspace to write.
+ * @returns the validated invocation.
+ */
+export function mirrorTemplateMaterialize(params: MirrorTemplateParams): EngineInvocation {
+  const argv = ['mirror-template-materialize', params.importWorkspace, params.templateWorkspace]
+  if (params.kind !== undefined) argv.push('--kind', assertEnum('kind', params.kind, TEMPLATE_KINDS))
+  return { id: 'mirror-template-materialize', argv, timeoutMs: POST_TIMEOUTS.template, outputFiles: [] }
+}
+
+/** Parameters for `ppt-master pptx-to-svg` (the native roundtrip path). */
+export interface PptxToSvgParams {
+  readonly file: string
+  readonly output?: string
+  readonly inheritanceMode?: InheritanceMode
+  readonly imagesSubdir?: string
+  readonly keepHidden?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master pptx-to-svg`.
+ *
+ * @param params - the pptx to convert and where to write the SVGs.
+ * @returns the validated invocation.
+ */
+export function pptxToSvg(params: PptxToSvgParams): EngineInvocation {
+  const argv = ['pptx-to-svg', params.file]
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.inheritanceMode !== undefined) argv.push('--inheritance-mode', assertEnum('inheritanceMode', params.inheritanceMode, INHERITANCE_MODES))
+  if (params.imagesSubdir !== undefined) argv.push('--images-subdir', params.imagesSubdir)
+  if (params.keepHidden === true) argv.push('--keep-hidden')
+  return { id: 'pptx-to-svg', argv, timeoutMs: POST_TIMEOUTS.roundtrip, outputFiles: [] }
 }

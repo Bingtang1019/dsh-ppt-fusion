@@ -70,7 +70,7 @@ describe('svgToPptx', () => {
     expect(invocation.argv).toContain('--quick-generate')
     expect(invocation.argv).toContain('--native-charts-and-tables')
     expect(invocation.argv).toContain('--with-notes')
-    expect(invocation.outputFiles).toEqual(['out/deep.pptx', 'validation/deep.report.json'])
+    expect(invocation.outputFiles).toEqual(['out/deep.pptx', 'deep/project/validation/deep.report.json'])
   })
 
   it('omits the opt-outs and validates enumerated flags', () => {
@@ -93,7 +93,7 @@ describe('svgToPptx', () => {
 
   it('derives the report stem for paths with directories and mixed case', () => {
     const invocation = svgToPptx({ projectDir: 'p', outputFile: 'out/nested/Deck.PPTX' })
-    expect(invocation.outputFiles[1]).toBe('validation/Deck.report.json')
+    expect(invocation.outputFiles[1]).toBe('p/validation/Deck.report.json')
   })
 })
 
@@ -106,7 +106,7 @@ describe('qualityCheck', () => {
 
   it('contracts the recorded report file', () => {
     const invocation = qualityCheck({ target: 'deep', stage: 'final', quickGenerate: true, canonicalAuthoring: true })
-    expect(invocation.outputFiles).toEqual(['validation/svg_quality_report.json'])
+    expect(invocation.outputFiles).toEqual(['deep/validation/svg_quality_report.json'])
     expect(invocation.argv).toContain('--canonical-authoring')
   })
 })

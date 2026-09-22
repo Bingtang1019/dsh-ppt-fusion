@@ -37,6 +37,17 @@ Paths: `MASTER` = `%DSH_HOME%\ppt-fusion\venvs\ppt-master-0.1.128\Scripts\ppt-ma
 | `source-to-md` family (`pdf-to-md`, `doc-to-md`, `excel-to-md`, `ppt-to-md`, `web-to-md`) | — | Markdown into `sources/` (M5) |
 | `notes-to-audio`, `narration-sync {fingerprint,animations,subtitles}` | `--provider` (default `edge`, no key) | per-slide audio + timeline (M5) |
 
+Registered since M3, under the same rules (enum-validated flags, workspace-contained
+paths, contracted outputs): `notes-to-audio` (`--provider {edge,elevenlabs,minimax,qwen,
+cosyvoice}`, `--voice/--rate/--volume`), `narration-sync {fingerprint,animations,
+subtitles}` (`subtitles` requires `--pptx`), `image-search` (`--provider
+{openverse,wikimedia,pexels,pixabay}`, `--orientation`, `--strict-no-attribution`,
+`--min-width`), the five converters `pdf-to-md|doc-to-md|excel-to-md|ppt-to-md|web-to-md`
+(`--images {all,filtered,none}`, `--max-rows`), `mirror-template-materialize`
+(`--kind {deck,layout}`) and `pptx-to-svg` (`--inheritance-mode
+{both,layered,flat}`). `REGISTERED_ENGINE_COMMANDS` in `src/engine/contracts.ts` is the
+authority; a command absent from it is unreachable.
+
 Explicitly **not** registered: `image-gen`, `powerpoint-video`, `video-motion-plan`,
 `video-sound-mix`, `video-subtitles`, `gemini-watermark-remove` (ADR-013).
 

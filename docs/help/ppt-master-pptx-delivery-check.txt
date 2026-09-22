@@ -1,0 +1,9 @@
+usage: pptx_delivery_check.py [-h] pptx
+
+Inspect a finished PPTX for delivery risks without modifying it.
+
+positional arguments:
+  pptx        Finished .pptx file to inspect
+
+options:
+  -h, --help  show this help message and exit

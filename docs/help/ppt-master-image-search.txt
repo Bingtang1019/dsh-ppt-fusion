@@ -1,0 +1,87 @@
+usage: image_search.py [-h] [--query-variant QUERY] [--filename FILENAME]
+                       [-o OUTPUT]
+                       [--provider {openverse,wikimedia,pexels,pixabay}]
+                       [--orientation {any,landscape,portrait,square}]
+                       [--purpose PURPOSE] [--slide SLIDE]
+                       [--strict-no-attribution] [--min-width MIN_WIDTH]
+                       [--min-height MIN_HEIGHT]
+                       [--require-terms TERM[,TERM...]] [--manifest MANIFEST]
+                       [--batch QUERIES_JSON] [--concurrency CONCURRENCY]
+                       [--save-candidates] [--max-candidates MAX_CANDIDATES]
+                       [--candidate-page CANDIDATE_PAGE]
+                       [--promote CANDIDATE_FILE] [--from-url URL]
+                       [query]
+
+Search openly-licensed web images, shortlist thumbnails, or download one selected original. Sister to image_gen.py.
+
+positional arguments:
+  query                 Search query (1-4 concrete keywords work best). Omit
+                        in --batch mode.
+
+options:
+  -h, --help            show this help message and exit
+  --query-variant QUERY
+                        Add a materially different spelling, translation, or
+                        entity query. Repeatable; results are aggregated and
+                        deduplicated.
+  --filename FILENAME   Local filename for the chosen image (e.g.
+                        cover_bg.jpg). Required for single-query, --promote,
+                        and --from-url modes; ignored only during batch
+                        search.
+  -o, --output OUTPUT   Output directory. Manifest defaults to
+                        <output>/image_sources.json.
+  --provider {openverse,wikimedia,pexels,pixabay}
+                        Pin one provider. Default: try zero-config providers
+                        (openverse, wikimedia) plus any keyed provider whose
+                        API key is set.
+  --orientation {any,landscape,portrait,square}
+                        Preferred orientation.
+  --purpose PURPOSE     Purpose tag stored in the manifest (e.g. background,
+                        hero, side).
+  --slide SLIDE         Slide identifier the image belongs to (e.g. 01_cover).
+  --strict-no-attribution
+                        Refuse CC BY / CC BY-SA results. If no attribution-
+                        free match is downloadable, exit non-zero.
+  --min-width MIN_WIDTH
+                        Minimum acceptable image width in pixels (default:
+                        1200).
+  --min-height MIN_HEIGHT
+                        Minimum acceptable image height in pixels (default:
+                        800).
+  --require-terms TERM[,TERM...]
+                        Entity-safety gate: require each metadata term group
+                        before a candidate can be accepted. Repeatable; comma
+                        separates groups; 'A|B' means aliases within one
+                        group. Example: --require-terms Chongqing --require-
+                        terms 'Jiefangbei|Liberation Monument'.
+  --manifest MANIFEST   Override manifest path. Defaults to
+                        <output>/image_sources.json.
+  --batch QUERIES_JSON  Process a batch of search requests from an
+                        image_queries.json manifest concurrently, writing
+                        provenance into image_sources.json and status back
+                        into the queries manifest. In --promote mode,
+                        reconcile the selected row to Sourced.
+  --concurrency CONCURRENCY
+                        Max concurrent searches in --batch mode. Defaults to
+                        IMAGE_SEARCH_CONCURRENCY env or 3. Keep modest — free
+                        providers are rate-sensitive; use 1 for strict one-at-
+                        a-time pacing.
+  --save-candidates     Thumbnail-selection mode: save one ranked page of
+                        review-eligible previews and a labeled contact sheet,
+                        but download no original. Use --promote after visual
+                        selection.
+  --max-candidates MAX_CANDIDATES
+                        Thumbnail page size with --save-candidates (default:
+                        8); 0 explicitly keeps every qualified candidate.
+  --candidate-page CANDIDATE_PAGE
+                        Ranked thumbnail page to fetch with --save-candidates
+                        (default: 1). Batch items may override this with
+                        candidate_page.
+  --promote CANDIDATE_FILE
+                        Download one selected candidate original and make it
+                        primary. Example: --promote candidate_03.jpg
+                        --filename 05_wulong.jpg -o images/
+  --from-url URL        Manual replacement: download a directly selected image
+                        URL into --filename and record it (license marked
+                        'manual'). Works without a multimodal model. Example:
+                        --from-url https://… --filename team.jpg -o images/

@@ -1,0 +1,15 @@
+usage: narration_sync.py [-h] {fingerprint,animations,subtitles} ...
+
+Derive narrated object animation timings and merge page-local SRT files on PowerPoint's final timeline.
+
+positional arguments:
+  {fingerprint,animations,subtitles}
+    fingerprint         print the SHA-256 used to bind a timing plan to page-
+                        local SRT files
+    animations          derive narration_animations.json from animations.json
+                        and page-local SRT
+    subtitles           merge page-local SRT using timings read from a
+                        narrated PPTX
+
+options:
+  -h, --help            show this help message and exit

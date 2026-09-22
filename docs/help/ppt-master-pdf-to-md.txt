@@ -1,0 +1,37 @@
+usage: pdf_to_md.py [-h] [-o OUTPUT] [--images {all,filtered,none}]
+                    [--render-vector-figures]
+                    [--vector-figure-dpi VECTOR_FIGURE_DPI]
+                    inputs [inputs ...]
+
+PDF to Markdown converter (with structure detection and LLM optimization)
+
+positional arguments:
+  inputs                PDF file(s) or directories
+
+options:
+  -h, --help            show this help message and exit
+  -o, --output OUTPUT   Output Markdown file for one input, or output
+                        directory for multiple inputs/directories
+  --images {all,filtered,none}
+                        Image extraction mode: filtered=apply size/quality
+                        filters (default), all=no filtering, none=skip images
+  --render-vector-figures
+                        Render large vector drawing regions as PNG figure
+                        assets
+  --vector-figure-dpi VECTOR_FIGURE_DPI
+                        DPI for --render-vector-figures output (default: 180)
+
+Examples:
+  python pdf_to_md.py book.pdf                    # Convert a single file
+  python pdf_to_md.py book.pdf appendix.pdf       # Convert multiple files
+  python pdf_to_md.py ./pdfs -o ./markdown        # Convert PDFs in a directory
+  python pdf_to_md.py book.pdf -o output.md      # Specify output file
+  python pdf_to_md.py book.pdf --render-vector-figures
+
+Structure detection features:
+  - Auto-detect heading levels (based on font size)
+  - Detect bold and italic text
+  - Detect ordered and unordered lists
+  - Extract tables and convert to Markdown format (with deduplication)
+  - [New] Smart detection and removal of repeated page headers/footers
+  - [New] Add <!-- Page N --> page break markers to help LLM understanding

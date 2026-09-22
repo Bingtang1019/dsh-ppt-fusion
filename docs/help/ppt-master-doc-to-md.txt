@@ -1,0 +1,27 @@
+usage: doc_to_md.py [-h] [-o OUTPUT] inputs [inputs ...]
+
+Convert documents to Markdown (pure-Python for common formats, pandoc fallback for the rest)
+
+positional arguments:
+  inputs               Input document file(s) or directories
+
+options:
+  -h, --help           show this help message and exit
+  -o, --output OUTPUT  Output Markdown file for one input, or output directory
+                       for multiple inputs/directories
+
+Examples:
+  python doc_to_md.py lecture.docx                # Word → Markdown (mammoth)
+  python doc_to_md.py lecture.docx notes.html     # Convert multiple files
+  python doc_to_md.py ./docs -o ./markdown        # Convert supported files in a directory
+  python doc_to_md.py article.html                # HTML → Markdown (markdownify)
+  python doc_to_md.py book.epub                   # EPUB → Markdown (ebooklib)
+  python doc_to_md.py notebook.ipynb              # Jupyter → Markdown (nbconvert)
+  python doc_to_md.py manuscript.tex              # LaTeX → Markdown (pandoc fallback)
+
+Native formats (no pandoc required):
+  .docx  .html/.htm  .epub  .ipynb
+
+Pandoc fallback formats (require system pandoc):
+  .doc  .odt  .rtf  .tex/.latex  .rst  .org  .typ
+        

@@ -3,6 +3,10 @@ import { createFrontend, resolvePptwiseCli, type Frontend, type ModuleResolver }
 import { nodeFileSystem, type FileSystemPort } from '../engine/venv.ts'
 import { spawnRunner, type Runner } from '../engine/runner.ts'
 import { createThemeBridge } from '../bridge/theme.ts'
+import { createMasterEngine } from '../engine/master.ts'
+import { DEFAULT_PYPI_INDEX, createVenvManager, resolveDshHome } from '../engine/venv.ts'
+import { packageAsset } from '../package-paths.ts'
+import { createLoggingRunner, createWorkspaceLogSink } from '../logging.ts'
 import { PINNED } from './doctor.ts'
 
 /**
@@ -47,6 +51,7 @@ export function resolveDeckDir(deps: CommandDependencies, target: string): strin
  */
 export function frontendFor(dir: string, deps: CommandDependencies): Frontend {
   return createFrontend({
+    runner: loggedRunnerFor(dir, deps),
     cli: resolvePptwiseCli({
       resolve: deps.resolveModule,
       readText: (path) => {
@@ -56,7 +61,6 @@ export function frontendFor(dir: string, deps: CommandDependencies): Frontend {
       },
     }),
     workspace: dir,
-    runner: deps.runner,
     env: deps.env,
   })
 }
@@ -68,4 +72,47 @@ export function frontendFor(dir: string, deps: CommandDependencies): Frontend {
  */
 export function themeBridgeFor(dir: string, deps: CommandDependencies) {
   return createThemeBridge({ workspace: dir, frontend: frontendFor(dir, deps), fs: deps.fs, upstream: PINNED.pptwise })
+}
+
+/**
+ * Build the engine venv manager with the same configuration `doctor` uses, so a
+ * deck command and the diagnostic never disagree about where the venv is.
+ *
+ * @param deps - command dependencies.
+ * @returns the venv manager.
+ */
+export function venvManagerFor(deps: CommandDependencies) {
+  return createVenvManager({
+    config: {
+      dshHome: resolveDshHome(deps.env),
+      engineVersion: PINNED.pptMaster,
+      pythonVersion: PINNED.python,
+      requirementsFile: packageAsset('python-assets/requirements.lock'),
+      indexUrl: deps.env.DSH_PPT_PYPI_INDEX ?? DEFAULT_PYPI_INDEX,
+    },
+    runner: deps.runner,
+    fs: deps.fs,
+    env: deps.env,
+  })
+}
+
+/**
+ * @param dir - absolute deck workspace.
+ * @param deps - command dependencies.
+ * @returns the ppt-master process layer bound to that workspace.
+ */
+export function engineFor(dir: string, deps: CommandDependencies) {
+  return createMasterEngine({ workspace: dir, venv: venvManagerFor(deps), log: createWorkspaceLogSink({ workspace: dir, fs: deps.fs }) })
+}
+
+/**
+ * Wrap the injected runner so every child process of a deck command is logged
+ * under that deck, as plan §3.12 requires.
+ *
+ * @param dir - deck workspace owning the log directory.
+ * @param deps - command dependencies.
+ * @returns the logging runner.
+ */
+export function loggedRunnerFor(dir: string, deps: CommandDependencies): Runner {
+  return createLoggingRunner({ runner: deps.runner, sink: createWorkspaceLogSink({ workspace: dir, fs: deps.fs }) })
 }

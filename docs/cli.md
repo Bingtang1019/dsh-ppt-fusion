@@ -125,6 +125,23 @@ With `--master`: the master projection — role names (`slideBackground`, `cardF
 `structure`, `accent`, `bodyText`, `secondaryText`, `line`, `dataSeries`), the font
 stacks, and the closed `palette` list a deep page may paint with.
 
+## Implemented (M3)
+
+### `dsh-ppt deep render <dir> [--page <n>] [-o <out>]`
+
+Renders the deck's deep pages through the ppt-master engine into one pptx, in the order
+M0 measured: `project init` (temporary, under `<deck>/.dsh-ppt/deep/`) →
+`stamp-native-fallbacks --write` → `svg-quality-check --stage final --canonical-authoring`
+→ `svg-to-pptx --quick-generate --native-charts-and-tables --with-notes`. It also writes
+the `spec_lock.md` the gate demands, derived from the deck (canvas from the page format,
+typography anchors from the font sizes the SVGs use, colours from `tokens.json`, primary
+language from the pages' script).
+
+The deck must already pass `validate` and have tokens in sync. `--page` renders one page
+(the same code path as a batch of one); `--out` is resolved against the deck directory
+because the engine only writes inside the workspace. Output paths are printed with the
+exporter's report and its `[POSTFLIGHT]` receipt.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
@@ -132,7 +149,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 | Command | Milestone |
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
-| `deep check/chart`, `source`, `images search` | M3/M5 |
+| `deep check|chart|template create|template apply|native roundtrip`, `source`, `images search` | M3/M5 |
 | `render`, `audit`, `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4/M5 |
 | `resume`, `skill audit` | M6 |
 

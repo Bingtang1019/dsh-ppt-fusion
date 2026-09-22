@@ -1,0 +1,51 @@
+PPT Master - SVG Quality Check Tool
+
+Usage:
+  python3 scripts/svg_quality_checker.py <svg_file>
+  python3 scripts/svg_quality_checker.py <directory>
+  python3 scripts/svg_quality_checker.py <roundtrip-workspace> --roundtrip
+  python3 scripts/svg_quality_checker.py <workspace>/templates --template-mode
+  python3 scripts/svg_quality_checker.py --all examples
+
+Examples:
+  python3 scripts/svg_quality_checker.py examples/project/svg_output/slide_01.svg
+  python3 scripts/svg_quality_checker.py examples/project/svg_output
+  python3 scripts/svg_quality_checker.py examples/project
+  python3 scripts/svg_quality_checker.py templates/layouts/presentation_core/templates --template-mode
+  python3 scripts/svg_quality_checker.py templates/decks/中国电信/templates --template-mode
+
+Options:
+  --format <ppt169|ppt43|...>   Expected canvas format
+  --stage <early|first-page|page|final>
+                                  early checks every authored SVG so far, each
+                                  under the partial structure rules (the mid-roster
+                                  gate); first-page checks only the first authored
+                                  SVG; page checks only --page with the same partial
+                                  structure rules; final (default) requires the
+                                  complete declared page roster.
+  --page <basename|path>         Required with --stage page; must resolve under
+                                  the target project's svg_output/ directory.
+  --json                         Write a machine-readable quality report
+  --slot-capacity-report         With --template-mode: print advisory slot JSON only
+  --json-output <path>           Override the JSON report path
+  --export                       Write a plain-text quality report
+  --output <path>                Override the plain-text report path
+  --quick-generate               Validate lockless Quick SVGs; infer flat or
+                                 structured output from the complete roster;
+                                  ignore design_spec.md and spec_lock.md.
+  --roundtrip                    Validate edited-text capacity on the resolved
+                                  authoring-svg-flat/ output roster; uses
+                                  page_plan.json when present and skips
+                                  generated-project/template-only contracts.
+  --canonical-authoring          Require compact authoring syntax as written;
+                                  the checker never rewrites source SVG.
+  --template-mode               Validate a template workspace's templates/ directory:
+                                  Brand/Style validate their portable workspace contracts;
+                                  Layout/Deck glob *.svg directly, skip spec_lock checks,
+                                  enforce roster consistency, and emit placeholder hints.
+                                  native_structure_mode: structured also enables complete
+                                  per-file and cross-page structure validation. Legacy
+                                  native_structure_mode: template fails and must be
+                                  re-created through create-template before validation.
+  Warnings are advisory: they require no modification and do not affect exit status;
+  only errors make the command exit with status 1.

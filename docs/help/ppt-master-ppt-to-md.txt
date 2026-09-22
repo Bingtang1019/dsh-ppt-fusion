@@ -1,0 +1,24 @@
+usage: ppt_to_md.py [-h] [-o OUTPUT] inputs [inputs ...]
+
+Convert PowerPoint files to Markdown
+
+positional arguments:
+  inputs               Input PowerPoint file(s) or directories
+
+options:
+  -h, --help           show this help message and exit
+  -o, --output OUTPUT  Output Markdown file for one input, or output directory
+                       for multiple inputs/directories
+
+Examples:
+  python ppt_to_md.py slides.pptx
+  python ppt_to_md.py slides.pptx appendix.pptx
+  python ppt_to_md.py ./decks -o ./markdown
+  python ppt_to_md.py slides.pptx -o output.md
+  python ppt_to_md.py deck.ppsx -o notes/deck.md
+
+Supported formats:
+  .pptx  .pptm  .ppsx  .ppsm  .potx  .potm
+
+Legacy .ppt is not parsed directly. Resave it as .pptx or export it to PDF first.
+        

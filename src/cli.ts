@@ -7,6 +7,7 @@ import { confirmPlan, planDeck } from './commands/plan.ts'
 import { validateDeck } from './commands/validate.ts'
 import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
 import { tokensExport } from './commands/tokens.ts'
+import { deepRender } from './commands/deep.ts'
 import { formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
@@ -211,6 +212,27 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (result.outputFile === null) printJson(result.document)
       else process.stdout.write(`wrote ${result.outputFile}\n`)
+    })
+
+  const deep = program.command('deep').description('deep-page engine operations')
+  deep
+    .command('render')
+    .description('render the deep pages through ppt-master; --page selects one page')
+    .argument('<dir>', 'deck directory')
+    .option('--page <n>', 'render only this 1-based page index', (value: string) => Number.parseInt(value, 10))
+    .option('-o, --out <file>', 'output pptx path')
+    .action((dir: string, options: { page?: number; out?: string }) => {
+      const result = deepRender({
+        dir,
+        deps,
+        ...(options.page === undefined ? {} : { page: options.page }),
+        ...(options.out === undefined ? {} : { output: options.out }),
+      })
+      process.stdout.write(`wrote ${result.pptxPath}\n`)
+      process.stdout.write(`report ${result.reportPath}\n`)
+      process.stdout.write(
+        `postflight status=${result.postflight.status} quality_gate=${result.postflight.qualityGate} slides=${String(result.postflight.slides)}\n`,
+      )
     })
 
   return program

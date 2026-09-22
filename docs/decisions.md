@@ -443,3 +443,64 @@ edited to match reality.
   (tested: 4.2.5 still routes through `rlPyCairo`); dropping the requirement and letting
   upstream degrade silently (that is precisely the failure mode v3 §3.4 exists to
   prevent, and `doctor` would be lying).
+
+## ADR-026 — `deep render` is a real command, batch-only, and the engine writes reports inside the project
+
+- **Date:** 2026-09-22
+- **Decision:** M3 exposes `dsh-ppt deep render <dir> [--page <n>] [-o <out>]` as the
+  deep half of M4's `render` chain, and it implements **batch only**: a single page is a
+  batch of one, so there is one code path, one project layout and one quality gate rather
+  than two divergent flows. Two engine facts changed the wrappers:
+  - the quality report and the export report live **inside the project**
+    (`<project>/validation/…`), so the command contracts carry the project prefix; the
+    previous workspace-root paths failed the moment the pipeline ran for real;
+  - `--out` resolves against the **deck**, not the caller's working directory, because
+    the engine is only allowed to write inside the workspace. A relative `-o tmp/x.pptx`
+    run from the repository root is therefore a deck-relative path, and a path outside
+    the deck is refused instead of silently nested.
+- **Evidence:** the batch decision is the measured fixed cost: one page took 12.6 s and
+  14.8 s across two runs, while two pages took 14.5 s and 13.6 s — project init, the
+  final quality gate and the export setup dominate, and the marginal page costs about
+  1–2 s. The report-path correction came from
+  `svg-quality-check exited 0 but did not write validation/svg_quality_report.json`
+  (the file was at `<project>/validation/…`); the `--out` bug produced
+  `tmp/m3-deep/tmp/m3-deep/out/deep-single.pptx` before it was fixed.
+- **Also decided here:** the deck commands now run every child through the logging
+  runner (`<deck>/.dsh-ppt/logs/<ts>-<command>.log`, plan §3.12), and the `spec_lock.md`
+  the gate demands is derived from the deck — canvas from the page format, typography
+  anchors from the font sizes the SVG actually uses, colours from `tokens.json`, and the
+  primary language from the pages' script (the engine rejects a placeholder).
+- **Alternatives rejected:** a `--single` flag with its own project layout (two paths to
+  keep in step for no measured benefit); resolving `--out` against the process working
+  directory (the engine would then be asked to write outside the workspace, which the
+  path whitelist refuses by design).
+
+## ADR-027 — M3 verification record
+
+- **Date:** 2026-09-22
+- **Decision:** M3 is accepted on the following measurements.
+- **Evidence:**
+  - **Single-page deep render:** `dsh-ppt deep render tmp/m3-deep --page 2` produced
+    `out/deep-single.pptx` (1 slide, `Postflight status=passed-with-warnings
+    quality_gate=passed`), opened by PowerPoint COM with `Saved=true` and unchanged
+    bytes, carrying 1 native chart and 1 slideMaster (P1).
+  - **Batch deep render:** `dsh-ppt deep render tmp/m3-deep` produced
+    `out/deep-batch.pptx` (2 slides, 1 chart + 1 table), same COM and P1 results, and
+    the independent reader (`scripts/probe-pptx-reopen.py`) reads 2 slides, 8 shapes,
+    1 table, 1 chart.
+  - **Pipeline order is enforced and pinned:** the recorded transcripts show
+    `project init` → `stamp-native-fallbacks --write` → `svg-quality-check --stage final
+    --canonical-authoring` → `svg-to-pptx --quick-generate --native-charts-and-tables
+    --with-notes`, and `src/engine/deep-render.test.ts` asserts the same order.
+  - **Contract replay:** `fixtures/engine/*.log` holds those four real transcripts;
+    `tests/engine-fixtures.test.ts` replays them through the production parsers
+    (`parseCreatedProjectDir`, `parsePostflight`) and through the report-path contract.
+  - **Error classes:** sixteen cases across `deep-render.test.ts` and `master.test.ts`
+    cover the five the milestone names (missing venv, non-zero exit, timeout, missing
+    output, contract violation) plus path escape, missing SVG, absent receipt and
+    unusable venv.
+  - **Full suite:** 144 tests in 16 files green; `typecheck`, `lint`, `build` and
+    `themes:verify` (24/24) clean.
+  - **DSH terminal:** every command above ran from this session's shell, which is the
+    M0.F conclusion applied in practice (pipes work, so the pipeline is an ordinary
+    synchronous chain with file artefacts).

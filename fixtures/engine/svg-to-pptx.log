@@ -1,0 +1,40 @@
+command: svg-to-pptx
+cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+argv: svg-to-pptx .dsh-ppt/deep/deep-p02-p03_ppt169_20260922 -o out/deep-batch.pptx -f ppt169 --quick-generate --native-charts-and-tables --with-notes
+status: 0
+durationMs: 6996
+outcome: ok
+
+--- stderr ---
+Warning: --native-charts-and-tables replaces shape-based SVG fallbacks with PowerPoint Chart/Table objects. The native objects may normalize styling or omit SVG details that are not represented by marker metadata; use the default shape-based export when exact fallback artwork is required.
+
+--- stdout ---
+  Quick PPTX structure: flat (inferred from 2 SVG page(s))
+PPT Master - SVG to native DrawingML PPTX Tool
+==================================================
+  Project path: .dsh-ppt\deep\deep-p02-p03_ppt169_20260922
+  SVG directory: svg_output
+  Output file: out\deep-batch.pptx
+
+  Slide dimensions: 1280 x 720 px
+  SVG file count: 2
+  Mode: Native DrawingML shapes (directly editable)
+  Native table/chart objects: Chart/Table replacement enabled
+  PPTX structure: flat
+  Image optimization: Enabled (preferred cap 2560 px, unchanged bytes preserved, JPEG q85 when re-encoded)
+  Transition effect: Fade
+  Speaker notes: Enabled (no notes files found)
+
+  Converted 2 elements, skipped 0, promoted 1 background
+  [Slide 1/2] 002-p02.svg (Native)
+  Converted 2 elements, skipped 0, promoted 1 background
+  [Slide 2/2] 003-p03.svg (Native)
+  Flat structure: project-owned Master + Blank Layout (10 stock layout(s), 2 stock content shape(s) removed, 6 system footer hook(s) retained)
+  Flat theme: 1 theme part(s), stock text defaults retained (no theme contract)
+
+[Done] Saved: out\deep-batch.pptx
+  Slides: 2; unselected Layout prototype carriers: 0
+  [POSTFLIGHT] status=passed-with-warnings quality_gate=passed slides=2 warning_categories=1
+  [POSTFLIGHT][WARNING] quality_introduced_warnings=5
+  [PPTX] out\deep-batch.pptx
+  [REPORT] .dsh-ppt\deep\deep-p02-p03_ppt169_20260922\validation\deep-batch.report.json

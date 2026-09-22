@@ -1,0 +1,38 @@
+usage: pptx_to_svg.py [-h] [-o OUTPUT] [--images-subdir IMAGES_SUBDIR]
+                      [--sounds-subdir SOUNDS_SUBDIR] [--embed-images]
+                      [--keep-hidden] [--inheritance-mode {both,layered,flat}]
+                      [--strict] [--roundtrip]
+                      pptx_file
+
+Convert .pptx to per-slide SVG by reading OOXML directly.
+
+positional arguments:
+  pptx_file             Path to the source .pptx file
+
+options:
+  -h, --help            show this help message and exit
+  -o, --output OUTPUT   Output directory (default: <pptx_stem>_pptx_to_svg
+                        beside source)
+  --images-subdir IMAGES_SUBDIR
+                        Subdirectory for extracted image resources (default:
+                        images)
+  --sounds-subdir SOUNDS_SUBDIR
+                        Subdirectory for transition/object cue audio (default:
+                        sounds)
+  --embed-images        Base64-embed images inline instead of writing files
+  --keep-hidden         Include shapes marked hidden="1"
+  --inheritance-mode {both,layered,flat}
+                        How to render inheritance. 'both' (default) writes
+                        layered SVGs under svg/ and complete preview slides
+                        under svg-flat/. 'layered' writes only svg/ plus
+                        inheritance.json. 'flat' writes self-contained slides
+                        under svg/. Round-trip import requires 'both'
+                        internally and publishes authoring-svg-flat/ as its
+                        sole editable SVG source.
+  --strict              Stop on the first unsupported/malformed source
+                        construct instead of the default tolerant conversion
+                        with diagnostics
+  --roundtrip           Create the source-preserving SVG round-trip workspace,
+                        including authoring-svg-flat/, semantic resources, and
+                        immutable analysis backing. Requires --inheritance-
+                        mode both.

@@ -1,0 +1,15 @@
+command: project-init
+cwd: C:\Users\dell\Desktop\dsh-ppt-fusion\tmp\m3-deep
+argv: project init deep-p02-p03 --format ppt169 --dir .dsh-ppt/deep
+status: 0
+durationMs: 1678
+outcome: ok
+
+--- stdout ---
+Project created: .dsh-ppt\deep\deep-p02-p03_ppt169_20260922
+Canvas: PPT 16:9 (1280×720)
+[OK] Project initialized: .dsh-ppt\deep\deep-p02-p03_ppt169_20260922
+Next:
+1. Put source files into sources/ (or use import-sources)
+2. Save your design spec to the project root
+3. Generate SVG files into svg_output/

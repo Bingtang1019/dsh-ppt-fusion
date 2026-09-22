@@ -1,0 +1,178 @@
+usage: notes_to_audio.py [-h] [-o OUTPUT]
+                         [--provider {edge,elevenlabs,minimax,qwen,cosyvoice}]
+                         [--voice VOICE] [--voice-id VOICE_ID] [--rate RATE]
+                         [--pitch PITCH] [--volume VOLUME]
+                         [--concurrency CONCURRENCY]
+                         [--subtitle-max-chars SUBTITLE_MAX_CHARS]
+                         [--elevenlabs-api-key-env ELEVENLABS_API_KEY_ENV]
+                         [--elevenlabs-model ELEVENLABS_MODEL]
+                         [--elevenlabs-output-format ELEVENLABS_OUTPUT_FORMAT]
+                         [--elevenlabs-stability ELEVENLABS_STABILITY]
+                         [--elevenlabs-similarity-boost ELEVENLABS_SIMILARITY_BOOST]
+                         [--elevenlabs-style ELEVENLABS_STYLE]
+                         [--elevenlabs-speed ELEVENLABS_SPEED]
+                         [--elevenlabs-speaker-boost | --no-elevenlabs-speaker-boost]
+                         [--minimax-api-key-env MINIMAX_API_KEY_ENV]
+                         [--minimax-model MINIMAX_MODEL]
+                         [--minimax-base-url MINIMAX_BASE_URL]
+                         [--minimax-output-format {mp3,wav}]
+                         [--minimax-sample-rate MINIMAX_SAMPLE_RATE]
+                         [--minimax-bitrate MINIMAX_BITRATE]
+                         [--minimax-channel MINIMAX_CHANNEL]
+                         [--minimax-speed MINIMAX_SPEED]
+                         [--minimax-volume MINIMAX_VOLUME]
+                         [--minimax-pitch MINIMAX_PITCH]
+                         [--minimax-language-boost MINIMAX_LANGUAGE_BOOST]
+                         [--qwen-api-key-env QWEN_API_KEY_ENV]
+                         [--qwen-model QWEN_MODEL]
+                         [--qwen-base-url QWEN_BASE_URL]
+                         [--qwen-language-type QWEN_LANGUAGE_TYPE]
+                         [--qwen-instructions QWEN_INSTRUCTIONS]
+                         [--qwen-optimize-instructions | --no-qwen-optimize-instructions]
+                         [--cosyvoice-api-key-env COSYVOICE_API_KEY_ENV]
+                         [--cosyvoice-model COSYVOICE_MODEL]
+                         [--cosyvoice-base-url COSYVOICE_BASE_URL]
+                         [--cosyvoice-output-format {mp3,wav}]
+                         [--cosyvoice-sample-rate {8000,16000,22050,24000,44100,48000}]
+                         [--cosyvoice-volume COSYVOICE_VOLUME]
+                         [--cosyvoice-rate COSYVOICE_RATE]
+                         [--cosyvoice-pitch COSYVOICE_PITCH]
+                         [--cosyvoice-instruction COSYVOICE_INSTRUCTION]
+                         [--cosyvoice-language-hint COSYVOICE_LANGUAGE_HINT]
+                         [--cosyvoice-audio-only] [--list-common-voices]
+                         [--list-voices] [--locale LOCALE]
+                         [project_path]
+
+Generate per-slide narration audio from PPT Master notes.
+
+This script uses provider backends for the same per-slide output contract on
+macOS, Linux, and Windows. `edge-tts` remains the default no-key backend and
+also writes one compact, word-timed SRT file per slide from the same TTS stream.
+MiniMax and CosyVoice request word timings; ElevenLabs requests character
+alignment. All four apply the same compact, text-faithful cue regrouping.
+Qwen remains audio-only because its current TTS API exposes no timestamps.
+
+Usage:
+    uv run skills/ppt-master/scripts/notes_to_audio.py <project_path> --voice zh-CN-XiaoxiaoNeural
+    uv run skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider elevenlabs --voice-id <voice_id>
+    uv run skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider minimax --voice-id <voice_id>
+    uv run skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider qwen --voice-id <voice>
+    uv run skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider cosyvoice --voice-id <voice>
+    uv run skills/ppt-master/scripts/notes_to_audio.py --list-common-voices
+    uv run skills/ppt-master/scripts/notes_to_audio.py --list-voices --locale zh-CN
+
+Dependencies:
+    uv pip install edge-tts
+    ELEVENLABS_API_KEY=<key> for --provider elevenlabs
+    MINIMAX_API_KEY=<key> for --provider minimax
+    QWEN_API_KEY or DASHSCOPE_API_KEY=<key> for --provider qwen
+    COSYVOICE_API_KEY or DASHSCOPE_API_KEY=<key> for --provider cosyvoice
+
+positional arguments:
+  project_path
+
+options:
+  -h, --help            show this help message and exit
+  -o, --output OUTPUT
+  --provider {edge,elevenlabs,minimax,qwen,cosyvoice}
+                        audio generation backend (default: edge)
+  --voice VOICE         edge-tts voice ShortName. For elevenlabs, --voice-id
+                        is preferred.
+  --voice-id VOICE_ID   provider voice ID/name. If omitted for cloud
+                        providers, --voice is used as a fallback.
+  --rate RATE           edge-tts speaking rate, e.g. "+0%", "-10%", "+15%"
+                        (default: +0%). Ignored by cloud providers.
+  --pitch PITCH         edge-tts pitch adjustment (default: +0Hz). Ignored by
+                        cloud providers.
+  --volume VOLUME       edge-tts volume adjustment (default: +0%). Ignored by
+                        cloud providers.
+  --concurrency CONCURRENCY
+                        maximum concurrent Edge slide requests (default: 3;
+                        ignored by cloud providers)
+  --subtitle-max-chars SUBTITLE_MAX_CHARS
+                        maximum visible characters per provider-timed subtitle
+                        cue (default: 20)
+  --elevenlabs-api-key-env ELEVENLABS_API_KEY_ENV
+                        environment variable containing the ElevenLabs API key
+                        (default: ELEVENLABS_API_KEY)
+  --elevenlabs-model ELEVENLABS_MODEL
+                        ElevenLabs TTS model ID (default:
+                        eleven_multilingual_v2)
+  --elevenlabs-output-format ELEVENLABS_OUTPUT_FORMAT
+                        ElevenLabs output format (default: mp3_44100_128)
+  --elevenlabs-stability ELEVENLABS_STABILITY
+                        optional ElevenLabs voice stability override, 0.0-1.0
+  --elevenlabs-similarity-boost ELEVENLABS_SIMILARITY_BOOST
+                        optional ElevenLabs similarity boost override, 0.0-1.0
+  --elevenlabs-style ELEVENLABS_STYLE
+                        optional ElevenLabs style exaggeration override,
+                        0.0-1.0
+  --elevenlabs-speed ELEVENLABS_SPEED
+                        optional ElevenLabs speaking speed override, 0.7-1.2
+  --elevenlabs-speaker-boost, --no-elevenlabs-speaker-boost
+                        optionally override ElevenLabs speaker boost
+  --minimax-api-key-env MINIMAX_API_KEY_ENV
+                        environment variable containing the MiniMax API key
+  --minimax-model MINIMAX_MODEL
+                        MiniMax T2A model ID (default: speech-2.8-hd)
+  --minimax-base-url MINIMAX_BASE_URL
+                        MiniMax T2A endpoint or base URL
+  --minimax-output-format {mp3,wav}
+                        MiniMax audio format for PPT narration (default: mp3)
+  --minimax-sample-rate MINIMAX_SAMPLE_RATE
+                        MiniMax sample rate (default: 32000)
+  --minimax-bitrate MINIMAX_BITRATE
+                        MiniMax bitrate in bps (default: 128000)
+  --minimax-channel MINIMAX_CHANNEL
+                        MiniMax channel count (default: 1)
+  --minimax-speed MINIMAX_SPEED
+                        MiniMax speaking speed (default: 1.0)
+  --minimax-volume MINIMAX_VOLUME
+                        MiniMax volume multiplier (default: 1.0)
+  --minimax-pitch MINIMAX_PITCH
+                        MiniMax pitch adjustment (default: 0)
+  --minimax-language-boost MINIMAX_LANGUAGE_BOOST
+                        MiniMax language boost (default: auto)
+  --qwen-api-key-env QWEN_API_KEY_ENV
+                        environment variable containing the Qwen/DashScope API
+                        key
+  --qwen-model QWEN_MODEL
+                        Qwen TTS model ID (default: qwen3-tts-flash)
+  --qwen-base-url QWEN_BASE_URL
+                        Qwen TTS endpoint or base URL
+  --qwen-language-type QWEN_LANGUAGE_TYPE
+                        Qwen language_type, e.g. Chinese or English (default:
+                        Chinese)
+  --qwen-instructions QWEN_INSTRUCTIONS
+                        optional Qwen instruction text for supported models
+  --qwen-optimize-instructions, --no-qwen-optimize-instructions
+                        optionally ask Qwen to optimize instructions
+  --cosyvoice-api-key-env COSYVOICE_API_KEY_ENV
+                        environment variable containing the
+                        CosyVoice/DashScope API key
+  --cosyvoice-model COSYVOICE_MODEL
+                        CosyVoice model ID (default: cosyvoice-v3-flash)
+  --cosyvoice-base-url COSYVOICE_BASE_URL
+                        CosyVoice SpeechSynthesizer endpoint or base URL
+  --cosyvoice-output-format {mp3,wav}
+                        CosyVoice audio format for PPT narration (default:
+                        mp3)
+  --cosyvoice-sample-rate {8000,16000,22050,24000,44100,48000}
+                        CosyVoice sample rate (default: 24000)
+  --cosyvoice-volume COSYVOICE_VOLUME
+                        optional CosyVoice volume, 0-100
+  --cosyvoice-rate COSYVOICE_RATE
+                        optional CosyVoice speaking rate, 0.5-2.0
+  --cosyvoice-pitch COSYVOICE_PITCH
+                        optional CosyVoice pitch multiplier, 0.5-2.0
+  --cosyvoice-instruction COSYVOICE_INSTRUCTION
+                        optional CosyVoice instruction text for supported
+                        voices/models
+  --cosyvoice-language-hint COSYVOICE_LANGUAGE_HINT
+                        optional CosyVoice language hint, e.g. zh, en, ja
+  --cosyvoice-audio-only
+                        skip CosyVoice timestamps/SRT for a model or voice
+                        that does not support them
+  --list-common-voices  print a curated voice list and exit
+  --list-voices         query provider voices and exit
+  --locale LOCALE       filter --list-voices by locale, e.g. "zh-CN"

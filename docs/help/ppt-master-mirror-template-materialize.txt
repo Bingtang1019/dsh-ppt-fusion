@@ -1,0 +1,18 @@
+usage: mirror_template_materialize.py [-h] [--kind {deck,layout}]
+                                      import_workspace template_workspace
+
+Materialize a deterministic mirror template from one PPTX import workspace's
+layered authoring IR, including a factual Design Spec skeleton. SVG workspaces
+use apply_template.py with their exact root.
+
+positional arguments:
+  import_workspace      Type A PPTX import workspace containing authoring-svg/
+                        and native facts
+  template_workspace    Template workspace destination (templates/ must own no
+                        roster; qualified Brand/Style specs or one Deck spec
+                        staged for Layout supersession may remain)
+
+options:
+  -h, --help            show this help message and exit
+  --kind {deck,layout}  Kind of the factual Design Spec skeleton (default:
+                        deck); finish its TODOs before registration
