@@ -1,8 +1,11 @@
 import { isAbsolute } from 'node:path'
 import {
+  applyTemplate,
   deliveryCheck,
   imageSearch,
   mirrorTemplateMaterialize,
+  registerTemplate,
+  pptxTemplateImport,
   narrationSync,
   notesToAudio,
   pptxToSvg,
@@ -14,9 +17,12 @@ import {
   svgToPptx,
   assertInsideWorkspace,
   toWorkspaceRelative,
+  type ApplyTemplateParams,
+  type RegisterTemplateParams,
   type DeliveryCheckParams,
   type ImageSearchParams,
   type MirrorTemplateParams,
+  type PptxTemplateImportParams,
   type NarrationSyncParams,
   type NotesToAudioParams,
   type PptxToSvgParams,
@@ -214,6 +220,31 @@ export function createMasterEngine(options: MasterEngineOptions) {
         templateWorkspace: relative(params.templateWorkspace, 'templateWorkspace'),
       })
       return execute(invocation)
+    },
+
+    /** @see pptxTemplateImport */
+    templateImport(params: PptxTemplateImportParams): MasterCall {
+      const invocation = pptxTemplateImport({
+        ...params,
+        file: relative(params.file, 'file'),
+        ...(params.output === undefined ? {} : { output: relative(params.output, 'output') }),
+      })
+      return execute(invocation)
+    },
+
+    /** @see applyTemplate */
+    applyTemplate(params: ApplyTemplateParams): MasterCall {
+      const invocation = applyTemplate({
+        ...params,
+        projectDir: relative(params.projectDir, 'projectDir'),
+        roots: params.roots.map((root) => relative(root, 'root')),
+      })
+      return execute(invocation)
+    },
+
+    /** @see registerTemplate */
+    registerTemplate(params: RegisterTemplateParams): MasterCall {
+      return execute(registerTemplate(params))
     },
 
     /** @see pptxToSvg */

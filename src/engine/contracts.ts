@@ -276,6 +276,10 @@ export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
   'ppt-to-md',
   'web-to-md',
   'mirror-template-materialize',
+  'pptx-template-import',
+  'apply-template',
+  'register-template',
+  'source-to-md',
   'pptx-to-svg',
 ]
 
@@ -322,6 +326,10 @@ export type TemplateKind = (typeof TEMPLATE_KINDS)[number]
 /** Layout inheritance modes `pptx-to-svg` accepts. */
 export const INHERITANCE_MODES = ['both', 'layered', 'flat'] as const
 export type InheritanceMode = (typeof INHERITANCE_MODES)[number]
+
+/** Template kinds the registry indexes; `mirror-template-materialize` writes two of them. */
+export const TEMPLATE_REGISTRY_KINDS = ['brand', 'style', 'layout', 'deck'] as const
+export type TemplateRegistryKind = (typeof TEMPLATE_REGISTRY_KINDS)[number]
 
 /** Timeouts for the post-processing and material commands. */
 export const POST_TIMEOUTS = {
@@ -492,6 +500,10 @@ export interface PptxToSvgParams {
   readonly inheritanceMode?: InheritanceMode
   readonly imagesSubdir?: string
   readonly keepHidden?: boolean
+  /** Write the source-preserving round-trip workspace; requires `both`. */
+  readonly roundtrip?: boolean
+  /** Stop on the first unsupported construct instead of converting tolerantly. */
+  readonly strict?: boolean
 }
 
 /**
@@ -506,5 +518,96 @@ export function pptxToSvg(params: PptxToSvgParams): EngineInvocation {
   if (params.inheritanceMode !== undefined) argv.push('--inheritance-mode', assertEnum('inheritanceMode', params.inheritanceMode, INHERITANCE_MODES))
   if (params.imagesSubdir !== undefined) argv.push('--images-subdir', params.imagesSubdir)
   if (params.keepHidden === true) argv.push('--keep-hidden')
+  if (params.strict === true) argv.push('--strict')
+  if (params.roundtrip === true) {
+    // The engine's own help states the pairing; failing here names the missing flag
+    // before a process is started.
+    if (params.inheritanceMode !== 'both') {
+      throw new DshPptFailure('ContractViolation', 'pptx-to-svg --roundtrip requires --inheritance-mode both', { detail: { inheritanceMode: params.inheritanceMode } })
+    }
+    argv.push('--roundtrip')
+  }
   return { id: 'pptx-to-svg', argv, timeoutMs: POST_TIMEOUTS.roundtrip, outputFiles: [] }
+}
+
+/** Parameters for `ppt-master pptx-template-import`. */
+export interface PptxTemplateImportParams {
+  /** Source pptx, workspace-relative. */
+  readonly file: string
+  readonly output?: string
+  readonly inheritanceMode?: InheritanceMode
+  readonly embedImages?: boolean
+  readonly skipManifest?: boolean
+  readonly manifestOnly?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master pptx-template-import`.
+ *
+ * This is the reference workspace `mirror-template-materialize` publishes from; the
+ * SVG round-trip output is consumed directly by `apply-template` instead (ADR-038).
+ *
+ * @param params - source pptx, output directory and import options.
+ * @returns the validated invocation.
+ */
+export function pptxTemplateImport(params: PptxTemplateImportParams): EngineInvocation {
+  const argv = ['pptx-template-import', params.file]
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.inheritanceMode !== undefined) argv.push('--inheritance-mode', assertEnum('inheritanceMode', params.inheritanceMode, INHERITANCE_MODES))
+  if (params.embedImages === true) argv.push('--embed-images')
+  if (params.skipManifest === true) argv.push('--skip-manifest')
+  if (params.manifestOnly === true) argv.push('--manifest-only')
+  return { id: 'pptx-template-import', argv, timeoutMs: POST_TIMEOUTS.template, outputFiles: [] }
+}
+
+/** Parameters for `ppt-master apply-template`. */
+export interface ApplyTemplateParams {
+  /** Initialized project root, workspace-relative. */
+  readonly projectDir: string
+  /** Template workspace roots to install; one root per kind, repeatable. */
+  readonly roots: readonly string[]
+  readonly dryRun?: boolean
+  readonly skipValidation?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master apply-template`.
+ *
+ * @param params - project plus the template root(s) to install.
+ * @returns the validated invocation.
+ * @throws DshPptFailure `ContractViolation` when no root is given.
+ */
+export function applyTemplate(params: ApplyTemplateParams): EngineInvocation {
+  if (params.roots.length === 0) {
+    throw new DshPptFailure('ContractViolation', 'apply-template needs at least one --root', { detail: { projectDir: params.projectDir } })
+  }
+  const argv = ['apply-template', params.projectDir]
+  for (const root of params.roots) argv.push('--root', root)
+  if (params.dryRun === true) argv.push('--dry-run')
+  if (params.skipValidation === true) argv.push('--skip-validation')
+  return { id: 'apply-template', argv, timeoutMs: POST_TIMEOUTS.template, outputFiles: [] }
+}
+
+/** Parameters for `ppt-master register-template`. */
+export interface RegisterTemplateParams {
+  /** Template directory id under `templates/<kind>/`; omitted with `rebuildAll`. */
+  readonly templateId?: string
+  readonly kind?: TemplateRegistryKind
+  readonly rebuildAll?: boolean
+  readonly dryRun?: boolean
+}
+
+/**
+ * Build the argv for `ppt-master register-template`.
+ *
+ * @param params - template id or a full rebuild, plus kind and dry-run.
+ * @returns the validated invocation.
+ */
+export function registerTemplate(params: RegisterTemplateParams): EngineInvocation {
+  const argv = ['register-template']
+  if (params.templateId !== undefined) argv.push(params.templateId)
+  if (params.kind !== undefined) argv.push('--kind', assertEnum('kind', params.kind, TEMPLATE_REGISTRY_KINDS))
+  if (params.rebuildAll === true) argv.push('--rebuild-all')
+  if (params.dryRun === true) argv.push('--dry-run')
+  return { id: 'register-template', argv, timeoutMs: POST_TIMEOUTS.template, outputFiles: [] }
 }

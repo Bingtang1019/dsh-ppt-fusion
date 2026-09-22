@@ -185,6 +185,43 @@ optionally the CIELAB colour comparison of the deep SVGs (`--pixels`). Errors fa
 command; `--strict` also fails on warnings. Without an artifact the command reports
 `artifact-missing` and names the package sources it skipped instead of passing silently.
 
+## Implemented (M5)
+
+### `dsh-ppt deep native roundtrip <dir> --file <pptx> [-o <dir>] [--inheritance-mode <mode>] [--keep-hidden] [--strict]`
+
+Imports a published pptx back into the engine's source-preserving SVG workspace
+(`--roundtrip --inheritance-mode both`, the minimal path plan §5 M5 item 5 asks for).
+The editable slides land in `<output>/authoring-svg-flat/`; the workspace also carries
+`analysis/native_structure.json` and `sources/source.pptx`, which is what `apply-template`
+consumes as an exact root. Output defaults to `.dsh-ppt/roundtrip/<stem>`.
+
+### `dsh-ppt deep template create <dir> --file <pptx> -o <template-dir> [--kind deck|layout]`
+
+Two engine steps: `pptx-template-import` builds a reference workspace under
+`.dsh-ppt/import/<stem>`, then `mirror-template-materialize` publishes the template
+(template SVGs, text-slot files, `source_themes.json`, a Design Spec TODO). A
+`template-manifest.json` beside it records the kind, the source pptx and the import
+workspace. Templates are materialised from non-animated sources; the engine refuses an
+import whose animations are not reconstructible (ADR-038).
+
+### `dsh-ppt deep template apply <dir> --project <project> --template <root...> [--dry-run]`
+
+Installs one or more template roots into an initialized project (`apply-template`), e.g.
+the mirror template plus an SVG round-trip workspace. Two roots of the same kind are
+refused before the engine runs; `--dry-run` prints the plan and the receipt.
+
+### `dsh-ppt deep template register <dir> --kind <brand|style|layout|deck> [--id <id>] [--all] [--dry-run]`
+
+Refreshes the engine's template index for one directory id or a whole kind.
+
+### `dsh-ppt brand extract <file> -o <out> [--from <preset>] [--bind <deck>] [--dir <dir>]`
+
+Reads colours and fonts out of an Office file through pptwise `brand extract` and writes a
+ThemeFile v2. With `--bind`, the extracted theme is written into that deck as
+`brand.theme.json`, the manifest's theme becomes `{file: "brand.theme.json"}`, and
+`theme ensure` derives `tokens.json` and `master-design.json` — one command from a
+customer deck to a deck this toolchain renders with.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
@@ -192,7 +229,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 | Command | Milestone |
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
-| `deep check|chart|template create|template apply|native roundtrip`, `source`, `images search` | M3/M5 |
+| `deep check|chart`, `source`, `images search` | M3/M5 |
 | `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 

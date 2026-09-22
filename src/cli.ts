@@ -11,11 +11,15 @@ import { deepRender } from './commands/deep.ts'
 import { renderDeck } from './commands/render.ts'
 import { compatLint, compatLintDocument, formatCompatLint } from './commands/compat.ts'
 import { auditDeck } from './commands/audit.ts'
+import { brandExtract } from './commands/brand.ts'
+import { deepNativeRoundtrip } from './commands/roundtrip.ts'
+import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
+import { INHERITANCE_MODES, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
 
 /**
  * Read the package version from the manifest next to this file.
@@ -237,6 +241,30 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       process.stdout.write(`${result.stdout.trim()}\n`)
     })
 
+  const brand = program.command('brand').description('read a customer deck brand into a theme')
+  brand
+    .command('extract')
+    .description('extract colours and fonts from an Office file into a ThemeFile v2')
+    .argument('<file>', 'Office file (pptx/docx), resolved against --dir')
+    .option('-o, --output <file>', 'output theme file, resolved against --dir')
+    .option('--from <preset>', 'start from this pptwise preset')
+    .option('--bind <deck>', 'bind the theme to this deck and derive its tokens')
+    .option('--dir <dir>', 'workspace the paths resolve against', '.')
+    .action((file: string, options: { output?: string; from?: string; bind?: string; dir: string }) => {
+      const result = brandExtract({
+        dir: options.dir,
+        file,
+        deps,
+        ...(options.output === undefined ? {} : { output: options.output }),
+        ...(options.from === undefined ? {} : { from: options.from }),
+        ...(options.bind === undefined ? {} : { bind: options.bind }),
+      })
+      process.stdout.write(`wrote ${result.outputFile} (theme "${result.themeId}")\n`)
+      if (result.bound !== null) {
+        process.stdout.write(`bound ${result.bound.deckDir} to ${result.bound.themeFile}; theme ensure wrote ${String(result.bound.ensured.length)} file(s)\n`)
+      }
+    })
+
   program
     .command('tokens')
     .description('export the palette contract a deep page authors against')
@@ -324,6 +352,85 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       process.stdout.write(
         `postflight status=${result.postflight.status} quality_gate=${result.postflight.qualityGate} slides=${String(result.postflight.slides)}\n`,
       )
+    })
+
+  const template = deep.command('template').description('materialise and install mirror templates')
+  template
+    .command('create')
+    .description('round-trip a pptx and materialise a mirror template from it')
+    .argument('<dir>', 'deck workspace')
+    .requiredOption('--file <pptx>', 'source pptx, resolved against the workspace')
+    .requiredOption('-o, --output <dir>', 'template workspace to write')
+    .addOption(new Option('--kind <kind>', 'template kind').choices([...TEMPLATE_KINDS]).default('deck'))
+    .action((dir: string, options: { file: string; output: string; kind: string }) => {
+      const result = deepTemplateCreate({
+        dir,
+        file: options.file,
+        output: options.output,
+        kind: options.kind === 'layout' ? 'layout' : 'deck',
+        deps,
+      })
+      process.stdout.write(`import ${result.importDir} (${String(result.slides.length)} slide SVG(s))\n`)
+      process.stdout.write(`wrote template ${result.templateDir} (kind ${result.kind})\n`)
+    })
+  template
+    .command('apply')
+    .description('install template workspace roots into an initialized project')
+    .argument('<dir>', 'deck workspace')
+    .requiredOption('--project <dir>', 'project root that receives the templates')
+    .requiredOption('--template <dir...>', 'template workspace root; repeat for several kinds')
+    .option('--dry-run', 'plan the installation without writing')
+    .action((dir: string, options: { project: string; template: string[]; dryRun?: boolean }) => {
+      const result = deepTemplateApply({
+        dir,
+        project: options.project,
+        templates: options.template,
+        deps,
+        ...(options.dryRun === true ? { dryRun: true } : {}),
+      })
+      process.stdout.write(`project ${result.projectDir}: ${String(result.roots.length)} root(s) [${result.kinds.map((kind) => kind ?? 'untyped').join(', ')}]\n`)
+      if (result.stdout.trim() !== '') process.stdout.write(`${result.stdout.trim()}\n`)
+    })
+  template
+    .command('register')
+    .description('register a template directory in the engine template index')
+    .argument('<dir>', 'deck workspace')
+    .addOption(new Option('--kind <kind>', 'index the template under this kind').choices([...TEMPLATE_REGISTRY_KINDS]).default('deck'))
+    .option('--id <id>', 'template directory id under templates/<kind>/')
+    .option('--all', 'rebuild every index entry of that kind')
+    .option('--dry-run', 'show what would be written')
+    .action((dir: string, options: { kind: string; id?: string; all?: boolean; dryRun?: boolean }) => {
+      const stdout = templateRegister({
+        dir,
+        kind: options.kind as (typeof TEMPLATE_REGISTRY_KINDS)[number],
+        deps,
+        ...(options.id === undefined ? {} : { templateId: options.id }),
+        ...(options.all === true ? { rebuildAll: true } : {}),
+        ...(options.dryRun === true ? { dryRun: true } : {}),
+      })
+      process.stdout.write(`${stdout.trim() === '' ? 'template register: done' : stdout.trim()}\n`)
+    })
+  const native = deep.command('native').description('native pptx round-trip import')
+  native
+    .command('roundtrip')
+    .description('import a pptx back into the source-preserving SVG workspace')
+    .argument('<dir>', 'deck workspace')
+    .requiredOption('--file <pptx>', 'pptx to import, resolved against the workspace')
+    .option('-o, --output <dir>', 'output workspace; defaults to .dsh-ppt/roundtrip/<stem>')
+    .addOption(new Option('--inheritance-mode <mode>', 'SVG inheritance layout').choices([...INHERITANCE_MODES]).default('both'))
+    .option('--keep-hidden', 'keep hidden shapes in the imported SVGs')
+    .option('--strict', 'stop on the first unsupported construct')
+    .action((dir: string, options: { file: string; output?: string; inheritanceMode: string; keepHidden?: boolean; strict?: boolean }) => {
+      const result = deepNativeRoundtrip({
+        dir,
+        file: options.file,
+        inheritanceMode: options.inheritanceMode as (typeof INHERITANCE_MODES)[number],
+        deps,
+        ...(options.output === undefined ? {} : { output: options.output }),
+        ...(options.keepHidden === true ? { keepHidden: true } : {}),
+        ...(options.strict === true ? { strict: true } : {}),
+      })
+      process.stdout.write(`imported ${result.file} -> ${result.outputDir} (${String(result.slides.length)} slide SVG(s))\n`)
     })
 
   return program

@@ -48,6 +48,7 @@ the ADR wins.**
 | 035 | The unified audit gate: eight sources, an honest skip list, a warning-only ΔE |
 | 036 | Merge compatibility discipline: creationId renumbering, MCE migration, zip shape |
 | 037 | Compat goldens for all three levels, and the fixtureVersion 2 re-record |
+| 038 | M5 opens: native round trip, template routing, brand extraction |
 
 ---
 
@@ -920,3 +921,54 @@ the ADR wins.**
   advisories from the audit (they are real upstream signals, and `skipped`/warnings are how
   this repo keeps gaps visible); compacting the fixture now (an upstream legacy migration whose
   hoisting changes our spec-lock derivation — an M8 decision with this evidence).
+
+## ADR-038 — M5 opens with the native round trip, template routing and brand extraction
+
+- **Date:** 2026-09-22
+- **Decision:** three new engine contracts and three commands land first, because they are
+  the offline-provable half of M5 and the rest of the milestone builds on them:
+  `deep native roundtrip` (`pptx-to-svg --roundtrip --inheritance-mode both`),
+  `deep template create|apply|register` (`pptx-template-import` →
+  `mirror-template-materialize` → `apply-template` / `register-template`), and
+  `brand extract` (pptwise `brand extract`, plus `--bind` = write the theme into the deck,
+  repoint `deck.fusion.json`, run `theme ensure`).
+- **Round trip.** The engine help states that `--roundtrip` requires `--inheritance-mode
+  both`; the argv builder refuses the mismatch before spawning, and publishes
+  `authoring-svg-flat/` as the editable source. Measured on `fixtures/golden/hello-merged.pptx`:
+  five slide SVGs plus `analysis/native_structure.json` and `sources/source.pptx`. The
+  workspace is what `apply-template` accepts directly as an exact root.
+- **Template routing is two different workspaces, and the distinction is the engine rule.**
+  `mirror-template-materialize` publishes only from a `pptx-template-import` reference
+  workspace (`svg/` + `inheritance.json`), while an SVG round-trip workspace is consumed as
+  an exact root by `apply-template`. The first attempt wired materialisation to the round-trip
+  output and the engine rejected it (`Cannot read inheritance graph: …/svg/inheritance.json`);
+  the fix was `pptx-template-import` as its own contract, with the round-trip workspace kept
+  for editing and direct application. Measured: create from `hello-base.pptx` wrote five
+  template SVGs, five text-slot files, `source_themes.json`, `native_payloads.json.gz` and a
+  Design Spec TODO; `deep template apply --dry-run` then planned 14 files into a deep project
+  and the real run installed them and wrote `template_install.json`.
+- **Known engine limitation, recorded rather than worked around.** Materialising a template
+  from an *animated* import fails inside the engine with `animation-not-reconstructed: 2`
+  (the merged golden deck carries two post-pass timelines the importer cannot map back to SVG
+  groups). Non-animated sources work. The fusion does not paper over it with
+  `--skip-validation`; the SKILL (M6) must tell the model to build templates from the
+  pre-animation deck and to keep animated decks on the round-trip/edit path.
+- **Brand extraction linkage.** Measured end to end on this machine (no network needed):
+  `brand extract out/base.pptx --dir <deck> --bind .` wrote `brand.theme.json` (theme id
+  `brand`, extracted by pptwise from the recorded golden base deck), repointed the manifest to
+  `{file: "brand.theme.json"}` and derived `tokens.json` with `themeId: brand` and
+  `source.kind: file`.
+- **Path rule.** Every new command resolves its arguments against the deck workspace, not the
+  process directory, and refuses escapes (`PathOutsideWorkspace`); this caught two
+  implementation bugs during the first real runs (`fs.exists` on a workspace-relative path, and
+  a doubled path when `--bind` pointed at the workspace root).
+- **Evidence.** Thirteen new tests: four engine-contract cases (round-trip pairing, import
+  flags, apply roots, register flags), three round-trip, four template, three brand; plus the
+  real runs above. `tests/support/fake-venv.ts` installs the venv files the engine manager
+  checks, so command tests reach the spawn without a real engine.
+- **Alternatives rejected:** wiring mirror materialisation to the round-trip output (the engine
+  rejects it); exposing `--skip-validation` to push the animated template through (hides a real
+  engine refusal the SKILL must know about); letting `--bind` resolve against the process
+  directory (inconsistent with every other deck command and untestable); treating
+  `register-template` as backlog (a template that is never registered cannot be reused, and the
+  contract is already recorded).

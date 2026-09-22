@@ -6,7 +6,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 - 本包：`@dsh-ppt/dsh-ppt-fusion`，MIT，Node >= 22.19，bin `dsh-ppt`
 - 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）；本仓库 `docs/decisions.md` 是裁决记录（ADR），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
+> 状态：**M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5 进行中（`deep native roundtrip`、`deep template create/apply/register`、`brand extract` 已落地，ADR-038；`source`/`images search`/`narrate`/`post animate` 与旁白黄金待做）、M6–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
 
 ---
 
@@ -70,7 +70,7 @@ deck/
 
 ## 已实现的命令
 
-`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
+`version · doctor [--json --repair --no-self-test] · init · plan [--from --confirm] · validate [--json] · theme ensure|list|new|fork|try · tokens export [--master] · deep render [--page] · deep native roundtrip · deep template create|apply|register · brand extract · render [-o] [--compat <level>] · compat lint <file> · audit [--strict --pixels]`
 
 - `doctor` 八项：Node / uv / Python / engine venv / ppt-master / **png-renderer**（本机红=设计使然，B7 用 Node `sharp` 兜底）/ pptwise / PowerPoint COM / self-test。
 - `render` 的动画/切换由 `bridge/post.ts` 在合并后单一施加（ADR-032）；选择器匹配不到时是硬失败 `ContractViolation`，不静默忽略。

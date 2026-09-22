@@ -32,10 +32,15 @@ Paths: `MASTER` = `%DSH_HOME%\ppt-fusion\venvs\ppt-master-0.1.128\Scripts\ppt-ma
 | `stamp-native-fallbacks <file\|dir> [--write]` | `--write` to persist | rewrites marker `data-pptx-fallback-sha256` in place; prints a `Native fallback baselines:` receipt with `SVG-first=N` |
 | `pptx-delivery-check <file.pptx>` | — | delivery-risk findings; exit 0 = pass |
 | `prompt-audit [--json]` | `--json` | prompt-budget findings for the skill documents |
-| `mirror-template-materialize <import_ws> <template_ws> [--kind deck\|layout]` | — | deterministic mirror template (M5) |
-| `image-search <query> [--provider …] [--strict-no-attribution]` | `--provider {openverse,wikimedia,pexels,pixabay}` | downloads into the project, writes attribution data (M5) |
-| `source-to-md` family (`pdf-to-md`, `doc-to-md`, `excel-to-md`, `ppt-to-md`, `web-to-md`) | — | Markdown into `sources/` (M5) |
-| `notes-to-audio`, `narration-sync {fingerprint,animations,subtitles}` | `--provider` (default `edge`, no key) | per-slide audio + timeline (M5) |
+| `pptx-to-svg <pptx> [-o dir] [--inheritance-mode M] [--roundtrip] [--strict] [--keep-hidden]` | `--inheritance-mode {both,layered,flat}`; `--roundtrip` requires `both` | round-trip workspace with `authoring-svg-flat/`, `analysis/native_structure.json` and `sources/source.pptx` (M5 ✓, ADR-038) |
+| `pptx-template-import <pptx> [-o dir] [--inheritance-mode M] [--embed-images]` | `--inheritance-mode {both,layered,flat}` | reference workspace (`svg/` + `inheritance.json`) that `mirror-template-materialize` publishes from (M5 ✓) |
+| `mirror-template-materialize <import_ws> <template_ws> [--kind deck\|layout]` | `--kind {deck,layout}` | deterministic mirror template: template SVGs, text-slot files, `template_execution_manifest.json`, `source_themes.json`, a Design Spec TODO (M5 ✓) |
+| `apply-template <project> --root <ws> [--root …] [--dry-run]` | repeatable `--root`, one per kind | installs a template root into `templates/`; writes `template_install.json` and prints an `[OK] installed N file(s)` receipt (M5 ✓) |
+| `register-template [id] [--kind K] [--rebuild-all] [--dry-run]` | `--kind {brand,style,layout,deck}` | refreshes the template index under `templates/<kind>/` (M5 ✓) |
+| `image-search <query> [--provider …] [--strict-no-attribution] [--manifest F] [--save-candidates] [--from-url U]` | `--provider {openverse,wikimedia,pexels,pixabay}`, `--orientation`, `--filename`, `--min-width`, `--promise …` | downloads into `-o`, writes the attribution manifest (M5) |
+| `source-to-md <input…> [-t type] [-o output] [--json]` (and the five `*-to-md` converters) | `-t {auto,pdf,doc,excel,pptx,web,markdown,text}`, `--images {all,filtered,none}`, `--no-images`, `--json` | Markdown into the chosen output; `web-to-md` accepts http(s) URLs only (M5) |
+| `notes-to-audio <project> [--provider P] [--voice V] [--rate R] [--list-common-voices]` | `--provider {edge,elevenlabs,minimax,qwen,cosyvoice}` (default `edge`, no key) | per-slide audio into the project; `--list-common-voices` is offline (M5 ✓) |
+| `narration-sync {fingerprint,animations,subtitles} [flags] <project>` | `--pptx` (subtitles), `--audio-dir`, `--animation-config`, `--plan`, `-o`, `--force` | timing plan / merged SRT (M5) |
 
 Registered since M3, under the same rules (enum-validated flags, workspace-contained
 paths, contracted outputs): `notes-to-audio` (`--provider {edge,elevenlabs,minimax,qwen,

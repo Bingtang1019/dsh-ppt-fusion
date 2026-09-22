@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { join, resolve } from 'node:path'
 import {
+  applyTemplate,
   assertEnum,
   assertInsideWorkspace,
   parseCreatedProjectDir,
   projectInit,
+  pptxTemplateImport,
+  pptxToSvg,
   qualityCheck,
+  registerTemplate,
   stampFallbacks,
   svgToPptx,
   toWorkspaceRelative,
@@ -108,6 +112,37 @@ describe('qualityCheck', () => {
     const invocation = qualityCheck({ target: 'deep', stage: 'final', quickGenerate: true, canonicalAuthoring: true })
     expect(invocation.outputFiles).toEqual(['deep/validation/svg_quality_report.json'])
     expect(invocation.argv).toContain('--canonical-authoring')
+  })
+})
+
+describe('pptxToSvg', () => {
+  it('pairs --roundtrip with --inheritance-mode both and refuses the other modes', () => {
+    const invocation = pptxToSvg({ file: 'out/deck.pptx', output: 'imports/deck', inheritanceMode: 'both', roundtrip: true, strict: true })
+    expect(invocation.argv).toEqual(['pptx-to-svg', 'out/deck.pptx', '-o', 'imports/deck', '--inheritance-mode', 'both', '--strict', '--roundtrip'])
+    expect(() => pptxToSvg({ file: 'out/deck.pptx', roundtrip: true })).toThrow(/inheritance-mode both/)
+    expect(() => pptxToSvg({ file: 'out/deck.pptx', inheritanceMode: 'layered', roundtrip: true })).toThrow(/inheritance-mode both/)
+  })
+})
+
+describe('pptxTemplateImport', () => {
+  it('passes the import flags through', () => {
+    const invocation = pptxTemplateImport({ file: 'out/deck.pptx', output: 'imports/deck', inheritanceMode: 'both', embedImages: true })
+    expect(invocation.argv).toEqual(['pptx-template-import', 'out/deck.pptx', '-o', 'imports/deck', '--inheritance-mode', 'both', '--embed-images'])
+  })
+})
+
+describe('applyTemplate', () => {
+  it('needs at least one root and repeats --root per kind', () => {
+    const invocation = applyTemplate({ projectDir: 'deep/p03', roots: ['templates/deck', 'templates/layout'], dryRun: true })
+    expect(invocation.argv).toEqual(['apply-template', 'deep/p03', '--root', 'templates/deck', '--root', 'templates/layout', '--dry-run'])
+    expect(() => applyTemplate({ projectDir: 'deep/p03', roots: [] })).toThrow(/at least one --root/)
+  })
+})
+
+describe('registerTemplate', () => {
+  it('carries the id, kind and rebuild flags', () => {
+    expect(registerTemplate({ templateId: 'mirror', kind: 'deck' }).argv).toEqual(['register-template', 'mirror', '--kind', 'deck'])
+    expect(registerTemplate({ rebuildAll: true, kind: 'brand', dryRun: true }).argv).toEqual(['register-template', '--kind', 'brand', '--rebuild-all', '--dry-run'])
   })
 })
 
