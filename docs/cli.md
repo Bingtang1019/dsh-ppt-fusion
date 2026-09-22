@@ -304,6 +304,16 @@ command and serves the result through `/dsh-ppt/preview` (ADR-049).
 (CLI, plugin shell, skill, vendored docs, lock). Install/uninstall, the `-w` requirement and
 the M7.5 scratch-profile rehearsal are documented in [install.md](install.md) (ADR-050).
 
+## JSON output
+
+Every leaf command accepts `--json` and prints one JSON document on stdout (exit codes are
+unchanged). `version` prints its version string only. Report-shaped commands carry a
+`schemaVersion` field where the shape is a contract: `dsh-ppt audit` emits
+`{schemaVersion: 1, ok, strict, findings, sources, artifact, compatLevel, pixels, skipped}`,
+`dsh-ppt resume` and `dsh-ppt skill audit` carry their own report objects, and receipt commands
+(e.g. `init`, `render`, `deep render`) print their result object. A CLI test walks the built
+program and fails when a leaf command loses `--json`.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:

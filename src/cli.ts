@@ -98,8 +98,13 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .description('create a deck workspace that already validates')
     .argument('<dir>', 'deck directory to create')
     .option('--theme <preset>', 'factory preset to bind', 'brief')
-    .action((dir: string, options: { theme: string }) => {
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { theme: string; json?: boolean }) => {
       const result = initDeck({ dir: resolveDeckDir(deps, dir), theme: options.theme, deps })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       for (const path of result.created) process.stdout.write(`created ${path}\n`)
     })
 
@@ -109,13 +114,20 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .argument('<dir>', 'deck directory')
     .option('--from <file...>', 'source markdown files, workspace-relative')
     .option('--confirm', 'copy the confirmed draft into deck.fusion.json')
-    .action((dir: string, options: { from?: string[]; confirm?: boolean }) => {
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { from?: string[]; confirm?: boolean; json?: boolean }) => {
       const workspace = resolveDeckDir(deps, dir)
       if (options.confirm === true) {
-        process.stdout.write(`wrote ${confirmPlan({ dir: workspace, deps })}\n`)
+        const confirmed = confirmPlan({ dir: workspace, deps })
+        if (options.json === true) printJson({ confirmed })
+        else process.stdout.write(`wrote ${confirmed}\n`)
         return
       }
       const result = planDeck({ dir: workspace, deps, ...(options.from === undefined ? {} : { sources: options.from }) })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`wrote ${result.draftPath} (${String(result.pageCount)} pages)\n`)
       process.stdout.write('needs confirmation:\n')
       for (const field of result.needsConfirmation) process.stdout.write(`  - ${field}\n`)
@@ -228,8 +240,9 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .requiredOption('--from <id>', 'source preset id')
     .requiredOption('-o, --output <file>', 'output theme file')
     .option('--id <id>', 'id to write into the copy')
+    .option('--json', 'print the result as JSON')
     .option('--dir <dir>', 'workspace the CLI runs in', '.')
-    .action((options: { from: string; output: string; id?: string; dir: string }) => {
+    .action((options: { from: string; output: string; id?: string; dir: string; json?: boolean }) => {
       const written = themeNew({
         dir: resolveDeckDir(deps, options.dir),
         from: options.from,
@@ -237,7 +250,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         deps,
         ...(options.id === undefined ? {} : { id: options.id }),
       })
-      process.stdout.write(`wrote ${written.outputFile}\n`)
+      if (options.json === true) printJson({ outputFile: written.outputFile })
+      else process.stdout.write(`wrote ${written.outputFile}\n`)
     })
   theme
     .command('fork')
@@ -245,9 +259,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .argument('<id>', 'theme id or file to fork')
     .requiredOption('--primary <hex>', 'new primary colour')
     .option('--id <id>', 'id for the fork')
+    .option('--json', 'print the result as JSON')
     .option('-o, --output <path>', 'output directory or file')
     .option('--dir <dir>', 'workspace the CLI runs in', '.')
-    .action((id: string, options: { primary: string; id?: string; output?: string; dir: string }) => {
+    .action((id: string, options: { primary: string; id?: string; output?: string; dir: string; json?: boolean }) => {
       const result = themeFork({
         dir: resolveDeckDir(deps, options.dir),
         id,
@@ -256,6 +271,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.id === undefined ? {} : { newId: options.id }),
         ...(options.output === undefined ? {} : { output: options.output }),
       })
+      if (options.json === true) {
+        printJson({ stdout: result.stdout.trim() })
+        return
+      }
       process.stdout.write(result.stdout.trim() === '' ? 'theme fork: done\n' : `${result.stdout.trim()}\n`)
     })
   theme
@@ -264,13 +283,18 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .argument('<ids>', 'comma-separated theme ids')
     .option('-o, --output <dir>', 'output directory')
     .option('--dir <dir>', 'workspace the CLI runs in', '.')
-    .action((ids: string, options: { output?: string; dir: string }) => {
+    .option('--json', 'print the result as JSON')
+    .action((ids: string, options: { output?: string; dir: string; json?: boolean }) => {
       const result = themeTry({
         dir: resolveDeckDir(deps, options.dir),
         ids,
         deps,
         ...(options.output === undefined ? {} : { output: options.output }),
       })
+      if (options.json === true) {
+        printJson({ stdout: result.stdout.trim() })
+        return
+      }
       process.stdout.write(`${result.stdout.trim()}\n`)
     })
 
@@ -282,7 +306,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--dir <dir>', 'workspace the paths resolve against', '.')
     .addOption(new Option('--type <type>', 'force a conversion type').choices([...SOURCE_TYPES]).default('auto'))
     .option('--no-images', 'keep remote images as links instead of downloading them')
-    .action(async (inputs: string[], options: { output: string; dir: string; type: string; images: boolean }) => {
+    .option('--json', 'print the result as JSON')
+    .action(async (inputs: string[], options: { output: string; dir: string; type: string; images: boolean; json?: boolean }) => {
       const result = await sourceConvert({
         dir: options.dir,
         inputs,
@@ -291,6 +316,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         noImages: options.images === false,
         deps,
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       for (const entry of result.entries) {
         process.stdout.write(`${entry.type} ${entry.input} -> ${entry.output} (${String(entry.bytes)} bytes)\n`)
       }
@@ -309,9 +338,12 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('-o, --output <dir>', 'audio output directory')
     .option('--sync', 'also derive narration_animations.json from the audio and SRTs')
     .option('--list-voices', 'print the curated edge-tts voice list and exit')
-    .action((dir: string, options: { provider: string; voice?: string; rate?: string; volume?: string; project?: string; output?: string; sync?: boolean; listVoices?: boolean }) => {
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { provider: string; voice?: string; rate?: string; volume?: string; project?: string; output?: string; sync?: boolean; listVoices?: boolean; json?: boolean }) => {
       if (options.listVoices === true) {
-        process.stdout.write(narrationVoices(deps, dir))
+        const voices = narrationVoices(deps, dir)
+        if (options.json === true) printJson({ voices })
+        else process.stdout.write(voices)
         return
       }
       const result = narrate({
@@ -325,6 +357,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.project === undefined ? {} : { project: options.project }),
         ...(options.output === undefined ? {} : { output: options.output }),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`narrated ${result.projectDir}: ${String(result.audio.length)} audio file(s), ${String(result.subtitles.length)} SRT file(s)${result.synced ? ', timeline synced' : ''}
 `)
       for (const file of result.audio) process.stdout.write(`  ${file}
@@ -383,6 +419,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--from-url <url>', 'download one directly selected URL (recorded as manual)')
     .option('--purpose <text>', 'purpose recorded in the manifest')
     .option('--slide <n>', 'slide number recorded in the manifest', (value: string) => Number.parseInt(value, 10))
+    .option('--json', 'print the result as JSON')
     .action(async (query: string | undefined, options: Record<string, string | number | boolean | undefined>) => {
       const result = await imagesSearch({
         dir: String(options.dir ?? '.'),
@@ -402,7 +439,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.purpose === undefined ? {} : { purpose: String(options.purpose) }),
         ...(options.slide === undefined ? {} : { slide: Number(options.slide) }),
       })
-      process.stdout.write(`${formatImagesSearch(result)}\n`)
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatImagesSearch(result)}\n`)
     })
 
   const brand = program.command('brand').description('read a customer deck brand into a theme')
@@ -413,8 +451,9 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('-o, --output <file>', 'output theme file, resolved against --dir')
     .option('--from <preset>', 'start from this pptwise preset')
     .option('--bind <deck>', 'bind the theme to this deck and derive its tokens')
+    .option('--json', 'print the result as JSON')
     .option('--dir <dir>', 'workspace the paths resolve against', '.')
-    .action((file: string, options: { output?: string; from?: string; bind?: string; dir: string }) => {
+    .action((file: string, options: { output?: string; from?: string; bind?: string; dir: string; json?: boolean }) => {
       const result = brandExtract({
         dir: options.dir,
         file,
@@ -423,6 +462,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.from === undefined ? {} : { from: options.from }),
         ...(options.bind === undefined ? {} : { bind: options.bind }),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`wrote ${result.outputFile} (theme "${result.themeId}")\n`)
       if (result.bound !== null) {
         process.stdout.write(`bound ${result.bound.deckDir} to ${result.bound.themeFile}; theme ensure wrote ${String(result.bound.ensured.length)} file(s)\n`)
@@ -433,17 +476,20 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .command('tokens')
     .description('export the palette contract a deep page authors against')
     .command('export')
+    .description('write the palette contract for a preset or theme file')
     .argument('<input>', 'factory preset id or theme file')
     .option('--master', 'emit the master projection (palette plus role names)')
     .option('-o, --output <file>', 'write to a file instead of stdout')
-    .action((input: string, options: { master?: boolean; output?: string }) => {
+    .option('--json', 'print the result as JSON')
+    .action((input: string, options: { master?: boolean; output?: string; json?: boolean }) => {
       const result = tokensExport({
         input,
         deps,
         ...(options.master === true ? { master: true } : {}),
         ...(options.output === undefined ? {} : { output: options.output }),
       })
-      if (result.outputFile === null) printJson(result.document)
+      if (options.json === true) printJson(result)
+      else if (result.outputFile === null) printJson(result.document)
       else process.stdout.write(`wrote ${result.outputFile}\n`)
     })
 
@@ -466,7 +512,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .argument('<dir>', 'deck directory')
     .option('-o, --out <file>', 'output pptx path, resolved against the deck')
     .addOption(new Option('--compat <level>', 'compatibility target; overrides the manifest field').choices([...COMPAT_LEVELS]))
-    .action(async (dir: string, options: { out?: string; compat?: string }) => {
+    .option('--json', 'print the result as JSON')
+    .action(async (dir: string, options: { out?: string; compat?: string; json?: boolean }) => {
       const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
       if (options.compat !== undefined && compat === null) {
         throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
@@ -477,6 +524,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.out === undefined ? {} : { output: options.out }),
         ...(compat === null ? {} : { compat }),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`wrote ${result.outputFile} (${String(result.slides)} slides, ${String(result.bytes)} bytes)\n`)
       process.stdout.write(`sha256 ${result.sha256}\n`)
       process.stdout.write(
@@ -516,14 +567,19 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .description('render the deep pages through ppt-master; --page selects one page')
     .argument('<dir>', 'deck directory')
     .option('--page <n>', 'render only this 1-based page index', (value: string) => Number.parseInt(value, 10))
+    .option('--json', 'print the result as JSON')
     .option('-o, --out <file>', 'output pptx path')
-    .action((dir: string, options: { page?: number; out?: string }) => {
+    .action((dir: string, options: { page?: number; out?: string; json?: boolean }) => {
       const result = deepRender({
         dir,
         deps,
         ...(options.page === undefined ? {} : { page: options.page }),
         ...(options.out === undefined ? {} : { output: options.out }),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`wrote ${result.pptxPath}\n`)
       process.stdout.write(`report ${result.reportPath}\n`)
       process.stdout.write(
@@ -539,7 +595,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .requiredOption('--file <pptx>', 'source pptx, resolved against the workspace')
     .requiredOption('-o, --output <dir>', 'template workspace to write')
     .addOption(new Option('--kind <kind>', 'template kind').choices([...TEMPLATE_KINDS]).default('deck'))
-    .action((dir: string, options: { file: string; output: string; kind: string }) => {
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { file: string; output: string; kind: string; json?: boolean }) => {
       const result = deepTemplateCreate({
         dir,
         file: options.file,
@@ -547,6 +604,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         kind: options.kind === 'layout' ? 'layout' : 'deck',
         deps,
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`import ${result.importDir} (${String(result.slides.length)} slide SVG(s))\n`)
       process.stdout.write(`wrote template ${result.templateDir} (kind ${result.kind})\n`)
     })
@@ -557,7 +618,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .requiredOption('--project <dir>', 'project root that receives the templates')
     .requiredOption('--template <dir...>', 'template workspace root; repeat for several kinds')
     .option('--dry-run', 'plan the installation without writing')
-    .action((dir: string, options: { project: string; template: string[]; dryRun?: boolean }) => {
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { project: string; template: string[]; dryRun?: boolean; json?: boolean }) => {
       const result = deepTemplateApply({
         dir,
         project: options.project,
@@ -565,6 +627,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         deps,
         ...(options.dryRun === true ? { dryRun: true } : {}),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`project ${result.projectDir}: ${String(result.roots.length)} root(s) [${result.kinds.map((kind) => kind ?? 'untyped').join(', ')}]\n`)
       if (result.stdout.trim() !== '') process.stdout.write(`${result.stdout.trim()}\n`)
     })
@@ -575,8 +641,9 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .addOption(new Option('--kind <kind>', 'index the template under this kind').choices([...TEMPLATE_REGISTRY_KINDS]).default('deck'))
     .option('--id <id>', 'template directory id under templates/<kind>/')
     .option('--all', 'rebuild every index entry of that kind')
+    .option('--json', 'print the result as JSON')
     .option('--dry-run', 'show what would be written')
-    .action((dir: string, options: { kind: string; id?: string; all?: boolean; dryRun?: boolean }) => {
+    .action((dir: string, options: { kind: string; id?: string; all?: boolean; dryRun?: boolean; json?: boolean }) => {
       const stdout = templateRegister({
         dir,
         kind: options.kind as (typeof TEMPLATE_REGISTRY_KINDS)[number],
@@ -585,6 +652,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.all === true ? { rebuildAll: true } : {}),
         ...(options.dryRun === true ? { dryRun: true } : {}),
       })
+      if (options.json === true) {
+        printJson({ stdout: stdout.trim() })
+        return
+      }
       process.stdout.write(`${stdout.trim() === '' ? 'template register: done' : stdout.trim()}\n`)
     })
   const native = deep.command('native').description('native pptx round-trip import')
@@ -596,8 +667,9 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('-o, --output <dir>', 'output workspace; defaults to .dsh-ppt/roundtrip/<stem>')
     .addOption(new Option('--inheritance-mode <mode>', 'SVG inheritance layout').choices([...INHERITANCE_MODES]).default('both'))
     .option('--keep-hidden', 'keep hidden shapes in the imported SVGs')
+    .option('--json', 'print the result as JSON')
     .option('--strict', 'stop on the first unsupported construct')
-    .action((dir: string, options: { file: string; output?: string; inheritanceMode: string; keepHidden?: boolean; strict?: boolean }) => {
+    .action((dir: string, options: { file: string; output?: string; inheritanceMode: string; keepHidden?: boolean; strict?: boolean; json?: boolean }) => {
       const result = deepNativeRoundtrip({
         dir,
         file: options.file,
@@ -607,6 +679,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.keepHidden === true ? { keepHidden: true } : {}),
         ...(options.strict === true ? { strict: true } : {}),
       })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
       process.stdout.write(`imported ${result.file} -> ${result.outputDir} (${String(result.slides.length)} slide SVG(s))\n`)
     })
 

@@ -55,6 +55,7 @@ describe('auditDeck', () => {
     expect(report.sources).toContain('pptwise-validate')
     expect(report.sources).toContain('pptwise-audit')
     expect(report.artifact).toBeNull()
+    expect(report.schemaVersion).toBe(1)
     expect(report.ok).toBe(false)
     const mapped = report.findings.filter((finding) => finding.source === 'pptwise-audit')
     expect(mapped.map((finding) => finding.rule).sort()).toEqual(['contrast-low', 'geometry-overflow'])

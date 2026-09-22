@@ -30,6 +30,8 @@ export interface FusionReport {
  * engine, compat and pixel sources, and the reasons a source could not run.
  */
 export interface FusionAuditReport extends FusionReport {
+  /** Report schema version; bumped only for a breaking shape change. */
+  readonly schemaVersion: 1
   /** `--strict` makes warnings fail as well as errors. */
   readonly strict: boolean
   /** Workspace-relative path of the audited package, or null when none exists. */

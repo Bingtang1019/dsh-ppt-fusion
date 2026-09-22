@@ -416,9 +416,10 @@ recurse into `ppt/embeddings/*` (ADR-017).
 ## 12. Unified audit gate (M4 part 2)
 
 `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>]` is the
-eight-source gate plan §3.8 defines. It emits a `FusionAuditReport`: the `validate` findings
-(`{level, source, page?, rule, message}`) plus `strict`, `artifact`, `compatLevel`, `pixels`
-and `skipped`.
+eight-source gate plan §3.8 defines. It emits a `FusionAuditReport`:
+`{schemaVersion: 1, ok, strict, findings, sources, artifact, compatLevel, pixels, skipped}`, with
+each finding `{level, source, page?, rule, message}` — the envelope is frozen at schema 1 and a
+breaking change bumps it.
 
 - **Sources.** `manifest`/`ir`/`deep`/`theme`/`palette` (the `validate` pass, ADR-023);
   `pptwise-validate` and `pptwise-audit` (the front end's own IR validation and geometry

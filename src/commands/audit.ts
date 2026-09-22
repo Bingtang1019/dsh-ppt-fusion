@@ -148,6 +148,7 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
   const errors = findings.filter((finding) => finding.level === 'error').length
   const warnings = findings.length - errors
   return {
+    schemaVersion: 1,
     ok: errors === 0 && (!options.strict || warnings === 0),
     strict: options.strict,
     findings: sortFindings(findings),
