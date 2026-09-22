@@ -71,8 +71,14 @@ export interface FakeFileSystem extends FileSystemPort {
   readonly directories: Set<string>
 }
 
-/** Normalize a test path to the platform separator so `join` and literals agree. */
-const normalize = (path: string): string => path.split('/').join(sep)
+/**
+ * Normalize a test path to the platform separator so `join` and literals agree.
+ *
+ * Both separators fold, because the win32 cases deliberately run on the ubuntu
+ * leg: a `C:`-shaped key must resolve to the in-memory parent walk, which uses
+ * the host's `dirname`.
+ */
+const normalize = (path: string): string => path.replace(/[\\/]+/g, sep)
 
 /**
  * Build an in-memory filesystem.

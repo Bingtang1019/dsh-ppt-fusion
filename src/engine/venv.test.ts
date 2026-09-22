@@ -94,6 +94,12 @@ describe('venv layout across platforms', () => {
     expect(posix.engineExe).toBe('/home/me/.dsh/ppt-fusion/venvs/ppt-master-0.1.128/bin/ppt-master')
     expect(posix.sitePackages).toBe('/home/me/.dsh/ppt-fusion/venvs/ppt-master-0.1.128/lib/python3.13/site-packages')
   })
+
+  it('keeps Windows-shaped fixture keys usable on the ubuntu leg', () => {
+    const fs = createFakeFileSystem({ files: { 'C:\\tools\\uv.exe': 'binary' } })
+    expect(fs.isDirectory('C:\\tools')).toBe(true)
+    expect(fs.exists('C:/tools/uv.exe')).toBe(true)
+  })
 })
 
 describe('venv state', () => {

@@ -1490,8 +1490,11 @@ the ADR wins.**
   step creates the `venvs` directory with that platform's `join`; `runDoctor` forwards its
   `platform`. `src/engine/venv.test.ts` builds its Windows expectations with `win32.join` and
   passes `platform: 'win32'`, and `src/commands/doctor.test.ts`'s injected platform now reaches
-  the manager it exercises. Before this, those tests passed only where `DSH_HOME` already held a
-  provisioned venv built by the same platform.
+  the manager it exercises. `tests/support/fake-runner.ts` folds both separators when it
+  normalises a key (`path.replace(/[\\/]+/g, sep)`), so a Windows-shaped key registers its
+  parents through the host's `dirname` on the ubuntu leg instead of silently losing the venv
+  root. Before this, those tests passed only where `DSH_HOME` already held a provisioned venv
+  built by the same platform.
 - **Decision (windows leg).** Tier T1 canonicalisation normalises the `advTm` attribute. The
   upstream exporter derives slide auto-advance from the narration audio with **the host's
   `ffprobe`**; the recorded golden therefore carries the number this machine's probe reported,
