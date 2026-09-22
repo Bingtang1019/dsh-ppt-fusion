@@ -1,0 +1,122 @@
+{
+  "tokens": {
+    "schema": "dsh-ppt-fusion.tokens.v1",
+    "themeId": "ember",
+    "source": {
+      "kind": "preset",
+      "preset": "ember",
+      "upstream": "0.35.0"
+    },
+    "colors": {
+      "bg": "#241B14",
+      "surface": "#2C221A",
+      "primary": "#E56A2C",
+      "accent": "#E56A2C",
+      "text": "#F2E9DF",
+      "muted": "#C4AE97",
+      "border": "#6B5648",
+      "chartPalette": [
+        "#E56A2C",
+        "#E8A13C",
+        "#C48AA8",
+        "#A89888"
+      ],
+      "danger": "#FF6B5C",
+      "warning": "#E8A13C",
+      "success": "#8FBB70"
+    },
+    "fonts": {
+      "heading": [
+        "Microsoft YaHei",
+        "Verdana",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "system-ui"
+      ],
+      "body": [
+        "Microsoft YaHei",
+        "Verdana",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "system-ui"
+      ]
+    },
+    "shape": {
+      "radius": 10,
+      "gapScale": 1
+    },
+    "defaultBackgrounds": {
+      "cover": {
+        "kind": "color",
+        "value": "#241B14"
+      },
+      "chapter": {
+        "kind": "color",
+        "value": "#241B14"
+      },
+      "content": {
+        "kind": "color",
+        "value": "#241B14"
+      },
+      "ending": {
+        "kind": "color",
+        "value": "#241B14"
+      }
+    }
+  },
+  "master": {
+    "schema": "dsh-ppt-fusion.master-design.v1",
+    "themeId": "ember",
+    "slideBackground": "#241B14",
+    "cardFill": "#2C221A",
+    "structure": "#E56A2C",
+    "accent": "#E56A2C",
+    "bodyText": "#F2E9DF",
+    "secondaryText": "#C4AE97",
+    "line": "#6B5648",
+    "dataSeries": [
+      "#E56A2C",
+      "#E8A13C",
+      "#C48AA8",
+      "#A89888"
+    ],
+    "fonts": {
+      "heading": [
+        "Microsoft YaHei",
+        "Verdana",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "system-ui"
+      ],
+      "body": [
+        "Microsoft YaHei",
+        "Verdana",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "system-ui"
+      ]
+    },
+    "shape": {
+      "radius": 10,
+      "gapScale": 1
+    },
+    "palette": [
+      "#241B14",
+      "#2C221A",
+      "#6B5648",
+      "#8FBB70",
+      "#A89888",
+      "#C48AA8",
+      "#C4AE97",
+      "#E56A2C",
+      "#E8A13C",
+      "#F2E9DF",
+      "#FF6B5C"
+    ],
+    "guidance": "Deep page SVGs must paint only with these literals. Use slideBackground for the page frame, cardFill for panels, structure for headings and primary shapes, accent for emphasis, bodyText and secondaryText for copy, line for rules, and dataSeries for chart series in order."
+  }
+}

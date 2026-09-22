@@ -326,3 +326,64 @@ edited to match reality.
 - **Alternatives rejected:** accepting M1 on the unit tests alone (the point of the phase
   is that the wrapper really drives this machine's upstreams, which only a live doctor
   run shows).
+
+## ADR-021 — Upstream theme contract corrections found by the snapshot gate
+
+- **Date:** 2026-09-22
+- **Decision:** `ThemeFonts` models `heading`, `body` and `mono` as **arrays** of family
+  names, and a `defaultBackgrounds` entry is `{kind, value?}` for colours plus
+  `{kind: "gradient", from, to, direction}` for gradients, with every background field
+  contributing palette literals.
+- **Evidence:** recording the 24 preset snapshots failed twice on real upstream data.
+  First, `style.fonts.mono` is an array of two families and appears in exactly 3 presets
+  (journal, memo, terminal); the plan's `fonts{heading[],body[],mono?}` wording suggested
+  a bare string. Second, `ledger` and `terminal` carry
+  `{kind: "gradient", from: "#151B23", to: "#0C1016", direction: "tb"}` for all four
+  background slots, so a `value`-only model rejected them. Across the catalog: 88 colour
+  slots and 8 gradient slots.
+- **Alternatives rejected:** special-casing the two gradient themes in the audit (the
+  palette walker now reads every field of a background, so a future `kind` needs no code
+  change); accepting `mono` as `string | string[]` (no preset ships a bare string, and a
+  union would let a real upstream contract change pass unnoticed).
+
+## ADR-022 — The 24-theme re-capture is a script gate, not a vitest case
+
+- **Date:** 2026-09-22
+- **Decision:** `pnpm test` keeps the structural snapshot checks (catalog size, fixture
+  presence, palette self-consistency) plus a one-theme re-capture; the full 24-theme
+  re-capture runs as `pnpm themes:verify` and as its own CI step.
+- **Evidence:** driving the upstream CLI 24 times through `spawnSync` blocks the vitest
+  worker for ~77 s, which trips vitest's own RPC timeout (`Timeout calling
+  "onTaskUpdate"`) and fails the run even though every assertion passed.
+- **Alternatives rejected:** raising the vitest timeouts (the timeout is in the worker
+  RPC, not in the test); making the runner asynchronous just for tests (the whole engine
+  layer is deliberately synchronous, and an async variant would exist only to satisfy the
+  test harness).
+
+## ADR-023 — M2 verification record
+
+- **Date:** 2026-09-22
+- **Decision:** M2 is accepted on the following measurements.
+- **Evidence:**
+  - `pnpm typecheck`, `pnpm lint`, `pnpm test` clean: **108 tests** in 12 files, of which
+    the snapshot file re-captures `brief` and `terminal` from the real upstream.
+  - `pnpm themes:verify`: **24/24 theme snapshots match the installed pptwise 0.35.0**
+    (the gate first failed on 2 themes, exactly as designed, when `allowedPalette` gained
+    gradient stops and the fixtures were re-recorded).
+  - `pnpm themes:record` regenerates every fixture, so the snapshot set is reproducible
+    rather than hand-maintained.
+  - `dsh-ppt init tmp/m2-demo --theme brief` then `validate` → `OK 3 gates: manifest,
+    ir, theme`; `theme ensure` on the same deck reports `0 changes` on both the first and
+    second run.
+  - Five deliberately broken decks are rejected with per-field messages:
+    an unknown manifest field, an unregistered `deep.kind`, a page-coverage gap, a deep
+    page without `page.svg`, and a stale `tokens.json`. M2 required three of these.
+  - `plan --from sources/brief.md` produced a 4-page draft listing 3 fields needing
+    confirmation, and `--confirm` copied it into place; `theme list` prints the 24 presets.
+  - A real defect was found and fixed while exercising `tokens export`: the preset branch
+    spawned the CLI with a temporary directory that had not been created yet, which
+    Node reports as `ENOENT` on the *executable*. `spawnFailed` messages now name the
+    working directory, and `src/commands/tokens.test.ts` pins the regression.
+- **Alternatives rejected:** accepting M2 on unit tests alone (the snapshot gate is the
+  row of the acceptance table that actually exercises upstream data, and it caught three
+  contract mistakes that mocks never would have).

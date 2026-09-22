@@ -11,6 +11,7 @@ export const FRONTEND_TIMEOUTS = {
   audit: 300_000,
   themes: 60_000,
   themeNew: 120_000,
+  themeTry: 300_000,
   brandExtract: 300_000,
   doctor: 600_000,
 } as const
@@ -174,8 +175,10 @@ export function createFrontend(options: FrontendOptions) {
       })
     }
     if (result.spawnError !== null) {
-      throw new DshPptFailure('SpawnFailed', `cannot start pptwise: ${result.spawnErrorMessage || result.spawnError}`, {
-        detail: { command, spawnError: result.spawnError },
+      // A missing working directory surfaces as ENOENT on the executable, so the
+      // message names the cwd it was started in.
+      throw new DshPptFailure('SpawnFailed', `cannot start pptwise in ${options.workspace}: ${result.spawnErrorMessage || result.spawnError}`, {
+        detail: { command, spawnError: result.spawnError, cwd: options.workspace },
       })
     }
   }
@@ -255,6 +258,27 @@ export function createFrontend(options: FrontendOptions) {
       checkSpawn(result, 'theme new')
       if (result.status !== 0) throw failureFrom('theme new', result)
       return { outputFile: resolve(options.workspace, params.output) }
+    },
+
+    /** Re-derive a theme from a new primary colour, keeping its page menu. */
+    themeFork(params: { id: string; primary: string; newId?: string; output?: string }): { stdout: string } {
+      const args = ['theme', 'fork', params.id, '--primary', params.primary]
+      if (params.newId !== undefined) args.push('--id', params.newId)
+      if (params.output !== undefined) args.push('-o', params.output)
+      const result = invoke(args, FRONTEND_TIMEOUTS.themeNew)
+      checkSpawn(result, 'theme fork')
+      if (result.status !== 0) throw failureFrom('theme fork', result)
+      return { stdout: result.stdout }
+    },
+
+    /** Render the fitting-room sample under 2-4 themes into a contact sheet. */
+    themeTry(params: { ids: string; output?: string }): { stdout: string } {
+      const args = ['theme', 'try', params.ids]
+      if (params.output !== undefined) args.push('-o', params.output)
+      const result = invoke(args, FRONTEND_TIMEOUTS.themeTry)
+      checkSpawn(result, 'theme try')
+      if (result.status !== 0) throw failureFrom('theme try', result)
+      return { stdout: result.stdout }
     },
 
     /** Extract colors and fonts from an Office file into a complete theme. */

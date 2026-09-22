@@ -1,0 +1,141 @@
+{
+  "tokens": {
+    "schema": "dsh-ppt-fusion.tokens.v1",
+    "themeId": "terminal",
+    "source": {
+      "kind": "preset",
+      "preset": "terminal",
+      "upstream": "0.35.0"
+    },
+    "colors": {
+      "bg": "#0A0F1E",
+      "surface": "#121A30",
+      "primary": "#14294A",
+      "accent": "#53E0D2",
+      "text": "#EAF1FA",
+      "muted": "#93A5C0",
+      "border": "#24304A",
+      "chartPalette": [
+        "#53E0D2",
+        "#5B8CFF",
+        "#9A7CFF",
+        "#4BD98A"
+      ],
+      "danger": "#FF6B7D",
+      "warning": "#FFC14D",
+      "success": "#4BD98A"
+    },
+    "fonts": {
+      "heading": [
+        "Microsoft YaHei",
+        "Helvetica Neue",
+        "Helvetica",
+        "Inter",
+        "Arial",
+        "system-ui"
+      ],
+      "body": [
+        "Microsoft YaHei",
+        "Helvetica Neue",
+        "Helvetica",
+        "Inter",
+        "Arial",
+        "system-ui"
+      ],
+      "mono": [
+        "Consolas",
+        "Courier New"
+      ]
+    },
+    "shape": {
+      "radius": 10,
+      "gapScale": 1
+    },
+    "defaultBackgrounds": {
+      "cover": {
+        "kind": "gradient",
+        "from": "#0E1630",
+        "to": "#070B16",
+        "direction": "diagonal"
+      },
+      "chapter": {
+        "kind": "gradient",
+        "from": "#0E1630",
+        "to": "#070B16",
+        "direction": "diagonal"
+      },
+      "content": {
+        "kind": "gradient",
+        "from": "#0E1630",
+        "to": "#070B16",
+        "direction": "diagonal"
+      },
+      "ending": {
+        "kind": "gradient",
+        "from": "#0E1630",
+        "to": "#070B16",
+        "direction": "diagonal"
+      }
+    }
+  },
+  "master": {
+    "schema": "dsh-ppt-fusion.master-design.v1",
+    "themeId": "terminal",
+    "slideBackground": "#0A0F1E",
+    "cardFill": "#121A30",
+    "structure": "#14294A",
+    "accent": "#53E0D2",
+    "bodyText": "#EAF1FA",
+    "secondaryText": "#93A5C0",
+    "line": "#24304A",
+    "dataSeries": [
+      "#53E0D2",
+      "#5B8CFF",
+      "#9A7CFF",
+      "#4BD98A"
+    ],
+    "fonts": {
+      "heading": [
+        "Microsoft YaHei",
+        "Helvetica Neue",
+        "Helvetica",
+        "Inter",
+        "Arial",
+        "system-ui"
+      ],
+      "body": [
+        "Microsoft YaHei",
+        "Helvetica Neue",
+        "Helvetica",
+        "Inter",
+        "Arial",
+        "system-ui"
+      ],
+      "mono": [
+        "Consolas",
+        "Courier New"
+      ]
+    },
+    "shape": {
+      "radius": 10,
+      "gapScale": 1
+    },
+    "palette": [
+      "#070B16",
+      "#0A0F1E",
+      "#0E1630",
+      "#121A30",
+      "#14294A",
+      "#24304A",
+      "#4BD98A",
+      "#53E0D2",
+      "#5B8CFF",
+      "#93A5C0",
+      "#9A7CFF",
+      "#EAF1FA",
+      "#FF6B7D",
+      "#FFC14D"
+    ],
+    "guidance": "Deep page SVGs must paint only with these literals. Use slideBackground for the page frame, cardFill for panels, structure for headings and primary shapes, accent for emphasis, bodyText and secondaryText for copy, line for rules, and dataSeries for chart series in order."
+  }
+}

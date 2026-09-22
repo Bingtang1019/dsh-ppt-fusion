@@ -1,0 +1,177 @@
+import { join } from 'node:path'
+import { isDshPptFailure } from '../engine/errors.ts'
+import { loadDeck } from '../deck.ts'
+import { checkPageCoverage } from '../schema/fusion.ts'
+import { missingDeepFiles } from '../schema/deep-page.ts'
+import { collectPaletteFindings, buildReport, type FusionFinding, type FusionReport } from '../audit.ts'
+import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from '../schema/tokens.ts'
+import type { CommandDependencies } from './context.ts'
+
+/**
+ * Validate a deck workspace.
+ *
+ * This is the pre-render gate: it proves the manifest, the IR page list, the deep
+ * page files and the theme files agree before anything spends time rendering.
+ * Content legality inside pptwise components is pptwise's own business and is
+ * checked by the unified audit gate that M4 wires in.
+ *
+ * @param options.dir - absolute deck workspace.
+ * @param options.deps - command dependencies.
+ * @returns the aggregate report; deck problems become findings rather than throws.
+ */
+export function validateDeck(options: { dir: string; deps: CommandDependencies }): FusionReport {
+  const { dir, deps } = options
+  const sources: string[] = []
+  const findings: FusionFinding[] = []
+
+  let context: ReturnType<typeof loadDeck>
+  try {
+    context = loadDeck(dir, deps.fs)
+  } catch (error) {
+    const failure = isDshPptFailure(error) ? error : undefined
+    findings.push({
+      level: 'error',
+      source: 'manifest',
+      rule: failure?.code === 'OutputMissing' ? 'manifest-missing' : 'manifest-invalid',
+      message: failure?.message ?? String(error),
+    })
+    return buildReport(findings, ['manifest'])
+  }
+
+  sources.push('manifest')
+
+  for (const problem of checkPageCoverage(context.deck, context.ir.slides.length)) {
+    findings.push({ level: 'error', source: 'manifest', rule: 'page-coverage', message: problem })
+  }
+
+  sources.push('ir')
+
+  const deepPages = context.deck.pages.filter((page) => page.route === 'ppt-master')
+  for (const page of deepPages) {
+    const slide = context.ir.slides[page.index - 1]
+    if (slide !== undefined && slide.placeholder !== true) {
+      findings.push({
+        level: 'error',
+        source: 'ir',
+        page: page.index,
+        rule: 'deep-page-not-placeholder',
+        message: `page ${String(page.index)} routes to ppt-master but its IR slide is not placeholder:true, so pptwise would render content that the merge replaces`,
+      })
+    }
+    const missing = missingDeepFiles(dir, page.deep, (path) => deps.fs.exists(path))
+    if (missing.length > 0) {
+      findings.push({
+        level: 'error',
+        source: 'deep',
+        page: page.index,
+        rule: 'deep-page-missing-file',
+        message: `page ${String(page.index)} is missing ${missing.map((path) => relative(dir, path)).join(', ')}; a deep page is never downgraded to a standard page by itself`,
+      })
+    }
+  }
+  if (deepPages.length > 0) sources.push('deep')
+
+  if (context.deck.post?.animations !== undefined && context.deck.post.animations !== null) {
+    const path = join(dir, context.deck.post.animations)
+    if (!deps.fs.exists(path)) {
+      findings.push({
+        level: 'error',
+        source: 'post',
+        rule: 'post-animations-missing',
+        message: `post.animations points at ${context.deck.post.animations} but that file is absent`,
+      })
+    }
+  }
+
+  findings.push(...themeFindings(context.deck.theme, context.themePath, context.tokensPath, deps))
+  sources.push('theme')
+
+  if (context.tokens !== null && deepPages.length > 0) {
+    const pages = deepPages.map((page) => ({
+      page: page.index,
+      path: relative(dir, join(dir, page.deep.dir, 'page.svg')),
+      svg: deps.fs.readText(join(dir, page.deep.dir, 'page.svg')) ?? '',
+    }))
+    findings.push(...collectPaletteFindings(context.tokens, pages))
+    sources.push('palette')
+  }
+
+  return buildReport(findings, sources)
+}
+
+/** Theme-binding findings: the theme file, its identity and the derived token file. */
+function themeFindings(
+  binding: { preset: string } | { file: string },
+  themePath: string,
+  tokensPath: string,
+  deps: CommandDependencies,
+): FusionFinding[] {
+  const findings: FusionFinding[] = []
+  const themeText = deps.fs.readText(themePath)
+  if (themeText === null) {
+    findings.push({
+      level: 'error',
+      source: 'theme',
+      rule: 'theme-missing',
+      message: `the manifest binds a theme but ${themePath} is absent; run \`dsh-ppt theme ensure\``,
+    })
+    return findings
+  }
+  let tokens: TokensFile | null = null
+  try {
+    const source = 'preset' in binding ? ({ kind: 'preset' as const, preset: binding.preset } as const) : ({ kind: 'file' as const, path: binding.file } as const)
+    const theme = parseThemeFile(JSON.parse(themeText))
+    if ('preset' in binding && theme.id !== binding.preset) {
+      findings.push({
+        level: 'error',
+        source: 'theme',
+        rule: 'theme-id-mismatch',
+        message: `${themePath} holds theme "${theme.id}" but the manifest binds preset "${binding.preset}"`,
+      })
+    }
+    tokens = exportTokens(theme, { ...source, upstream: 'unknown' })
+  } catch (error) {
+    findings.push({
+      level: 'error',
+      source: 'theme',
+      rule: 'theme-invalid',
+      message: `${themePath} is not a readable ThemeFile v2: ${error instanceof Error ? error.message : String(error)}`,
+    })
+    return findings
+  }
+  const tokensText = deps.fs.readText(tokensPath)
+  if (tokensText === null) {
+    findings.push({
+      level: 'error',
+      source: 'theme',
+      rule: 'tokens-missing',
+      message: `tokens.json is absent; run \`dsh-ppt theme ensure\` to derive it from the theme`,
+    })
+    return findings
+  }
+  try {
+    const stored = JSON.parse(tokensText) as TokensFile
+    const withoutSource = { ...tokens, source: stored.source }
+    if (!tokensEqual(withoutSource, stored)) {
+      findings.push({
+        level: 'error',
+        source: 'theme',
+        rule: 'tokens-stale',
+        message: `tokens.json no longer matches ${themePath}; run \`dsh-ppt theme ensure\` to re-export it`,
+      })
+    }
+  } catch (error) {
+    findings.push({
+      level: 'error',
+      source: 'theme',
+      rule: 'tokens-invalid',
+      message: `tokens.json is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    })
+  }
+  return findings
+}
+
+/** @returns `path` relative to `root` with forward slashes, for messages. */
+function relative(root: string, path: string): string {
+  return path.startsWith(root) ? path.slice(root.length).replace(/^[\\/]/, '').replace(/\\/g, '/') : path
+}

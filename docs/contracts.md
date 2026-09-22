@@ -130,10 +130,14 @@ Top level: `{id, label, style, occasions, identity, story, emphasis, version: 2,
 
 - `colors`: `bg, surface, panel?, primary, accent, text, muted, border, chartPalette[],
   accentPool?, cardStroke?, emphasisInk?, danger?, warning?, success?`
-- `fonts`: `heading[], body[], mono?`
+- `fonts`: `heading[]`, `body[]`, `mono?[]` — every role is a **list** of family
+  names. `mono` appears in 3 of the 24 presets (journal, memo, terminal) and is an
+  array there, never a bare string (ADR-021).
 - `shape`: e.g. `{radius: 2, gapScale: 1}`
-- `defaultBackgrounds`: `{cover, chapter, content, ending}`, each
-  `{kind: "color", value: "#RRGGBB"}`
+- `defaultBackgrounds`: `{cover, chapter, content, ending}`, each carrying a `kind`:
+  `{kind: "color", value: "#RRGGBB"}` in 88 of the 96 measured slots, or
+  `{kind: "gradient", from, to, direction}` in `ledger` and `terminal`. Both stops
+  are palette literals, so the palette audit accepts them (ADR-021).
 
 `menu` maps page faces to entries such as
 `{cover: {face, decor}, content: {<kind>: {face, decor}}}`.

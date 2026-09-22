@@ -43,5 +43,11 @@ jobs:
       - name: Unit tests
         run: pnpm run test
 
+      # Re-captures all 24 factory themes through the installed pptwise and diffs
+      # them against fixtures/themes. Separate from `pnpm test` because 24
+      # synchronous spawns block the test worker past vitest's RPC timeout.
+      - name: Theme snapshot gate
+        run: pnpm run themes:verify
+
       - name: Build the CLI bundle
         run: pnpm run build

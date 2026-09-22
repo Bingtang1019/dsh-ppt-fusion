@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { Command, Option } from 'commander'
 import { formatDoctorReport, runDoctor } from './commands/doctor.ts'
+import { defaultDependencies, resolveDeckDir, type CommandDependencies } from './commands/context.ts'
+import { initDeck } from './commands/init.ts'
+import { confirmPlan, planDeck } from './commands/plan.ts'
+import { validateDeck } from './commands/validate.ts'
+import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
+import { tokensExport } from './commands/tokens.ts'
 import { formatFailure } from './engine/errors.ts'
+import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
 
@@ -22,16 +29,19 @@ function readVersion(): string {
   }
 }
 
+/** Print a JSON document to stdout with a trailing newline. */
+function printJson(value: unknown): void {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`)
+}
+
 /**
  * Build the `dsh-ppt` command line.
  *
- * M1 exposes `version` and `doctor`; the deck commands (`validate`, `render`,
- * `audit`, `theme`, …) land in M2–M5 as `src/commands/*.ts` and are attached
- * here.
- *
+ * @param deps - command dependencies; tests pass an in-memory filesystem and a
+ *   scripted runner, production uses the defaults.
  * @returns the configured commander program.
  */
-export function buildProgram(): Command {
+export function buildProgram(deps: CommandDependencies = defaultDependencies()): Command {
   const program = new Command()
   program
     .name('dsh-ppt')
@@ -54,19 +64,163 @@ export function buildProgram(): Command {
     .action((options: { json?: boolean; repair?: boolean; selfTest?: boolean }) => {
       const report = runDoctor({
         repair: options.repair === true,
-        dependencies: { runner: spawnRunner, fs: nodeFileSystem, selfTest: options.selfTest !== false },
+        dependencies: {
+          runner: deps.runner,
+          fs: deps.fs,
+          env: deps.env,
+          resolveModule: deps.resolveModule,
+          selfTest: options.selfTest !== false,
+        },
       })
-      if (options.json === true) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
+      if (options.json === true) printJson(report)
       else process.stdout.write(`${formatDoctorReport(report)}\n`)
       process.exitCode = report.ok ? 0 : 1
+    })
+
+  program
+    .command('init')
+    .description('create a deck workspace that already validates')
+    .argument('<dir>', 'deck directory to create')
+    .option('--theme <preset>', 'factory preset to bind', 'brief')
+    .action((dir: string, options: { theme: string }) => {
+      const result = initDeck({ dir: resolveDeckDir(deps, dir), theme: options.theme, deps })
+      for (const path of result.created) process.stdout.write(`created ${path}\n`)
+    })
+
+  program
+    .command('plan')
+    .description('write a manifest draft and list the fields a model still has to decide')
+    .argument('<dir>', 'deck directory')
+    .option('--from <file...>', 'source markdown files, workspace-relative')
+    .option('--confirm', 'copy the confirmed draft into deck.fusion.json')
+    .action((dir: string, options: { from?: string[]; confirm?: boolean }) => {
+      const workspace = resolveDeckDir(deps, dir)
+      if (options.confirm === true) {
+        process.stdout.write(`wrote ${confirmPlan({ dir: workspace, deps })}\n`)
+        return
+      }
+      const result = planDeck({ dir: workspace, deps, ...(options.from === undefined ? {} : { sources: options.from }) })
+      process.stdout.write(`wrote ${result.draftPath} (${String(result.pageCount)} pages)\n`)
+      process.stdout.write('needs confirmation:\n')
+      for (const field of result.needsConfirmation) process.stdout.write(`  - ${field}\n`)
+    })
+
+  program
+    .command('validate')
+    .description('check the manifest, IR page list, deep page files and theme files')
+    .argument('<dir>', 'deck directory')
+    .option('--json', 'print the full report as JSON')
+    .action((dir: string, options: { json?: boolean }) => {
+      const report = validateDeck({ dir: resolveDeckDir(deps, dir), deps })
+      if (options.json === true) printJson(report)
+      else {
+        if (report.findings.length === 0) process.stdout.write(`OK ${String(report.sources.length)} gates: ${report.sources.join(', ')}\n`)
+        else process.stdout.write(`${formatFindings(report.findings)}\n`)
+        process.stdout.write(report.ok ? 'validate: ok\n' : 'validate: failed\n')
+      }
+      process.exitCode = report.ok ? 0 : 1
+    })
+
+  const theme = program.command('theme').description('bind, create and compare deck themes')
+  theme
+    .command('ensure')
+    .description('materialise the bound theme and derive tokens.json and master-design.json (idempotent)')
+    .argument('<dir>', 'deck directory')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { json?: boolean }) => {
+      const result = themeEnsure({ dir: resolveDeckDir(deps, dir), deps })
+      if (options.json === true) {
+        printJson({ themePath: result.themePath, tokensPath: result.tokensPath, masterPath: result.masterPath, changed: result.changed })
+      } else if (result.changed.length === 0) process.stdout.write('theme ensure: 0 changes\n')
+      else for (const path of result.changed) process.stdout.write(`wrote ${path}\n`)
+    })
+  theme
+    .command('list')
+    .description('list the factory presets')
+    .option('--json', 'print the catalog as JSON')
+    .action((options: { json?: boolean }) => {
+      const themes = themeList({ deps })
+      if (options.json === true) printJson(themes)
+      else for (const entry of themes) process.stdout.write(`${entry.id.padEnd(12)} ${(entry.occasions ?? []).join('/')}  ${entry.identity ?? ''}\n`)
+    })
+  theme
+    .command('new')
+    .description('copy a preset into a complete theme file')
+    .requiredOption('--from <id>', 'source preset id')
+    .requiredOption('-o, --output <file>', 'output theme file')
+    .option('--id <id>', 'id to write into the copy')
+    .option('--dir <dir>', 'workspace the CLI runs in', '.')
+    .action((options: { from: string; output: string; id?: string; dir: string }) => {
+      const written = themeNew({
+        dir: resolveDeckDir(deps, options.dir),
+        from: options.from,
+        output: options.output,
+        deps,
+        ...(options.id === undefined ? {} : { id: options.id }),
+      })
+      process.stdout.write(`wrote ${written.outputFile}\n`)
+    })
+  theme
+    .command('fork')
+    .description('re-derive a theme from one new primary colour, keeping its page menu')
+    .argument('<id>', 'theme id or file to fork')
+    .requiredOption('--primary <hex>', 'new primary colour')
+    .option('--id <id>', 'id for the fork')
+    .option('-o, --output <path>', 'output directory or file')
+    .option('--dir <dir>', 'workspace the CLI runs in', '.')
+    .action((id: string, options: { primary: string; id?: string; output?: string; dir: string }) => {
+      const result = themeFork({
+        dir: resolveDeckDir(deps, options.dir),
+        id,
+        primary: options.primary,
+        deps,
+        ...(options.id === undefined ? {} : { newId: options.id }),
+        ...(options.output === undefined ? {} : { output: options.output }),
+      })
+      process.stdout.write(result.stdout.trim() === '' ? 'theme fork: done\n' : `${result.stdout.trim()}\n`)
+    })
+  theme
+    .command('try')
+    .description('render the fitting-room sample under 2-4 candidate themes')
+    .argument('<ids>', 'comma-separated theme ids')
+    .option('-o, --output <dir>', 'output directory')
+    .option('--dir <dir>', 'workspace the CLI runs in', '.')
+    .action((ids: string, options: { output?: string; dir: string }) => {
+      const result = themeTry({
+        dir: resolveDeckDir(deps, options.dir),
+        ids,
+        deps,
+        ...(options.output === undefined ? {} : { output: options.output }),
+      })
+      process.stdout.write(`${result.stdout.trim()}\n`)
+    })
+
+  program
+    .command('tokens')
+    .description('export the palette contract a deep page authors against')
+    .command('export')
+    .argument('<input>', 'factory preset id or theme file')
+    .option('--master', 'emit the master projection (palette plus role names)')
+    .option('-o, --output <file>', 'write to a file instead of stdout')
+    .action((input: string, options: { master?: boolean; output?: string }) => {
+      const result = tokensExport({
+        input,
+        deps,
+        ...(options.master === true ? { master: true } : {}),
+        ...(options.output === undefined ? {} : { output: options.output }),
+      })
+      if (result.outputFile === null) printJson(result.document)
+      else process.stdout.write(`wrote ${result.outputFile}\n`)
     })
 
   return program
 }
 
-try {
-  await buildProgram().parseAsync(process.argv)
-} catch (error) {
-  process.stderr.write(`${formatFailure(error)}\n`)
-  process.exitCode = 1
+if (process.env.DSH_PPT_NO_RUN !== '1') {
+  try {
+    await buildProgram(defaultDependencies({ runner: spawnRunner, fs: nodeFileSystem })).parseAsync(process.argv)
+  } catch (error) {
+    process.stderr.write(`${formatFailure(error)}\n`)
+    process.exitCode = 1
+  }
 }

@@ -339,8 +339,8 @@ export function createVenvManager(options: {
       })
     }
     if (result.spawnError !== null) {
-      throw new DshPptFailure('SpawnFailed', `cannot start ${paths.engineExe}: ${result.spawnErrorMessage || result.spawnError}`, {
-        detail: { id: invocation.id, spawnError: result.spawnError },
+      throw new DshPptFailure('SpawnFailed', `cannot start ${paths.engineExe} in ${runOptions.workspace}: ${result.spawnErrorMessage || result.spawnError}`, {
+        detail: { id: invocation.id, spawnError: result.spawnError, cwd: runOptions.workspace },
       })
     }
     if (result.status !== 0) {

@@ -66,13 +66,66 @@ Checks, in order:
 the full `DoctorReport` for machine consumption. Exit code is 0 only when no check
 failed and the self-test passed.
 
+## Implemented (M2)
+
+### `dsh-ppt init <dir> [--theme <preset>]`
+
+Creates a deck workspace that already validates: `deck.ir.json` (cover + ending),
+`deck.fusion.json`, then `theme ensure` for the bound preset. Refuses to overwrite an
+existing manifest.
+
+### `dsh-ppt plan <dir> [--from <file...>] [--confirm]`
+
+Writes `deck.fusion.draft.json`: a schema-valid manifest skeleton plus the list of
+fields a model still has to decide (`theme.preset`, `name`, `pages[].route`). With
+`--from` it outlines one content page per `##` heading and infers a `data` kind for
+numeric headings. `--confirm` copies the draft into `deck.fusion.json`.
+
+### `dsh-ppt validate <dir> [--json]`
+
+Gates, in order: `manifest` (schema, with per-field messages), `ir` (page coverage and
+`placeholder: true` on every deep page), `deep` (each deep page directory holds
+`page.svg`), `post` (`post.animations` exists), `theme` (theme file matches the binding
+and `tokens.json` is in sync), `palette` (warning: a deep page paints a literal outside
+the deck palette). Exit 1 when any error is present.
+
+### `dsh-ppt theme ensure <dir> [--json]`
+
+Materialises the bound preset into `theme.json` (skipped when a matching copy exists),
+then derives `tokens.json` and `master-design.json`. Idempotent: a second run reports
+`0 changes` and starts no process.
+
+### `dsh-ppt theme list [--json]`
+
+The factory catalog: id, occasions, identity strength. 24 presets as of pptwise 0.35.0.
+
+### `dsh-ppt theme new --from <id> -o <file> [--id <new>] [--dir <dir>]`
+
+Copies a preset into a complete ThemeFile v2.
+
+### `dsh-ppt theme fork <id> --primary <hex> [--id <new>] [-o <path>]`
+
+Re-derives the palette from one new primary colour and keeps the page menu.
+
+### `dsh-ppt theme try <ids> [-o <dir>]`
+
+Renders the fitting-room sample under 2–4 candidate themes into a contact sheet, which
+is how Phase 2 of the skill picks a theme from images rather than names.
+
+### `dsh-ppt tokens export <preset-id|theme.json> [--master] [-o <file>]`
+
+Without `--master`: the exported token file (colours, fonts, shape, backgrounds, source).
+With `--master`: the master projection — role names (`slideBackground`, `cardFill`,
+`structure`, `accent`, `bodyText`, `secondaryText`, `line`, `dataSeries`), the font
+stacks, and the closed `palette` list a deep page may paint with.
+
 ## Planned
 
 The remaining surface from plan §3.9, with the milestone that lands it:
 
 | Command | Milestone |
 |---|---|
-| `init`, `plan`, `theme ensure/list/new/fork/try`, `brand extract`, `tokens export`, `validate` | M2 |
+| `brand extract`, `theme` file binding via `brand` | M5 |
 | `deep check/chart`, `source`, `images search` | M3/M5 |
 | `render`, `audit`, `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4/M5 |
 | `resume`, `skill audit` | M6 |

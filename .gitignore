@@ -4,6 +4,9 @@ lib/
 coverage/
 *.tsbuildinfo
 
+# Scratch deck workspaces used while exercising the CLI by hand
+tmp/
+
 # Deck workspaces and engine scratch produced while testing by hand
 fixtures/_m0-scratch/
 fixtures/**/.dsh-ppt/
