@@ -68,6 +68,10 @@ jobs:
       - name: Provision the engine venv
         env:
           DSH_PPT_UV: uv
+          # The package default is the Tsinghua mirror used on the development
+          # machine; GitHub's runners reach pypi.org, while the mirror answers
+          # them with 403.
+          DSH_PPT_PYPI_INDEX: https://pypi.org/simple
         run: pnpm run engine:provision
 
       # Renders fixtures/hello through both engines plus the merge and compares the

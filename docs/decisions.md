@@ -1523,6 +1523,10 @@ the ADR wins.**
   is the single motion owner and rewrites transitions and timings. v1 narrates without
   auto-advance; deriving the advance inside `post.ts` from a deterministic source and
   re-recording is a v0.2 backlog item.
+- **Decision (CI engine provisioning).** The workflow provisions the engine venv with
+  `DSH_PPT_PYPI_INDEX=https://pypi.org/simple`. The package default stays the Tsinghua mirror
+  chosen for the development machine, but the runners get `403 Forbidden` from that mirror, so
+  provisioning failed on ubuntu (and succeeded intermittently on windows).
 - **Alternatives rejected:** re-recording the golden against the runner's ffprobe (fails again on
   the next runner image update); shipping an `ffprobe` shim with the gate (Windows
   `CreateProcess` does not execute `.cmd`/`.bat`, so it would need a compiled launcher committed
