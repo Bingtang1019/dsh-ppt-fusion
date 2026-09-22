@@ -1,9 +1,47 @@
 # Decisions
 
 ADR log for dsh-ppt-fusion. Every entry records date, decision, evidence, and the
-alternatives that were rejected. Add an entry whenever an implementation choice or an
-observed upstream fact departs from `PPT-FUSION-PLAN.md`; the plan file itself is not
-edited to match reality.
+alternatives that were rejected. An entry is added whenever an implementation choice or
+an observed upstream fact departs from `PPT-FUSION-PLAN.md`; the plan is then synced to
+the newest ADRs at the next plan revision (v4 did that for ADR-001…029). **The ADR is
+the authoritative record; where a stale line of the plan disagrees with a newer ADR,
+the ADR wins.**
+
+## ADR index
+
+| # | Subject |
+|---|---|
+| 001 | `dsh plugin add` needs `-w` on workspace profiles |
+| 002 | M0.1 verifies without restarting the live web profile |
+| 003 | Resolve uv by absolute path, never PATH |
+| 004 | Child-process pipes work; EPERM premise refuted |
+| 005 | Pin upstream artifacts by actual-file SHA-256 + size |
+| 006 | Engine venv is uv-managed, no pip |
+| 007 | Deep pages: seven measured authoring rules |
+| 008 | Deep export = four-step gated pipeline |
+| 009 | Machine output read from files, not stdout |
+| 010 | M0.7 prototype scope (superseded by 018) |
+| 011 | Fusion fixtures author their own native chart/table pages |
+| 012 | Theme bridge reads `style.*` of ThemeFile v2 |
+| 013 | Whitelist excludes image-gen / video-* non-goals |
+| 014 | Determinism: pptwise byte-stable, master timestamp-only unstable |
+| 015 | Deep project directory keeps its generated name |
+| 016 | PS 5.1, BOM-free writers, `[Content_Types].xml` `-LiteralPath` |
+| 017 | canonicalize recurses into embedded OOXML parts |
+| 018 | M0.D closed with full closure import; multi-master dormant |
+| 019 | runner.ts + logging.ts added; DSH fields wait for M7 |
+| 020 | M1 verification record |
+| 021 | Theme fonts are arrays; backgrounds carry gradient slots |
+| 022 | 24-theme re-capture is a script gate |
+| 023 | M2 verification record |
+| 024 | Plan v3 alignment retro-fitted into closed milestones |
+| 025 | B7 activated: no Python-side PNG rasteriser |
+| 026 | `deep render` batch-only; reports inside project; `--out` deck-relative |
+| 027 | M3 verification record |
+| 028 | Merge bridge: content-aware reuse + three real-merge bugs |
+| 029 | M4 progress: merge core and render chain landed, rest listed |
+| 030 | V4 sync: plan, architecture, README, docs index |
+| 031 | ADR-029 remaining list made explicit: M4.9 / M4.10 / M4.11 are separate items |
 
 ---
 
@@ -563,3 +601,45 @@ edited to match reality.
 - **Alternatives rejected:** publishing without the compat pass while accepting `--compat`
   flags (the flag would lie); leaving `post.animations` silently unapplied (a deck that
   promises animation and delivers none is worse than a refusal).
+
+## ADR-030 — V4 sync: plan, architecture, README, docs index
+
+- **Date:** 2026-09-22
+- **Decision:** The external plan `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md` is advanced
+  to **v4** and made consistent with ADR-001…029: EPERM premise refuted (ADR-004), uv-only
+  venv (ADR-003/006), ThemeFile v2 `style.*` and gradient/font-array shapes (ADR-012/021),
+  wheel pin 15,400,327 bytes / 74 subcommands (ADR-005/020), seven deep authoring rules and
+  the four-step gated export (ADR-007/008), full-closure M0.D and P1 verification
+  (ADR-010/018), B7 with Node `sharp` (ADR-025), and the M4 part-1/part-2 split with the
+  remaining-items list (ADR-028/029). `docs/architecture.md` is updated to reference plan v4,
+  mark the landed merge layer, and name the post/compat layers as M4 part 2. A repository
+  `README.md` now carries the architecture diagram, layer ownership, invariants, command
+  surface and doc index. This file gains the ADR index above.
+- **Evidence:** repo state at commit `616345e` (M4 part 1); plan v4 verification shows all
+  ADR-driven corrections present; README matches the committed `src/` tree and `docs/cli.md`.
+- **Alternatives rejected:** rewriting history in earlier ADRs (entries stay as written;
+  the index and v4 plan carry the consolidated view); deleting `docs/m0-*`/`docs/compat/*`
+  into one file (the probes and decision matrices remain the raw evidence the summaries
+  point to).
+
+## ADR-031 — ADR-029 remaining list made explicit: M4.9 / M4.10 / M4.11 are separate items
+
+- **Date:** 2026-09-22
+- **Decision:** ADR-029's phrase "v3 M4.9–11" is unpacked into three separately
+  verifiable remaining items in M4 part 2, and the plan v4 §4.5 / §5 M4 task list mirror
+  them exactly:
+  1. **M4.9** — `bridge/compat.ts` v1 (scan/transform/stamp/lint) + `--compat
+     safe|standard|max` on `render` + `compat lint`; stamp implements the Node `sharp`
+     path only (B7), no cairosvg code.
+  2. **M4.10** — merge discipline tests: `mc:AlternateContent` pair migration and
+     `p14:creationId` de-duplication (needs the animation pass to exist first).
+  3. **M4.11** — compat goldens for all three levels: `safe`/`standard`/`max` each
+     render hello, with compat-report snapshots; asserts SVG-backed images carry PNG
+     fallbacks and `--compat safe` output contains no morph or above-level chart types.
+  These three stay separate acceptance rows in M4; item 11 is not folded into item 9.
+- **Evidence:** plan v4 §5 M4 tasks 9/10/11 (all `- [ ]`, the only remaining compat
+  work) and §4.5 M4 row ②③④⑤.
+- **Alternatives rejected:** treating the three-tier golden as an implementation detail
+  of the compat pass (then a pass that lints but never renders would look complete);
+  rewriting ADR-029 in place (the entry stands as the part-1 landing record, this entry
+  refines its open list).

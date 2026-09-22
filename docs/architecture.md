@@ -2,7 +2,9 @@
 
 `@dsh-ppt/dsh-ppt-fusion` fuses two upstream engines under one DeepSeek Harness plugin.
 This document records the runtime boundary between them, what each layer owns, and the
-invariants the code enforces. Plan references are to `PPT-FUSION-PLAN.md` v2.
+invariants the code enforces. Plan references are to `PPT-FUSION-PLAN.md` **v4**; the
+authoritative arbitration record is `docs/decisions.md` (ADR-001…030) — when they
+conflict, the newer ADR wins and the plan is updated to match.
 
 ## Dual runtime (S2)
 
@@ -33,7 +35,8 @@ dsh-ppt CLI                        node >= 22.19
 
 The venv is created on the user's machine from `python-assets/requirements.lock` and is
 never shipped: that keeps `PyMuPDF` (AGPL-3.0), which arrives with ppt-master, out of
-anything redistributed. See `docs/licensing.md`.
+anything redistributed. `docs/licensing.md` lands with M9 and is the release-time
+full/minimal checklist.
 
 ## Layers and ownership
 
@@ -44,9 +47,9 @@ anything redistributed. See `docs/licensing.md`.
 | `src/frontend.ts` | locating and driving the pptwise CLI, JSON parsing, its failure classes | import pptwise internals (its `exports` map seals them) |
 | `src/bridge/theme.ts` (M2) | ThemeFile → `tokens.json` → engine palette; colour-consistency audit | edit upstream theme files |
 | `src/bridge/route.ts` (M2) | per-page engine choice; deep-page file completeness | degrade silently when a deep page is incomplete |
-| `src/bridge/merge.ts` (M4) | slide-level OOXML merge, closure import, layout remap | parse or rewrite shape semantics |
-| `src/bridge/post.ts` (M4) | the single place animations, transitions and narration are applied | run before the merge |
-| `src/bridge/compat.ts` (M4) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping, lint) against `src/compat/registry.json` | transform anything the registry does not name |
+| `src/bridge/merge.ts` (M4 ✅) | slide-level OOXML merge, closure import, layout remap, content-aware reuse | parse or rewrite shape semantics |
+| `src/bridge/post.ts` (M4 part 2 ⏳) | the single place animations, transitions and narration are applied | run before the merge |
+| `src/bridge/compat.ts` (M4 part 2 ⏳) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping, lint) against `src/compat/registry.json` | transform anything the registry does not name |
 | `src/engine/venv.ts` | venv lifecycle, uv resolution, lock-file install, repair | install anything on the DSH boot path |
 | `src/engine/master.ts` | the only spawn site for Python; timeouts, error classes, logs | accept an unregistered command or a path outside the workspace |
 | `src/engine/runner.ts` | the child-process primitive and the environment whitelist | inherit credentials by default |
@@ -82,7 +85,8 @@ passes only when a caller names it in `allowCredentials`.
 
 - **P1 — single master.** A merged deck contains exactly one
   `ppt/slideMasters/slideMaster*.xml`, and every slide layout resolves to it. Enforced by
-  `scripts/opc-invariants.mjs --single-master`, wired into the merge gate in M4.
+  `scripts/opc-invariants.mjs --single-master` and wired into the merge gate — **verified
+  on real fixtures at M0 and again at M4** (47 parts, 1 master, ADR-018/028).
 - **Deep pages are absolute.** Deep pages are authored as absolutely positioned SVG and
   exported with `--pptx-structure flat`, so remapping their layout onto the receiving
   deck's layout cannot move content.
@@ -118,6 +122,11 @@ Measured in M0 on the development machine (ADR-003, ADR-016):
 ```
 src/cli.ts                 command line entry (bin: dsh-ppt)
 src/commands/              one file per subcommand
+src/bridge/opc.ts          OPC primitives: parts, rels, content types (M4 ✅)
+src/bridge/merge.ts        slide-level merge, layout remap, closure import (M4 ✅)
+src/bridge/theme.ts        ThemeFile v2 → tokens → master palette (M2 ✅)
+src/bridge/{post,compat}.ts  M4 part 2 (animations applied post-merge; compat pass)
+src/compat/registry.json   feature→minOffice→WPS→downgrade table (M0.G measured)
 src/engine/runner.ts       child-process primitive + environment whitelist
 src/engine/contracts.ts    engine command registry, enums, argv builders
 src/engine/venv.ts         venv lifecycle, uv resolution, lock install/repair
@@ -125,8 +134,10 @@ src/engine/master.ts       typed engine surface (the only Python spawn site)
 src/engine/errors.ts       failure codes
 src/frontend.ts            pptwise CLI wrapper
 src/logging.ts             per-run diagnostics
+src/audit.ts               multi-source audit aggregation (growing with M4/M5)
 python-assets/             requirements.in, requirements.lock, upstream SHA manifest
 scripts/                   gates: opc-invariants, win-com-smoke, M0 measurement tools
 fixtures/                  hello deck, deep project, recorded golden packages
-docs/                      this file, contracts, cli, decisions, licensing, reports
+docs/                      this file, contracts, cli, decisions, m0-*, compat/, licensing
+README.md                  architecture summary and command surface
 ```

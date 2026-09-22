@@ -259,3 +259,61 @@ the CLI at build time so it cannot go missing at install).
   `mc:AlternateContent`, because the native-shape export ignores upstream compat mode.
   The PNG-fallback requirement therefore bites M5's SVG-image content, not the v1
   chart/table path.
+
+## 9. Deep pipeline and merge contracts (M3/M4 part 1)
+
+Frozen facts the later milestones build on. Each came from running the real
+engines, and each is pinned by a test or a recorded transcript.
+
+**Deep export is a four-step gated pipeline, in this order** (`engine/deep-render.ts`):
+
+1. `project init` into `<deck>/.dsh-ppt/deep/<name>_<format>_<date>/`, then write the
+   page roster as `<NNN>-<slug>.svg` (the index prefix fixes deck order) and a
+   `spec_lock.md` derived from the deck — canvas from the page format, typography
+   anchors from the font sizes the SVGs actually use, colours from `tokens.json`,
+   primary language from the pages' script (the engine rejects `und`).
+2. `stamp-native-fallbacks --write` (idempotent; reports `unchanged` for pages without
+   markers).
+3. `svg-quality-check <project> --quick-generate --canonical-authoring --stage final
+   --json`; the exporter will not run without the report this step records.
+4. `svg-to-pptx <project> --quick-generate --native-charts-and-tables --with-notes`.
+
+Re-rendering the same page set removes the previous project by name prefix, so one
+project exists per page set rather than one per run.
+
+**Where the engines write**:
+
+| Artifact | Location |
+|---|---|
+| Quality report | `<project>/validation/svg_quality_report.json` |
+| Export report | `<project>/validation/<output-stem>.report.json` |
+| Export receipt | stdout line `[POSTFLIGHT] status=… quality_gate=… slides=N warning_categories=N` |
+| All render intermediates | `<deck>/.dsh-ppt/render/{base,deep,merged}.pptx` |
+| Per-command logs | `<deck>/.dsh-ppt/logs/<timestamp>-<command>.log` |
+| Published deck + record | `<deck>/out/<name>.pptx`, `<deck>/out/manifest.json` |
+
+**Merge rules** (`bridge/merge.ts`):
+
+- A base slide is replaced in place; deck order, slide ids and the single master are
+  preserved (P1).
+- The deep page's non-layout closure (charts, workbooks, media, notes) is imported; a
+  part is reused **only when its bytes are identical**. A shared name with different
+  content is renamed and imported — never overwritten (two decks routinely name
+  unrelated parts alike).
+- The deep page's layout relationship is repointed at the base layout the replaced slide
+  used; the deep layout, master and theme are dropped. `--allow-multi-master` is the only
+  path that imports them, and it registers the master in both `presentation.xml.rels` and
+  `p:sldMasterIdLst`.
+- Imported parts' own relationships are rewritten onto the names this package uses.
+- Authored part names are kept when they are free.
+- `[Content_Types].xml` gains what the imported parts need; `rels` and `xml` defaults are
+  left to the source packages.
+
+**CLI path rules**: deck commands take paths relative to the **deck** (not the process
+working directory) because the engine may only write inside the workspace; `deep render
+--out` and `render --out` follow that rule, and a path outside the deck is refused.
+
+**Determinism**: the merge writer sorts part names and stamps one fixed entry date, so
+identical inputs give identical bytes (T2). The engines themselves stamp their own times,
+so a full-chain byte comparison is not a gate (T3); semantic comparison is, and it must
+recurse into `ppt/embeddings/*` (ADR-017).
