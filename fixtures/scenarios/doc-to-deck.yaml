@@ -1,0 +1,19 @@
+name: doc-to-deck
+title: A product brief turns into a charted deck
+maxAttempts: 3
+inputs:
+  - from: fixtures/scenarios/inputs/doc-to-deck/brief.md
+    to: sources/brief.md
+task: |
+  Use the dsh-ppt-fusion skill. Turn the brief at {{workspace}}/sources/brief.md into a six-page Chinese deck at {{deck}}.
+  The growth numbers in the brief must be native, editable charts, not pictures or tables of text.
+  Finish by running the unified audit gate (`dsh-ppt audit`) on the deck and paste its final result line.
+rubric:
+  minSlides: 6
+  maxSlides: 6
+  requireTextShapes: true
+  requireNativeChart: true
+  requireNativeTable: false
+  requireAttribution: false
+  requireCheckpoint: true
+  requireBrandTheme: false

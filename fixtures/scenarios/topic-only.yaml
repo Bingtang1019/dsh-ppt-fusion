@@ -1,0 +1,16 @@
+name: topic-only
+title: One topic sentence to a five-page deck
+maxAttempts: 3
+task: |
+  Use the dsh-ppt-fusion skill. Build a five-page Chinese deck at {{deck}} about 为什么候鸟不会迷路, for a general audience.
+  Titles must state the conclusion, not the topic. Do not generate images and do not use pictures from the web.
+  Finish by running the unified audit gate (`dsh-ppt audit`) on the deck and paste its final result line.
+rubric:
+  minSlides: 5
+  maxSlides: 5
+  requireTextShapes: true
+  requireNativeChart: false
+  requireNativeTable: false
+  requireAttribution: false
+  requireCheckpoint: true
+  requireBrandTheme: false

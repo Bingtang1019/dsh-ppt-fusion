@@ -284,7 +284,7 @@ Runs the engine's `prompt-audit` over `skills/dsh-ppt-fusion/**/*.md` and the ve
 ppt-master docs with `skills/dsh-ppt-fusion/prompt_audit_manifest.json`: token budgets,
 per-file and per-load-set ceilings, local reference integrity, duplicate paragraphs and the
 authority graph. Errors fail; `--strict` makes warnings fail too. The corpus measures
-109 162 tokens against the 120 000-token ceiling (ADR-044).
+109 280 tokens against the 120 000-token ceiling (ADR-044).
 
 ## Planned
 

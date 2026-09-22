@@ -1171,7 +1171,7 @@ the ADR wins.**
   deterministic error fails, and `--strict` makes warnings fail too; the fusion adds no second
   policy layer. `dsh-ppt audit` now runs the same source (`prompt-audit`) instead of recording it
   as skipped, and names it in `skipped` with the reason when the engine venv is absent.
-- **Measured.** 24 files, 109162 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
+- **Measured.** 24 files, 109280 tokens against the 120000-token ceiling, 0 errors, 0 warnings.
   Per-file budgets sit above the measured block and load sets cover the SKILL's 8-12 document
   reference packs; the one cross-file exact duplicate (the language-neutral CLI roster shared by
   `SKILL.md` and `SKILL.en.md`) is declared in `duplicates.accepted`.
@@ -1211,3 +1211,34 @@ the ADR wins.**
   are the authority); letting resume write the checkpoint itself (the model owns the phase
   narrative, and a tool that rewrites it could silently erase work); failing the report on a
   malformed published manifest (the render command owns that file).
+
+## ADR-046 — The M6 model eval: shipped headless profile, isolated workspaces, rubric from the package
+
+- **Date:** 2026-09-22
+- **Decision:** `pnpm eval:run [--scenario <name>] [--attempts <n>] [--json]` runs every
+  `fixtures/scenarios/*.yaml` through DeepSeek Harness's shipped `headless` profile, at most
+  `maxAttempts` fresh sessions per scenario, and judges each finished workspace with
+  `tests/eval/rubric.ts`: the unified audit gate, slide count, per-slide text shapes, a single
+  slide master, native chart/table parts, image attribution, the checkpoint file, and a bound
+  theme file. The nine check meanings live in `fixtures/scenarios/rubric.json`.
+- **Isolation.** An attempt owns `tmp/eval/<scenario>/attempt-<n>/`: `work` is the agent cwd,
+  `home` is a fresh `DSH_HOME` (no machine-local patch layer or MCP servers), and `bin` holds
+  `dsh-ppt` shims that run this checkout's built `dist/cli.js`. The SKILL is mounted with
+  `skill-filesystem.customSkillDirs` through a generated `--patch` overlay, so the eval never
+  installs anything into the user's `~/.dsh/skills`.
+- **Model and permissions.** `DSH_HARNESS_ROOT` selects the harness source checkout (booted
+  through `tsx/esm`); without it an installed `dsh` is used. The profile's default model
+  (`deepseek-v4-flash`) runs with `DSH_PERMISSION_MODE=danger-full-access`, so an autonomous
+  session never blocks on an approval prompt; the key comes from `DEEPSEEK_API_KEY` or the
+  user's `~/.dsh/.credentials.yaml`.
+- **Metrics.** Wall time is measured by the harness. Turns, tool calls, failed calls, gate
+  failures, skill loads and checkpoint commands are recovered from the session log
+  (`$DSH_HOME/sessions/**/session.jsonl.zstd`; the CLI appends one zstd frame per event, so the
+  reader splits on the frame magic). The model's own summary is never the evidence.
+- **Pass line.** A scenario passes when every check passes. The 3/3 decision and any downgrade
+  level are recorded in `docs/m6-model-eval.md`; the harness exits non-zero unless all
+  scenarios pass.
+- **Alternatives rejected:** booting the user's `web` profile (machine-local patches and MCP
+  servers change the agent under test); installing the SKILL into `~/.dsh/skills` (an
+  unnecessary machine change); letting the model judge itself (a rubric read from the package
+  is repeatable and independent).

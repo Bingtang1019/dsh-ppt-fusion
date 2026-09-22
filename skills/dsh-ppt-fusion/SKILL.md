@@ -85,4 +85,5 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 
 ## 失败时
 - 每条错误都是 `dsh-ppt: <code> <message>`；先看 code，再读 `<deck>/.dsh-ppt/logs/` 的最后一份日志。
-- 引擎/前端缺失 → `dsh-ppt doctor [--repair]`；不要手工改 venv。
+- `dsh-ppt doctor` 的 png-renderer 红是设计使然（本机无 cairo，B7 用 sharp 兜底，ADR-020/025）；其余项全绿就不要跑 `--repair`。
+- 只有 Node/uv/venv/引擎本体缺失时才 `dsh-ppt doctor --repair`；不要手工改 venv。

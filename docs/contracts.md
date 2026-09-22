@@ -492,7 +492,7 @@ and `skipped`.
 SKILL documents and their vendored references, using
 `skills/dsh-ppt-fusion/prompt_audit_manifest.json` as the single source of budgets.
 
-- **Corpus and budgets.** 24 files / 109 162 tokens measured against a fixed 120 000-token
+- **Corpus and budgets.** 24 files / 109 280 tokens measured against a fixed 120 000-token
   ceiling; per-file and per-load-set budgets live in the manifest and are enforced by the
   engine. The gate reports `files`, `tokens`, `maxTokens`, `errors`, `warnings` and the
   normalized findings `{level, code, message, path, line}` (ADR-044).

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "audit-pass",
+      "description": "`dsh-ppt audit` reports ok with no error-level finding",
+      "severity": "error"
+    },
+    {
+      "id": "slide-count",
+      "description": "the published deck has the requested number of slides",
+      "severity": "error"
+    },
+    {
+      "id": "text-shapes",
+      "description": "every slide carries at least one native text shape (no full-page bitmap slides)",
+      "severity": "error"
+    },
+    {
+      "id": "single-master",
+      "description": "the package has exactly one slide master",
+      "severity": "error"
+    },
+    {
+      "id": "native-chart",
+      "description": "a native chart part (`ppt/charts/*.xml` with a `c:chartSpace` root) exists",
+      "severity": "error"
+    },
+    {
+      "id": "native-table",
+      "description": "a native table (`a:tbl`) exists in a slide",
+      "severity": "error"
+    },
+    {
+      "id": "attribution",
+      "description": "`assets/image_sources.json`, when present, records a licence and an author per item",
+      "severity": "error"
+    },
+    {
+      "id": "checkpoint",
+      "description": "`.dsh-ppt/checkpoint.json` exists and parses",
+      "severity": "warning"
+    },
+    {
+      "id": "brand-theme",
+      "description": "the deck manifest binds a theme file that exists",
+      "severity": "error"
+    }
+  ],
+  "metrics": [
+    "attempts",
+    "wallTimeMs",
+    "turns",
+    "toolCalls",
+    "failedToolCalls",
+    "gateFailures",
+    "skillLoads",
+    "checkpointCommands"
+  ]
+}

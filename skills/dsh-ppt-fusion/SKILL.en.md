@@ -85,4 +85,5 @@ Model-agnostic by design: no model name is hardcoded; DeepSeek works by default 
 
 ## When something fails
 - Every error is `dsh-ppt: <code> <message>`; read the code, then the newest log under `<deck>/.dsh-ppt/logs/`.
-- Missing engine/front end: `dsh-ppt doctor [--repair]`; never edit the venv by hand.
+- The png-renderer row of `dsh-ppt doctor` is red by design on this machine (no cairo; B7 rasterises with sharp, ADR-020/025); do not run `--repair` while the other rows are green.
+- Run `dsh-ppt doctor --repair` only when Node/uv/venv/the engine itself is missing; never edit the venv by hand.

@@ -1,0 +1,18 @@
+name: branded-template
+title: A customer deck's brand, reused
+maxAttempts: 3
+inputs:
+  - from: fixtures/golden/hello-merged.pptx
+    to: brand/customer.pptx
+task: |
+  Use the dsh-ppt-fusion skill. The customer deck at {{workspace}}/brand/customer.pptx carries the corporate look to reuse.
+  Build a four-page Chinese deck at {{deck}} that uses that brand, then check it with the unified audit gate (`dsh-ppt audit`) and paste the final result line.
+rubric:
+  minSlides: 4
+  maxSlides: 4
+  requireTextShapes: true
+  requireNativeChart: false
+  requireNativeTable: false
+  requireAttribution: false
+  requireCheckpoint: true
+  requireBrandTheme: true
