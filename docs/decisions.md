@@ -47,6 +47,7 @@ the ADR wins.**
 | 034 | The compat pass v1: registered downgrades, the sharp PNG stamp, and refusals |
 | 035 | The unified audit gate: eight sources, an honest skip list, a warning-only ΔE |
 | 036 | Merge compatibility discipline: creationId renumbering, MCE migration, zip shape |
+| 037 | Compat goldens for all three levels, and the fixtureVersion 2 re-record |
 
 ---
 
@@ -877,3 +878,45 @@ the ADR wins.**
   next engine export); refusing the merge on duplicates (plan §1.5 says the bridge inherits
   upstream rule by fixing the ids); forbidding directory entries (contrary to what JSZip and
   PowerPoint write).
+
+## ADR-037 — Compat goldens for all three levels, and the fixtureVersion 2 re-record
+
+- **Date:** 2026-09-22
+- **Decision:** `fixtures/golden/compat-levels.json` records one stable snapshot per level
+  (`counts`, `occurrences`, `applied`, `findings`; no timestamp) at the same fixtureVersion as
+  `golden-manifest.json`. `pnpm fixtures:record` writes it from the freshly rendered merged
+  package; `pnpm fixtures:verify` recomputes the pass over that package at each level, compares
+  the snapshot, and asserts the level promises: no `p159:morph` at `safe`/`standard`, no 2016+
+  chart element at `safe`, no 2019+ chart element below `max`, and no lint finding at any level
+  (MCE pairs complete, every `asvg:svgBlip` carrying its raster sibling).
+- **Why the pass and not three more renders.** The level is applied after the merge, so running
+  it over the recorded merged package covers M4.11 without three extra deep renders (minutes of
+  CI per verify). The render plumbing itself is unit-tested (`resolveCompatLevel`) and was
+  exercised end-to-end at `safe` in ADR-034 evidence, where `out/manifest.json` recorded
+  `level: "safe", levelSource: "flag"`.
+- **The re-record (item ⑤b) is fixtureVersion 1 → 2.** The p03 deep page now declares
+  `lang="en"` because the quality gate asks the first page for a deck language; the advisory
+  count drops from five to four. The exported packages are canonically unchanged: the recorded
+  deep digest `ef8d92de…` and merged digest `4a09d5c9…` are identical to fixtureVersion 1, and
+  only the engine timestamp bytes moved. `fixtures:verify` reports canonical equality for all
+  three artifacts plus all three compat snapshots equal, and PowerPoint COM opens the new
+  merged golden with five slides. A version bump with no semantic change is exactly the T1/T2
+  behaviour plan §7.2 asks for.
+- **The remaining four warnings, and the strict line.** They are the upstream `introduced`
+  style advisories on the two deep pages ("noncanonical compact authoring"). The upstream gate
+  itself calls them advisory and explicitly allows the explicit form, so `--strict` is red by
+  design for this fixture; the non-strict gate is green with 11 sources. M8 decides between
+  compacting the fixture with upstream legacy migration script (which hoists inheritable
+  attributes and would change how `deriveSpecLock` reads typography) and scoping the strict CI
+  surface. The audit names the warnings instead of hiding them (ADR-035).
+- **Evidence.** `pnpm fixtures:record` wrote fixtureVersion 2: base 29206 B (byte-identical to
+  v1), deep 21153 B, merged 36251 B, plus the three level snapshots. `pnpm fixtures:verify`
+  green; `tests/compat-levels.test.ts` (3 tests) pins the recorded snapshots and the level
+  assertions; `tests/merge-discipline.test.ts` pins the package shape; COM smoke `[OK] … 5
+  slides`; the suite is 225 tests.
+- **Alternatives rejected:** three full renders in the verify script (redundant cost for a
+  post-merge pass); snapshotting the reports without the level assertions (a snapshot of a
+  pass that silently stopped enforcing a level would still compare equal); dropping the
+  advisories from the audit (they are real upstream signals, and `skipped`/warnings are how
+  this repo keeps gaps visible); compacting the fixture now (an upstream legacy migration whose
+  hoisting changes our spec-lock derivation — an M8 decision with this evidence).

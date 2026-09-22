@@ -1,0 +1,150 @@
+{
+  "fixtureVersion": 2,
+  "registryVersion": 1,
+  "levels": {
+    "safe": {
+      "counts": {
+        "occurrences": 5,
+        "downgrades": 0,
+        "stamps": 0,
+        "errors": 0,
+        "warnings": 0
+      },
+      "occurrences": [
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide1.xml",
+          "slide": 1,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide2.xml",
+          "slide": 2,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"500\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide5.xml",
+          "slide": 5,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        }
+      ],
+      "applied": [],
+      "findings": []
+    },
+    "standard": {
+      "counts": {
+        "occurrences": 5,
+        "downgrades": 0,
+        "stamps": 0,
+        "errors": 0,
+        "warnings": 0
+      },
+      "occurrences": [
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide1.xml",
+          "slide": 1,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide2.xml",
+          "slide": 2,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"500\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide5.xml",
+          "slide": 5,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        }
+      ],
+      "applied": [],
+      "findings": []
+    },
+    "max": {
+      "counts": {
+        "occurrences": 5,
+        "downgrades": 0,
+        "stamps": 0,
+        "errors": 0,
+        "warnings": 0
+      },
+      "occurrences": [
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide1.xml",
+          "slide": 1,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide2.xml",
+          "slide": 2,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide3.xml",
+          "slide": 3,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide4.xml",
+          "slide": 4,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"500\""
+        },
+        {
+          "feature": "p14:dur",
+          "part": "ppt/slides/slide5.xml",
+          "slide": 5,
+          "fallback": "not-required",
+          "detail": "p14:dur=\"400\""
+        }
+      ],
+      "applied": [],
+      "findings": []
+    }
+  }
+}

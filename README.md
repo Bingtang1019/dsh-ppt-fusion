@@ -6,7 +6,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 - 本包：`@dsh-ppt/dsh-ppt-fusion`，MIT，Node >= 22.19，bin `dsh-ppt`
 - 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）；本仓库 `docs/decisions.md` 是裁决记录（ADR），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M3 已验收，M4 第 1 部分（OPC 层 + 合并桥 + render 链）已落地。** M4 第 2 部分接近完成（动画施加点 ✅ ADR-032、T1 canonicalize + 黄金 v1 ✅ ADR-033、compat pass ✅ ADR-034、统一审计门 ✅ ADR-035；剩余合并纪律测试、三档兼容黄金、黄金重录）、M5–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
+> 状态：**M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
 
 ---
 
@@ -95,7 +95,7 @@ pnpm opc:check                  # P1/OPC 不变式
 ```
 src/           CLI、frontend、engine、bridge、schema、compat registry
 scripts/       opc-invariants、win-com-smoke、probe/测量工具
-fixtures/      hello deck（golden 输入）、master deep 项目、golden（base/deep/merged + golden-manifest.json）、M0 夹具 m0-fixtures.json
+fixtures/      hello deck（golden 输入）、master deep 项目、golden（base/deep/merged + golden-manifest.json + compat-levels.json）、M0 夹具 m0-fixtures.json
 python-assets/ requirements.in/.lock、上游 SHA manifest、vendor 文档位
 docs/          architecture / cli / contracts / decisions(ADR) / m0-* / compat/
 tests/         vitest 单元与契约回放；themes:record/verify、fixtures:record/verify（T1 黄金门）

@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { canonicalize, compareCanonical, type CanonicalPackage } from './canonicalize.ts'
+import { applyCompatPass, inspectCompat, type CompatChange, type CompatFinding, type CompatOccurrence, type CompatReport } from '../../src/bridge/compat.ts'
+import { OpcPackage } from '../../src/bridge/opc.ts'
+import { COMPAT_LEVELS, loadCompatRegistry, type CompatLevel } from '../../src/compat/registry.ts'
 import { renderDeck } from '../../src/commands/render.ts'
 import { themeEnsure } from '../../src/commands/theme.ts'
 import { defaultDependencies } from '../../src/commands/context.ts'
@@ -119,7 +122,7 @@ export async function describeArtifact(path: string): Promise<GoldenRef> {
  *
  * @returns one line per artifact plus a verdict.
  */
-export async function verifyGolden(recorded: GoldenManifest): Promise<{ ok: boolean; lines: string[] }> {
+export async function verifyGolden(recorded: GoldenManifest): Promise<{ ok: boolean; lines: string[]; staged: { base: string; deep: string; merged: string; output: string } }> {
   const staged = await renderGolden()
   const pairs: [string, GoldenRef, string][] = [
     ['base', recorded.baseRef, staged.base],
@@ -139,7 +142,7 @@ export async function verifyGolden(recorded: GoldenManifest): Promise<{ ok: bool
       `${label}: canonical ${comparison.equal ? 'equal' : `DIFFERENT (${comparison.differences.slice(0, 4).join('; ')})`}, bytes ${byteStable ? 'identical' : 'differ (expected for deep/merged)'} [${String(fresh.bytes)} bytes]`,
     )
   }
-  return { ok, lines }
+  return { ok, lines, staged }
 }
 
 /** @returns the recorded manifest, or null when nothing has been recorded yet. */
@@ -178,4 +181,97 @@ export async function writeGolden(staged: { base: string; deep: string; merged: 
   }
   writeFileSync(join(GOLDEN_DIR, 'golden-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return manifest
+}
+
+/** One compat level's stable report fields; the timestamp is deliberately absent. */
+export interface CompatLevelSnapshot {
+  readonly counts: CompatReport['counts']
+  readonly occurrences: readonly CompatOccurrence[]
+  readonly applied: readonly CompatChange[]
+  readonly findings: readonly CompatFinding[]
+}
+
+/** The three-level compat golden recorded beside the package manifest. */
+export interface CompatGolden {
+  readonly fixtureVersion: number
+  readonly registryVersion: number
+  readonly levels: Readonly<Record<CompatLevel, CompatLevelSnapshot>>
+}
+
+/** @returns the snapshot fields of one report, dropping the volatile timestamp. */
+function snapshotOf(report: CompatReport): CompatLevelSnapshot {
+  return { counts: report.counts, occurrences: report.occurrences, applied: report.applied, findings: report.findings }
+}
+
+/**
+ * Run the compat pass over one package at all three levels, each on its own clone.
+ *
+ * @param bytes - the merged package bytes.
+ * @returns the stable per-level snapshots.
+ * @throws DshPptFailure when the package cannot be read.
+ */
+export async function compatSnapshots(bytes: Buffer): Promise<CompatGolden> {
+  const levels = {} as Record<CompatLevel, CompatLevelSnapshot>
+  for (const level of COMPAT_LEVELS) {
+    const pkg = await OpcPackage.read(bytes)
+    const report = await applyCompatPass(pkg, { level })
+    levels[level] = snapshotOf(report)
+  }
+  return { fixtureVersion: 0, registryVersion: 0, levels }
+}
+
+/** @returns the recorded compat golden, or null when nothing has been recorded yet. */
+export function readCompatGolden(): CompatGolden | null {
+  const path = join(GOLDEN_DIR, 'compat-levels.json')
+  if (!existsSync(path)) return null
+  return JSON.parse(readFileSync(path, 'utf8')) as CompatGolden
+}
+
+/**
+ * Write the compat golden beside the package manifest, carrying the same fixture version.
+ *
+ * @param golden - the snapshots to write.
+ * @param fixtureVersion - the version the package manifest recorded.
+ * @returns the document that was written.
+ */
+export function writeCompatGolden(golden: CompatGolden, fixtureVersion: number): CompatGolden {
+  const document: CompatGolden = { ...golden, fixtureVersion, registryVersion: loadCompatRegistry().version }
+  writeFileSync(join(GOLDEN_DIR, 'compat-levels.json'), `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+  return document
+}
+
+/**
+ * The markers a level promises not to ship, checked on a package after the pass.
+ *
+ * @param pkg - the package to census.
+ * @param level - the level it was processed at.
+ * @returns one message per marker that should not be there.
+ */
+export function compatForbiddenMarkers(pkg: OpcPackage, level: CompatLevel): string[] {
+  const violations: string[] = []
+  if (level === 'max') return violations
+  const xmlParts = pkg.names().filter((name) => /\.xml$/.test(name)).map((name) => [name, pkg.text(name)] as const)
+  for (const [name, xml] of xmlParts) {
+    if (/\sp159:morph="/.test(xml)) violations.push(`${name}: a morph transition survived ${level}`)
+    const tier = level === 'safe' ? ['treemapChart', 'sunburstChart', 'histogramChart', 'waterfallChart', 'funnelChart', 'mapChart'] : ['mapChart']
+    for (const element of tier) {
+      if (new RegExp(`<c:${element}\\b`).test(xml)) violations.push(`${name}: ${element} survived ${level}`)
+    }
+  }
+  return violations
+}
+
+/**
+ * After the pass, every level must be structurally clean: the lint must report no
+ * findings, and no level may keep a marker it forbids.
+ *
+ * @param bytes - the merged package bytes.
+ * @param level - the level to check.
+ * @returns one message per violation; empty means the level holds.
+ */
+export async function assertCompatLevel(bytes: Buffer, level: CompatLevel): Promise<string[]> {
+  const processed = await OpcPackage.read(bytes)
+  await applyCompatPass(processed, { level })
+  const findings = inspectCompat(processed, { level }).findings.map((finding) => `${finding.rule}: ${finding.message}`)
+  return [...compatForbiddenMarkers(processed, level), ...findings]
 }

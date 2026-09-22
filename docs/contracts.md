@@ -378,6 +378,12 @@ recurse into `ppt/embeddings/*` (ADR-017).
 - **Inputs.** `fixtures/hello` commits authored inputs only (IR, manifest, two deep SVGs,
   `post/animations.json`); `theme.json`/`tokens.json`/`master-design.json` are derived by
   `theme ensure` in the scratch copy, so a theme-bridge regression fails this same gate.
+- **Compat levels.** `fixtures/golden/compat-levels.json` carries one stable snapshot per level
+  (counts, occurrences, applied, findings; no timestamp) at the manifest fixtureVersion.
+  `fixtures:verify` recomputes the pass over the fresh merged package, compares each snapshot,
+  and asserts the level promises: no morph at `safe`/`standard`, no 2016+ chart at `safe`, no
+  2019+ chart below `max`, and no lint finding at any level (MCE pairs complete, every
+  `asvg:svgBlip` with its raster sibling) — ADR-037.
 
 ## 12. Unified audit gate (M4 part 2)
 

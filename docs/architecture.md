@@ -91,7 +91,8 @@ passes only when a caller names it in `allowCredentials`.
   exported with `--pptx-structure flat`, so remapping their layout onto the receiving
   deck's layout cannot move content.
 - **Deterministic tiers.** T1 (semantic equality after canonicalisation —
-  `tests/support/canonicalize.ts`, run by `pnpm fixtures:verify`) is the hard CI gate; T2 (our own bytes stable) is a goal; T3 (whole chain byte-identical) is never a
+  `tests/support/canonicalize.ts`, run by `pnpm fixtures:verify`, which also re-checks the
+  three compat-level snapshots) is the hard CI gate; T2 (our own bytes stable) is a goal; T3 (whole chain byte-identical) is never a
   v1 gate, because the upstream exporter timestamps its output (ADR-014, ADR-017).
 - **Model-visible means logged.** Anything that reaches a model request is
   reconstructable from the DSH session log; this package also keeps its own per-run logs
