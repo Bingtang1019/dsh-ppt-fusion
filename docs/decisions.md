@@ -54,6 +54,17 @@ the ADR wins.**
 | 041 | T2 fix: pin every zip entry date, folders included |
 | 042 | Motion breadth (emphasis/paths) and narration: COM-verified wrapper, two TTS blockers |
 | 043 | Narration lands: notes roster, embedded audio, and the merge bugs it found |
+| 044 | SKILL budget gate: prompt-audit thresholds, vendored links, tiktoken pin |
+| 045 | Checkpoint and resume: model-authored state, read-only reporting, opt-in brief |
+| 046 | M6 eval harness: headless profile, isolated DSH_HOME, package rubric |
+| 047 | M6 verdict GO; brand fidelity rule fixed and re-confirmed |
+| 048 | Keyed image providers receive their keys; openverse/wikimedia unreachable here |
+| 049 | `dsh-ppt preview`: pptwise pages plus authored deep SVG overlays |
+| 050 | DSH plugin bundle: skill + preview tool + card, scratch-profile verified |
+| 051 | M8 compatibility claims: T1 allowed after the user's WPS sign-off |
+| 052 | M8 matrices: six theme menus, pixel ΔE gate, 60-page capacity probe |
+| 053 | Upstream drill: no newer patch exists; drift detection is the rehearsal |
+| 054 | V5 sync: plan, README, architecture, acceptance-report, docs index |
 
 ---
 
@@ -1344,9 +1355,9 @@ the ADR wins.**
 - **Verification (M7.5, ops discipline).** Scratch profile `~/.dsh/profiles/ppt-eval` (base +
   web-app bundles): `dsh plugin --profile ppt-eval add -w link:<checkout>` updated
   `dependencies` and `dsh.profile.bundles`; `--dump-config` showed the
-  `# == @dsh-ppt/dsh-ppt-fusion` layer; booting on port 3098 logged no plugin skip line and
+  `# == @dsh-ppt/dsh-ppt-flashmade` layer; booting on port 3098 logged no plugin skip line and
   answered `GET /dsh-ppt/preview/does-not-exist` with 404, `x-dsh-ppt-preview: 1` and
-  `preview_unknown`; `remove -w @dsh-ppt/dsh-ppt-fusion` removed both the dependency and the
+  `preview_unknown`; `remove -w @dsh-ppt/dsh-ppt-flashmade` removed both the dependency and the
   bundle entry, left no `node_modules/@dsh-ppt`, and the linked checkout was intact. Backups
   and the changelog entry live in `~/.dsh/CHANGELOG-dsh.md`; the browser card is the one check
   a browser-less host cannot do.
@@ -1415,3 +1426,47 @@ the ADR wins.**
 - **Alternatives rejected:** upgrading to an older patch to rehearse (artificial, no new
   signal); re-recording fixtures against a hypothetical bump (nothing to record); leaving
   detection to a human reading the verify log (the matrix gate now fails on drift).
+
+## ADR-054 — V5 sync: plan, README, architecture, acceptance-report, docs index
+
+- **Date:** 2026-09-23
+- **Decision:** The external plan `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md` is advanced to
+  **v5**: M0–M8 are recorded as verified/complete from ADR-001…053, M9 as "prep done, two
+  items pending user" (npm publish channel and the real `web`-profile install), and the
+  remaining work is consolidated into plan §4.5's eight-item closing list. The repo docs are
+  re-synced in the same pass: `README.md` status banner now says M0–M8 verified / M9 prep
+  done; `docs/architecture.md` references plan v5 and ADR-001…054; this file's index gains
+  rows 044–054; `docs/acceptance-report.md`'s WPS paragraph is corrected to ADR-051's
+  decision (user sign-off on 2026-09-22 allows the T1 claim; capture the concrete WPS build
+  and per-item notes next run, and a future failure reverts to T2).
+- **Evidence:** `pnpm typecheck` exit 0 and `pnpm test` **314 tests / 43 files green** on
+  2026-09-23; git log from `616345e` (M4 part 1) through `0b2c75c` (M9 prep) records every
+  milestone; `docs/acceptance-report.md`, `docs/m6-model-eval.md`, `docs/capacity.md`,
+  `docs/compat/{matrix,wps-report}.md` and `docs/upstream-drill.md` exist and carry the
+  recorded evidence; `docs/decisions.md` carries ADR-001…054 with an index row for each.
+- **Alternatives rejected:** editing historical ADRs or old reports to reflect later facts
+  (records stay as written; v5 and this entry carry the consolidated view); declaring the
+  project fully closed (M9 publish and the real-profile install are user-gated and remain
+  open by design).
+
+## ADR-054 — Public identity: @dsh-ppt/dsh-ppt-flashmade on GitHub under Bingtang1019
+
+- **Date:** 2026-09-23
+- **Decision:** The published package name is `@dsh-ppt/dsh-ppt-flashmade` (the user asked
+  for `@dsh-ppt/dsh-ppt-FlashMade`; npm rejects uppercase in new package names, so the
+  registry form is all-lowercase and "FlashMade" stays the product name in prose). The
+  repository is published under `https://github.com/Bingtang1019/`. The plugin id, skill name
+  and CLI stay `dsh-ppt-fusion` / `dsh-ppt-fusion` / `dsh-ppt` so the workflow's documents,
+  the SKILL and every ADR keep referring to one name.
+- **Renamed surfaces.** `package.json` `name`, `cordis.patch.yml`'s bundle row, the client
+  module id in `dsh/client.js`, and the install/README/architecture/acceptance references. The
+  DSH plugin card label derives from the package name, so it now reads `dsh-ppt-flashmade`.
+- **Secrets policy.** `.gitignore` now also excludes `.env.local`, `*.pem|key|pfx|p12`,
+  `.credentials.yaml`, credential-shaped YAML, and release tarballs; `.npmrc` carries a
+  never-put-a-token-here comment because it is tracked. A history scan over every blob found
+  no provider key, npm token or credential value (the Pexels and DeepSeek keys were only ever
+  passed through process environment variables).
+- **Alternatives rejected:** publishing the mixed-case name (npm rejects it); renaming the
+  plugin/skill/CLI to FlashMade in the same step (breaks the plan's vocabulary and every
+  document for no functional gain); committing the machine's credential files (they live in
+  `~/.dsh` and stay there).

@@ -3,10 +3,10 @@
 DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5、24 套主题、审计、预览）与 **ppt-master** 的深度引擎（SVG→DrawingML、原生图表/表格/公式、动画/旁白）融合成一条 `dsh-ppt` 命令链。
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
-- 本包：`@dsh-ppt/dsh-ppt-fusion`，MIT，Node >= 22.19，bin `dsh-ppt`
-- 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v4）；本仓库 `docs/decisions.md` 是裁决记录（ADR），冲突时 **ADR 比计划新**。
+- 本包：`@dsh-ppt/dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
+- 权威计划：仓库外的 `C:\Users\dell\Desktop\PPT-FUSION-PLAN.md`（v5）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…054），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M5 完成（M5 三项网络验收已补 2 项：web source 与 edge 旁白；无 key 图片搜索仍受加速器路由限制）。** M0–M4 已验收：M4 第 1 部分（OPC 层 + 合并桥 + render 链）与第 2 部分 ①–⑥ 全部落地**（ADR-032…037：动画施加点、compat pass、合并兼容纪律、三档兼容黄金、T1 canonicalize + 黄金 v2、统一审计门）。M5 进行中（`deep native roundtrip`、`deep template create/apply/register`、`brand extract`、`source` 五路 + URL 策略、`images search`（署名清单）、`post animate`（emphasis/路径广度）、`narrate`（edge 默认 + 声音清单）已落地，ADR-038…042；旁白黄金待网络与 notes roster）、M6–M9 待做；DSH 插件壳（`dsh/index.js`/`cordis.patch.yml`/`dsh` 字段）按计划在 **M7** 落地，当前包以 CLI + 库形态开发。
+> 状态：**M0–M8 已验收，M9 发布准备完成（v1 功能交付）。** 剩余收尾：① npm 发布渠道确认（`private:true` 待移除）；② 按 `dsh-ops-discipline` 安装到真实 `web` profile；③ WPS 版本明细回填、LibreOffice CI 首跑、浏览器卡片复核等外部资源项（完整清单见计划 §4.5 / `docs/acceptance-report.md`）。
 
 ---
 

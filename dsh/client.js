@@ -55,7 +55,7 @@
 // and keeps only the two things the file cannot do for itself: close, and hand
 // over the .pptx.
 window.__ModuleLoader__.load({
-  id: '@dsh-ppt/dsh-ppt-fusion',
+  id: '@dsh-ppt/dsh-ppt-flashmade',
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports

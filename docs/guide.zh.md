@@ -24,13 +24,13 @@ node <仓库>/dist/cli.js doctor --repair
 dsh --profile <profile> --dump-config | grep -A1 'dsh-ppt-fusion'
 ```
 
-应看到 `# == @dsh-ppt/dsh-ppt-fusion` 层；重启后浏览器无红条、技能列表里有
+应看到 `# == @dsh-ppt/dsh-ppt-flashmade` 层；重启后浏览器无红条、技能列表里有
 `dsh-ppt-fusion`、调用一次 `dsh_ppt_preview` 会出预览卡片。
 
 卸载：
 
 ```sh
-dsh plugin --profile <profile> remove -w @dsh-ppt/dsh-ppt-fusion
+dsh plugin --profile <profile> remove -w @dsh-ppt/dsh-ppt-flashmade
 ```
 
 依赖、bundle 条目、skill/tool/路由随之消失，不会在用户机器上留残留。

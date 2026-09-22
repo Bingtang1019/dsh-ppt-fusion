@@ -1,9 +1,9 @@
 # Architecture
 
-`@dsh-ppt/dsh-ppt-fusion` fuses two upstream engines under one DeepSeek Harness plugin.
+`@dsh-ppt/dsh-ppt-flashmade` fuses two upstream engines under one DeepSeek Harness plugin.
 This document records the runtime boundary between them, what each layer owns, and the
-invariants the code enforces. Plan references are to `PPT-FUSION-PLAN.md` **v4**; the
-authoritative arbitration record is `docs/decisions.md` (ADR-001…030) — when they
+invariants the code enforces. Plan references are to `PPT-FUSION-PLAN.md` **v5**; the
+authoritative arbitration record is `docs/decisions.md` (ADR-001…054) — when they
 conflict, the newer ADR wins and the plan is updated to match.
 
 ## Dual runtime (S2)
@@ -35,8 +35,8 @@ dsh-ppt CLI                        node >= 22.19
 
 The venv is created on the user's machine from `python-assets/requirements.lock` and is
 never shipped: that keeps `PyMuPDF` (AGPL-3.0), which arrives with ppt-master, out of
-anything redistributed. `docs/licensing.md` lands with M9 and is the release-time
-full/minimal checklist.
+anything redistributed. `docs/licensing.md` is the release-time full/minimal checklist
+(present since M8/M9 prep).
 
 ## Layers and ownership
 

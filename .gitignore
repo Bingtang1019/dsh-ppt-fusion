@@ -24,3 +24,22 @@ fixtures/**/live_preview/
 .env
 .env.*
 !.env.example
+
+# Secrets and local credentials (never commit these; the DSH credentials file and
+# provider keys live outside this repository)
+.env.local
+.env.*.local
+*.pem
+*.key
+*.pfx
+*.p12
+.credentials.yaml
+*credentials*.yaml
+*credentials*.yml
+
+# Release tarballs and local packing output
+*.tgz
+pack/
+
+# Local engine/venv and preview caches (must stay outside the repository anyway)
+.dsh-ppt-cache/
