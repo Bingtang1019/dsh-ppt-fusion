@@ -97,6 +97,17 @@ describe('canonicalize', () => {
     expect(compareCanonical(await pack(slide('14600')), withoutAttribute).equal).toBe(false)
   })
 
+  it('folds platform line endings the way an XML parser does', async () => {
+    const pack = async (xml: string) => {
+      const archive = new JSZip()
+      archive.file('ppt/notesSlides/notesSlide1.xml', xml)
+      return canonicalize(await archive.generateAsync({ type: 'nodebuffer' }))
+    }
+    const windows = '<p:notes xmlns:a="urn:a"\r\n    xmlns:r="urn:r"><p:cSld/></p:notes>\r\n'
+    const posix = '<p:notes xmlns:a="urn:a"\n    xmlns:r="urn:r"><p:cSld/></p:notes>\n'
+    expect(compareCanonical(await pack(windows), await pack(posix)).equal).toBe(true)
+  })
+
   it('walks into a nested package to name the divergent member', async () => {
     const base = await canonicalize(await packageBytes({ workbook: { 'xl/worksheets/sheet1.xml': '<sheetData><row>1</row></sheetData>' } }))
     const other = await canonicalize(await packageBytes({ workbook: { 'xl/worksheets/sheet1.xml': '<sheetData><row>2</row></sheetData>' } }))

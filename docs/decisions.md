@@ -1502,6 +1502,14 @@ the ADR wins.**
   differed on `ppt/slides/slide2.xml` alone. The gate still compares the attribute's presence,
   the timing tree that contains it, and the audio parts byte-for-byte; only the measured number
   is dropped, beside the producer timestamps already normalised for the same reason.
+- **Decision (ubuntu golden leg).** `normalizeXml` folds CRLF and CR to LF before any other
+  rule, which is what an XML 1.0 parser does with end-of-line sequences. The upstream exporter
+  writes its notes parts and relationship files with the host's line endings, so with that rule
+  absent the deep package differed on `ppt/notesSlides/notesSlide1.xml`,
+  `ppt/notesSlides/notesSlide2.xml`, `ppt/notesMasters/notesMaster1.xml` and
+  `ppt/slides/_rels/slide2.xml.rels` — by exactly the number of CRs those files carry inside
+  tags. A deck-wide CRLF→LF conversion of the recorded package now compares equal with zero
+  differences.
 - **Decision (diagnosability).** A mismatch now prints the first divergence of each differing
   part with bounded context (`tests/support/canonicalize.ts:describePartDifference`). The failing
   CI run named the part but not the value, which costs an extra round trip per environment.

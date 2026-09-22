@@ -41,6 +41,9 @@ const NESTED_EXTENSIONS = ['.xlsx', '.docx', '.pptx', '.xlsm', '.docm']
 function normalizeXml(xml: string): string {
   return (
     xml
+      // XML 1.0 end-of-line handling: a parser folds CRLF and CR to LF, so the
+      // engines' platform line endings must not read as a content difference.
+      .replace(/\r\n?/g, '\n')
       // Producer metadata: created/modified stamps, revision counter, edit time.
       .replace(/<dcterms:created[^>]*>[^<]*<\/dcterms:created>/g, '<dcterms:created/>')
       .replace(/<dcterms:modified[^>]*>[^<]*<\/dcterms:modified>/g, '<dcterms:modified/>')
