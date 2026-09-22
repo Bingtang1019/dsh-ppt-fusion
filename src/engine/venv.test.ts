@@ -81,6 +81,21 @@ describe('resolveUv', () => {
   })
 })
 
+describe('venv layout across platforms', () => {
+  it('uses Scripts and Lib\\site-packages on Windows', () => {
+    const win = venvPaths('C:/home/.dsh', '0.1.128', '3.13', 'win32')
+    expect(win.pythonExe.endsWith(join('Scripts', 'python.exe'))).toBe(true)
+    expect(win.sitePackages.endsWith(join('Lib', 'site-packages'))).toBe(true)
+  })
+
+  it('uses bin and lib/pythonX.Y/site-packages elsewhere, which is what the ubuntu CI leg sees', () => {
+    const posix = venvPaths('/home/me/.dsh', '0.1.128', '3.13', 'linux')
+    expect(posix.pythonExe).toBe('/home/me/.dsh/ppt-fusion/venvs/ppt-master-0.1.128/bin/python')
+    expect(posix.engineExe).toBe('/home/me/.dsh/ppt-fusion/venvs/ppt-master-0.1.128/bin/ppt-master')
+    expect(posix.sitePackages).toBe('/home/me/.dsh/ppt-fusion/venvs/ppt-master-0.1.128/lib/python3.13/site-packages')
+  })
+})
+
 describe('venv state', () => {
   const managerWith = (fs: FakeFileSystem) =>
     createVenvManager({

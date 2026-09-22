@@ -305,7 +305,7 @@ edited to match reality.
 - **Decision:** M1 is accepted on the following measurements; the next milestone may
   build on them.
 - **Evidence:**
-  - `pnpm typecheck`, `pnpm lint` and `pnpm test` are clean; 45 unit tests across
+  - `pnpm typecheck`, `pnpm lint` and `pnpm test` are clean; 47 unit tests across
     `frontend.test.ts`, `engine/contracts.test.ts`, `engine/venv.test.ts` and
     `engine/master.test.ts`, all driven through injected process and filesystem ports
     (no network, no venv, no PowerPoint).

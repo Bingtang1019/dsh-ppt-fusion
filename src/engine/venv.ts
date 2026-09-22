@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, posix, win32 } from 'node:path'
 import { DshPptFailure, tailOf } from './errors.ts'
 import type { EngineInvocation } from './contracts.ts'
 import { ENGINE_ENV, buildEnv, type RunResult, type Runner } from './runner.ts'
@@ -120,8 +120,11 @@ export function venvPaths(
   pythonVersion: string,
   platform: NodeJS.Platform = process.platform,
 ): VenvPaths {
-  const root = join(dshHome, 'ppt-fusion', 'venvs', `ppt-master-${engineVersion}`)
+  // The layout follows the argument, not the host, so the same call produces the
+  // same paths everywhere and the CI leg for the other platform is testable.
   const windows = platform === 'win32'
+  const join = windows ? win32.join : posix.join
+  const root = join(dshHome, 'ppt-fusion', 'venvs', `ppt-master-${engineVersion}`)
   return {
     root,
     pythonExe: windows ? join(root, 'Scripts', 'python.exe') : join(root, 'bin', 'python'),
