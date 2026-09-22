@@ -62,7 +62,7 @@ deck/
 
 - **P1 单一母版**：merged deck 恰好 1 个 `slideMaster`，所有 layout 指向它；`scripts/opc-invariants.mjs --single-master` 硬门（M0/M4 均已验证）。
 - **deep 页绝对定位**：deep 页走 `--pptx-structure flat`，layout remap 不动内容。
-- **确定性三级**：T1 语义确定性 = 硬门（`tests/support/canonicalize.ts` 递归进 `ppt/embeddings/*`，`pnpm fixtures:verify` 在 CI 执行）；T2 本包字节稳定 = 目标（merge 步骤已达成）；T3 全链字节一致 = 非 v1 门（master 输出时间戳不稳定）。
+- **确定性三级**：T1 语义确定性 = 硬门（`tests/support/canonicalize.ts` 递归进 `ppt/embeddings/*`，`pnpm fixtures:verify` 在 CI 执行）；T2 本包字节稳定 = 目标（merge 步骤已达成，且每个 zip entry 含目录项都钉死在固定时间戳，ADR-041）；T3 全链字节一致 = 非 v1 门（master 输出时间戳不稳定）。
 - **兼容性被声明、不靠假设**：`src/compat/registry.json` 登记每个版本敏感标记的最低 Office/WPS 支持与降级规则；`render --compat safe|standard|max` 覆盖 manifest 的 `compat` 字段，默认 `standard`（Office 2016+/WPS 2019+）；报告写 `out/compat-report.json`，哈希进 `out/manifest.json`（ADR-034）。
 - **失败分类**：每个错误是 `src/engine/errors.ts` 的封闭枚举，CLI 打印 `dsh-ppt: <code> <message>`。
 - **交付门**：`dsh-ppt audit` 聚合八源（validate、pptwise、引擎门、OPC+P1、delivery、compat、可选 ΔE）；缺产物是 error 并把跳过的源记入 `skipped`（ADR-035）。

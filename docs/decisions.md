@@ -51,6 +51,7 @@ the ADR wins.**
 | 038 | M5 opens: native round trip, template routing, brand extraction |
 | 039 | Source pipeline: five routes, fail-closed URL policy, 5 MiB output cap |
 | 040 | Image search records provenance and refuses unattributed images |
+| 041 | T2 fix: pin every zip entry date, folders included |
 
 ---
 
@@ -1036,3 +1037,31 @@ the ADR wins.**
   contract); requiring the caller to always name `--filename` (the engine error is cryptic and
   the query already implies a name); skipping the URL policy for `--from-url` (the same SSRF
   surface as `source`).
+
+## ADR-041 — T2 was only true inside a two-second window: JSZip folder entries carried the clock
+
+- **Date:** 2026-09-22
+- **Decision:** `OpcPackage.write` pins the date of **every** zip entry to the fixed
+  `1980-01-01T00:00:00Z` it already used for part entries, instead of only passing that date to
+  `zip.file()`. Regression tests assert that all entries carry the fixed date and that two writes
+  separated by a 2.1-second sleep are byte-identical.
+- **What was wrong.** JSZip creates a folder entry for every path segment (`ppt/`,
+  `ppt/slides/`, …) and dates it with the wall clock. `write()` created a fresh JSZip per call
+  and only the part entries received the fixed date, so a package written twice inside the same
+  DOS-time bucket was identical and a write across a bucket boundary was not. DOS time has a
+  two-second resolution, which is why `mergeDeep > is byte-stable` and `applyPost > is idempotent`
+  passed most runs and failed roughly one in four.
+- **How it surfaced.** The M5 unit-test runs showed the two byte-stability tests failing
+  intermittently; a 200-write stress loop on one package reproduced it deterministically
+  (hashes changed at writes 22/79/178 and stayed changed until the next boundary). The fix makes
+  that loop produce exactly one hash across 60 writes separated by a 2.5-second pause.
+- **Scope of the old claim.** The T2 claim covered our own writer with fixed input, so the bug
+  was real but narrow: T1 (canonical) never saw it because canonicalisation ignores zip metadata,
+  and T3 was never claimed. The recorded `fixtures/golden/hello-merged.pptx` was written by the
+  buggy writer, so its folder entries carry a record-time date; canonical equality is unaffected
+  and the M5.6 re-record picks up the fixed writer. No golden bump is needed for the fix alone.
+- **Alternatives rejected:** post-processing the zip to rewrite folder timestamps (a second pass
+  over the archive for a one-line fix); dropping folder entries entirely with
+  `createFolders: false` (legal OPC, but Office writes them and the recorded artifacts already
+  have them, so keeping the shape is the smaller change); accepting the flake (a determinism gate
+  that fails one run in four trains people to ignore it).

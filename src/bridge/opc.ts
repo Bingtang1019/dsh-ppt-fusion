@@ -244,6 +244,12 @@ export class OpcPackage {
     for (const name of this.names()) {
       zip.file(name, this.parts.get(name) ?? Buffer.alloc(0), { date, binary: true })
     }
+    // JSZip creates a folder entry for every path segment and dates it with the wall
+    // clock, so two writes of identical parts differed across a two-second DOS-time
+    // boundary. Pin every entry (folders included) to the fixed date the parts use.
+    for (const entry of Object.values(zip.files)) {
+      if (entry.date.getTime() !== date.getTime()) entry.date = date
+    }
     return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 }, platform: 'UNIX' })
   }
 

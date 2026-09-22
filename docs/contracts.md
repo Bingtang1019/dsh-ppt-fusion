@@ -376,6 +376,9 @@ recurse into `ppt/embeddings/*` (ADR-017).
   stable for fixed input — is a target with unit coverage. T3 (whole-chain bytes) is never a
   v1 gate; `fixtures:verify` reports base byte stability (measured in M0) and expects
   deep/merged bytes to differ.
+- **Writer determinism.** Every zip entry, including the folder entries JSZip creates
+  implicitly, is stamped with the fixed date `1980-01-01T00:00:00Z`; without that pin two
+  writes of identical parts differed across a two-second DOS-time boundary (ADR-041).
 - **Manifest.** `fixtures/golden/golden-manifest.json`: `fixtureVersion`,
   `upstream.{pptwise,ppt-master}`, `baseRef`/`deepRef`/`mergedRef` with `file`, `sha256`,
   `canonical`, `bytes`, plus `generatedBy`, `command`, `createdAt`. `m0-fixtures.json` is
