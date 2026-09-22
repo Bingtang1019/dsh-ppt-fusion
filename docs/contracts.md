@@ -435,6 +435,17 @@ and `skipped`.
   after the input and de-duplicated with a `-2` suffix; the engine may also write
   `<stem>.conversion_profile.json`, which is recorded in the manifest. `sources/` receives
   `source-manifest.json` with `{input, type, output, bytes, profile?}` per entry.
+- **Images.** `dsh-ppt images search <query> [--from-url <url>]` calls `image-search` with
+  `-o assets` and `--manifest assets/image_sources.json`, so the engine appends one entry
+  per download: `filename`, `provider`, `author`, `license_name`, `license_url`,
+  `license_tier`, `attribution_required`, `attribution_text`, `source_page_url`,
+  `download_url`, `search_query`, `slide`, `purpose`, `width`/`height`. The command
+  validates every item (`filename`, `provider`, `license_name`, and `attribution_text`
+  whenever `attribution_required`) and fails the run otherwise, so a recorded image can never
+  be unattributed. `--strict-no-attribution` is passed to the engine and re-checked here;
+  `--from-url` passes the same public-http policy as `source`. A filename is required by the
+  engine in single-query mode, so one is derived from the query (or the URL extension) when the
+  caller does not name it.
 - **Caps.** The written Markdown must be non-empty and at most 5 MiB
   (`SOURCE_MAX_BYTES`); anything larger is a `ContractViolation`. Fetch-time MIME and byte
   limits stay the engine's responsibility (it writes Markdown text, and remote images stay

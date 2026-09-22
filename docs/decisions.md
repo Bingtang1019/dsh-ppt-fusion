@@ -50,6 +50,7 @@ the ADR wins.**
 | 037 | Compat goldens for all three levels, and the fixtureVersion 2 re-record |
 | 038 | M5 opens: native round trip, template routing, brand extraction |
 | 039 | Source pipeline: five routes, fail-closed URL policy, 5 MiB output cap |
+| 040 | Image search records provenance and refuses unattributed images |
 
 ---
 
@@ -1006,3 +1007,32 @@ the ADR wins.**
   resolve to any private address only when the *first* answer is private (a split-horizon answer
   would slip through); a bespoke downloader for MIME/size (duplicate fetch path, new SSRF
   surface); treating a DNS failure as "allow" (fail-open).
+
+## ADR-040 — Image search records provenance, and refuses an unattributed image
+
+- **Date:** 2026-09-22
+- **Decision:** `dsh-ppt images search` wraps `image-search` with the fusion defaults
+  (`assets/` plus `assets/image_sources.json`), requires a filename (deriving one from the
+  query or the URL extension, because the engine demands one in single-query mode), validates
+  every manifest item before reporting success, and routes `--from-url` through the same
+  public-http policy as `source` (ADR-039).
+- **Attribution rule.** Each item must carry `filename`, `provider` and `license_name`, and
+  `attribution_text` whenever `attribution_required` is true; otherwise the command fails with
+  a `ContractViolation` naming the item and the missing fields. The engine manifest keeps its
+  own schema (`items[]` with author, licence, licence URL, source page, download URL, search
+  query, slide, purpose, measured dimensions); the fusion does not rewrite it, so upstream
+  provenance stays intact.
+- **Evidence.** The command path is measured end to end: a real `images search mountain
+  --provider openverse` reaches the provider and fails with the engine timeout against
+  `api.openverse.org` (this machine has no outbound network), while `--from-url
+  http://127.0.0.1/x.jpg` is refused by the policy before any process starts
+  (`UsageError source URL host 127.0.0.1 is not a public address`). Six unit tests cover the
+  happy path, the passthrough flags, the missing-licence and missing-attribution refusals, the
+  strict-mode re-check, the URL policy and a missing/unreadable manifest; a recorded golden
+  download stays blocked until network access exists.
+- **Alternatives rejected:** letting the engine own the attribution rule (it writes
+  `attribution_required` but does not fail a run whose text is missing); rewriting the engine
+  manifest into a fusion schema (loses upstream fields and breaks the engine append-only
+  contract); requiring the caller to always name `--filename` (the engine error is cryptic and
+  the query already implies a name); skipping the URL policy for `--from-url` (the same SSRF
+  surface as `source`).

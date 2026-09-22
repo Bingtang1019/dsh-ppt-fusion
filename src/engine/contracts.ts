@@ -422,6 +422,18 @@ export interface ImageSearchParams {
   /** Refuse results that require attribution (CC BY / CC BY-SA). */
   readonly strictNoAttribution?: boolean
   readonly minWidth?: number
+  /** Directory the download lands in, workspace-relative. */
+  readonly output?: string
+  /** Attribution manifest the engine appends to, workspace-relative. */
+  readonly manifest?: string
+  /** Thumbnail-selection mode; no original is downloaded. */
+  readonly saveCandidates?: boolean
+  readonly maxCandidates?: number
+  /** Download one directly selected URL and record it as `manual`. */
+  readonly fromUrl?: string
+  /** Free-text purpose and slide number recorded in the manifest. */
+  readonly purpose?: string
+  readonly slide?: number
 }
 
 /**
@@ -441,7 +453,14 @@ export function imageSearch(params: ImageSearchParams): EngineInvocation {
   if (params.filename !== undefined) argv.push('--filename', params.filename)
   if (params.strictNoAttribution === true) argv.push('--strict-no-attribution')
   if (params.minWidth !== undefined) argv.push('--min-width', String(params.minWidth))
-  return { id: 'image-search', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: [] }
+  if (params.output !== undefined) argv.push('-o', params.output)
+  if (params.manifest !== undefined) argv.push('--manifest', params.manifest)
+  if (params.saveCandidates === true) argv.push('--save-candidates')
+  if (params.maxCandidates !== undefined) argv.push('--max-candidates', String(params.maxCandidates))
+  if (params.fromUrl !== undefined) argv.push('--from-url', params.fromUrl)
+  if (params.purpose !== undefined) argv.push('--purpose', params.purpose)
+  if (params.slide !== undefined) argv.push('--slide', String(params.slide))
+  return { id: 'image-search', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: params.manifest === undefined ? [] : [params.manifest] }
 }
 
 /** Types the unified `source-to-md` dispatcher accepts via `-t`. */

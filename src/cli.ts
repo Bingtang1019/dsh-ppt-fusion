@@ -15,12 +15,13 @@ import { brandExtract } from './commands/brand.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
+import { formatImagesSearch, imagesSearch } from './commands/images.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
-import { INHERITANCE_MODES, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
+import { IMAGE_ORIENTATIONS, IMAGE_PROVIDERS, INHERITANCE_MODES, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
 
 /**
  * Read the package version from the manifest next to this file.
@@ -263,6 +264,45 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         process.stdout.write(`${entry.type} ${entry.input} -> ${entry.output} (${String(entry.bytes)} bytes)\n`)
       }
       process.stdout.write(`wrote ${result.manifestPath}\n`)
+    })
+
+  const images = program.command('images').description('find openly licensed images for a deck')
+  images
+    .command('search')
+    .description('search, download and record one openly licensed image')
+    .argument('[query]', 'search terms (1-4 concrete keywords work best); omit with --from-url')
+    .option('--dir <dir>', 'workspace the paths resolve against', '.')
+    .addOption(new Option('--provider <provider>', 'image source').choices([...IMAGE_PROVIDERS]))
+    .addOption(new Option('--orientation <orientation>', 'picture orientation').choices([...IMAGE_ORIENTATIONS]).default('any'))
+    .option('--filename <name>', 'filename to save under')
+    .option('--min-width <n>', 'minimum width in pixels', (value: string) => Number.parseInt(value, 10))
+    .option('--strict-no-attribution', 'refuse licence terms that require attribution')
+    .option('-o, --output <dir>', 'download directory (default assets)')
+    .option('--manifest <file>', 'attribution manifest path')
+    .option('--save-candidates', 'save ranked previews and download no original')
+    .option('--max-candidates <n>', 'preview page size', (value: string) => Number.parseInt(value, 10))
+    .option('--from-url <url>', 'download one directly selected URL (recorded as manual)')
+    .option('--purpose <text>', 'purpose recorded in the manifest')
+    .option('--slide <n>', 'slide number recorded in the manifest', (value: string) => Number.parseInt(value, 10))
+    .action(async (query: string | undefined, options: Record<string, string | number | boolean | undefined>) => {
+      const result = await imagesSearch({
+        dir: String(options.dir ?? '.'),
+        query: query ?? '',
+        deps,
+        ...(options.provider === undefined ? {} : { provider: options.provider as (typeof IMAGE_PROVIDERS)[number] }),
+        ...(options.orientation === undefined ? {} : { orientation: options.orientation as (typeof IMAGE_ORIENTATIONS)[number] }),
+        ...(options.filename === undefined ? {} : { filename: String(options.filename) }),
+        ...(options.minWidth === undefined ? {} : { minWidth: Number(options.minWidth) }),
+        ...(options.strictNoAttribution === true ? { strictNoAttribution: true } : {}),
+        ...(options.output === undefined ? {} : { output: String(options.output) }),
+        ...(options.manifest === undefined ? {} : { manifest: String(options.manifest) }),
+        ...(options.saveCandidates === true ? { saveCandidates: true } : {}),
+        ...(options.maxCandidates === undefined ? {} : { maxCandidates: Number(options.maxCandidates) }),
+        ...(options.fromUrl === undefined ? {} : { fromUrl: String(options.fromUrl) }),
+        ...(options.purpose === undefined ? {} : { purpose: String(options.purpose) }),
+        ...(options.slide === undefined ? {} : { slide: Number(options.slide) }),
+      })
+      process.stdout.write(`${formatImagesSearch(result)}\n`)
     })
 
   const brand = program.command('brand').description('read a customer deck brand into a theme')

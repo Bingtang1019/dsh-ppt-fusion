@@ -187,6 +187,17 @@ command; `--strict` also fails on warnings. Without an artifact the command repo
 
 ## Implemented (M5)
 
+### `dsh-ppt images search [query] [--dir <dir>] [--provider <p>] [--orientation <o>] [--filename <name>] [--min-width <n>] [--strict-no-attribution] [-o <dir>] [--manifest <file>] [--save-candidates] [--max-candidates <n>] [--from-url <url>] [--purpose <text>] [--slide <n>]`
+
+Searches the openly licensed providers the engine knows (openverse/wikimedia need no key),
+downloads one image into `assets/` and records it in `assets/image_sources.json` with its
+author, licence, licence URL, source page and ready-made attribution text. Every manifest item
+is validated: a missing licence or a required attribution without text fails the command, and
+`--strict-no-attribution` refuses attribution-requiring licences outright. `--from-url`
+downloads one directly selected image (licence recorded as `manual`) and passes the same
+public-http policy as `source`.
+
+
 ### `dsh-ppt source <input...> [-o <dir>] [--dir <dir>] [--type <type>] [--no-images]`
 
 Converts source documents into Markdown through the engine's unified dispatcher: PDF, DOCX
@@ -239,7 +250,7 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 | Command | Milestone |
 |---|---|
 | `brand extract`, `theme` file binding via `brand` | M5 |
-| `deep check|chart`, `images search` | M3/M5 |
+| `deep check|chart` | M3/M5 |
 | `post animate`, `narrate`, `preview`, `serve`, `deep template create/apply`, `deep native roundtrip` | M4 part 2 / M5 |
 | `resume`, `skill audit` | M6 |
 
