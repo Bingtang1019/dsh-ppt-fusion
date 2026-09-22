@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { OpcPackage, auditPackage, listSlides } from './opc.ts'
 import { mergeDeep } from './merge.ts'
+import { findAlternateContents } from './compat.ts'
 import { DshPptFailure } from '../engine/errors.ts'
 
 const LAYOUT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout'
@@ -191,5 +192,66 @@ describe('mergeDeep', () => {
     const rels = merged.relationshipsOf('ppt/presentation.xml')
     expect(rels.filter((rel) => rel.type.endsWith('/slideMaster')).length).toBe(masters.length)
     expect(merged.text('ppt/presentation.xml')).toContain('sldMasterIdLst')
+  })
+})
+
+/** Add a slide to a package built by `deckWithChart`, wired into `p:sldIdLst`. */
+function addSlide(pkg: OpcPackage, number: number, xml: string): void {
+  pkg.setPart(`ppt/slides/slide${String(number)}.xml`, xml)
+  pkg.setPart('ppt/presentation.xml', pkg.text('ppt/presentation.xml').replace('</p:sldIdLst>', `<p:sldId id="${String(256 + number)}" r:id="rId${String(number + 1)}"/></p:sldIdLst>`))
+  pkg.setRelationships('ppt/presentation.xml', [
+    ...pkg.relationshipsOf('ppt/presentation.xml'),
+    { id: `rId${String(number + 1)}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide', target: `slides/slide${String(number)}.xml` },
+  ])
+  pkg.ensureContentType(`ppt/slides/slide${String(number)}.xml`, CONTENT_TYPES['ppt/slides/slide1.xml'] ?? 'application/xml')
+}
+
+describe('merge compatibility discipline', () => {
+  it('migrates an mc:AlternateContent pair without splitting it, image relationship included', async () => {
+    const MCE = '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main"><mc:Choice Requires="a14"><a14:m>x</a14:m></mc:Choice><mc:Fallback><a:t>linear</a:t></mc:Fallback></mc:AlternateContent>'
+    const base = deckWithChart()
+    const deep = deckWithChart()
+    deep.setPart('ppt/slides/slide1.xml', `<p:sld>${MCE}<p:pic><p:blipFill><a:blip r:embed="rId3"/></p:blipFill></p:pic></p:sld>`)
+    deep.setRelationships('ppt/slides/slide1.xml', [
+      { id: 'rId1', type: LAYOUT, target: '../slideLayouts/slideLayout1.xml' },
+      { id: 'rId2', type: CHART, target: '../charts/chart1.xml' },
+      { id: 'rId3', type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image', target: '../media/image1.png' },
+    ])
+    deep.setPart('ppt/media/image1.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    deep.ensureContentType('ppt/media/image1.png', 'image/png')
+
+    const { merged, report } = await mergeDeep({ base, deep, routes: [{ index: 1, deepSlide: 1 }] })
+    const slide = merged.text('ppt/slides/slide1.xml')
+    const blocks = findAlternateContents(slide)
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.requires).toEqual(['a14'])
+    expect(blocks[0]?.fallback).toContain('linear')
+    expect(slide).toContain('mc:Choice')
+    // The image the pair wraps came from the deep deck, so its relationship and part
+    // must have been imported and rewritten together with the block.
+    const imported = report.imported['ppt/media/image1.png']
+    expect(imported).toBeDefined()
+    const imageRel = merged.relationshipsOf('ppt/slides/slide1.xml').find((rel) => rel.type.endsWith('/image'))
+    expect(imageRel?.target).toBe('../media/image1.png')
+    expect(merged.has('ppt/media/image1.png')).toBe(true)
+    expect(auditPackage(merged, { requireSingleMaster: true })).toEqual([])
+  })
+
+  it('renumbers duplicate p14:creationId values in every merged slide, deterministically', async () => {
+    const base = deckWithChart()
+    base.setPart('ppt/slides/slide1.xml', '<p:sld xmlns:p14="urn:p14" p14:creationId="3"><p:sp/></p:sld>')
+    addSlide(base, 2, '<p:sld xmlns:p14="urn:p14" p14:creationId="3"><p:sp p14:creationId="3"/><p:sp p14:creationId="9"/></p:sld>')
+    const deep = deckWithChart()
+    deep.setPart('ppt/slides/slide1.xml', '<p:sld xmlns:p14="urn:p14" p14:creationId="5"><p:sp p14:creationId="5"/></p:sld>')
+
+    const { merged, report } = await mergeDeep({ base, deep, routes: [{ index: 1, deepSlide: 1 }] })
+    expect(report.renumberedCreationIds).toBe(2)
+    const ids = (name: string): number[] => [...merged.text(name).matchAll(/p14:creationId="(\d+)"/g)].map((match) => Number(match[1]))
+    expect(ids('ppt/slides/slide1.xml')).toEqual([5, 6])
+    expect(ids('ppt/slides/slide2.xml')).toEqual([3, 10, 9])
+    // A second merge of the same inputs produces the same numbering.
+    const again = await mergeDeep({ base, deep, routes: [{ index: 1, deepSlide: 1 }] })
+    expect(again.merged.text('ppt/slides/slide2.xml')).toBe(merged.text('ppt/slides/slide2.xml'))
+    expect(auditPackage(merged, { requireSingleMaster: true })).toEqual([])
   })
 })

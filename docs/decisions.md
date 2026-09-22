@@ -46,6 +46,7 @@ the ADR wins.**
 | 033 | T1 canonicaliser, the golden v1 fixture, and `fixtures:verify` |
 | 034 | The compat pass v1: registered downgrades, the sharp PNG stamp, and refusals |
 | 035 | The unified audit gate: eight sources, an honest skip list, a warning-only ΔE |
+| 036 | Merge compatibility discipline: creationId renumbering, MCE migration, zip shape |
 
 ---
 
@@ -840,3 +841,39 @@ the ADR wins.**
   unrendered deck); promoting the advisory quality categories to errors (the engine maps them
   as non-blocking, and the plan maps the gate, not its advisories, to errors); rasterising the
   merged package for ΔE (no renderer here; COM would make the gate Windows-only and slow).
+
+## ADR-036 — Merge compatibility discipline: creationId renumbering, MCE migration, zip shape
+
+- **Date:** 2026-09-22
+- **Decision:** `mergeDeep` renumbers duplicate `p14:creationId` values in every merged
+  slide (`renumberDuplicateCreationIds`, exported) and reports the count as
+  `MergeReport.renumberedCreationIds`; `auditPackage` additionally rejects a package that
+  declares no content types at all. The MCE and zip rules need no new code: they are
+  properties of the merge and are pinned by tests.
+- **Renumbering rule.** The first occurrence of an id keeps it; later duplicates move above
+  the slide current highest id, in document order. It runs on every merged slide, replaced or
+  kept, so the result is deterministic and idempotent. Measured on a synthetic pair where the
+  deep slide carried [5, 5] and a kept base slide [3, 3, 9]: the merged slides read [5, 6] and
+  [3, 10, 9], with `renumberedCreationIds = 2`.
+- **Why per slide.** `p14:creationId` identifies animation nodes inside one slide, and
+  upstream `template_validation.py` rejects duplicates there (plan §1.5). Real decks reuse
+  ids across slides, so a package-wide rule would rewrite valid files.
+- **MCE migration.** A slide-level replacement copies the deep page XML verbatim, so an
+  `mc:AlternateContent` pair cannot be split. The test pins the stronger claim: the block, its
+  `Requires` prefix and its fallback survive the merge, and the image relationship the block
+  wraps is imported and rewritten with it. The published package is re-checked by the compat
+  lint (ADR-034), which fails on any block without a fallback.
+- **Zip discipline.** The writer keys parts by name in a Map, so duplicate entries and
+  encrypted streams are impossible by construction; `tests/merge-discipline.test.ts` proves it
+  on the recorded `fixtures/golden/hello-merged.pptx`: unique entry names, file entries exactly
+  equal to `OpcPackage.names()`, no encrypted entry, one `[Content_Types].xml`. Directory
+  entries are legal — JSZip creates them for shared folders and OPC readers ignore them — so
+  the check asserts they are folder paths rather than rejecting them.
+- **Evidence.** Five new tests (two in `merge.test.ts`, three in
+  `tests/merge-discipline.test.ts`); the recorded golden deck passes the package audit with
+  the single-master invariant, and its five slides repeat no id.
+- **Alternatives rejected:** renumbering package-wide (breaks legitimate cross-slide reuse);
+  renumbering into a dense sequence from 1 (collides with ids in other slides and with the
+  next engine export); refusing the merge on duplicates (plan §1.5 says the bridge inherits
+  upstream rule by fixing the ids); forbidding directory entries (contrary to what JSZip and
+  PowerPoint write).

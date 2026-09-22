@@ -261,7 +261,7 @@ function assertNoErrors(findings: ReturnType<typeof auditPackage>): void {
 
 /** @returns an empty merge report for decks with no deep page. */
 function emptyMergeReport(): MergeReport {
-  return { replaced: [], imported: {}, reused: {}, layoutRemap: {}, multiMaster: false, dropped: [] }
+  return { replaced: [], imported: {}, reused: {}, layoutRemap: {}, multiMaster: false, dropped: [], renumberedCreationIds: 0 }
 }
 
 /** Publish the artifact and write `out/manifest.json` plus `out/compat-report.json`. */

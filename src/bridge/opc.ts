@@ -404,6 +404,13 @@ export function auditPackage(pkg: OpcPackage, options: { requireSingleMaster?: b
     }
   }
 
+  // In-memory packages declare their types through `declareDefault`/`ensureContentType`
+  // and only materialise `[Content_Types].xml` when written, so the part is required
+  // only when neither map carries anything.
+  if (!pkg.has('[Content_Types].xml') && pkg.contentDefaults().size === 0 && pkg.contentOverrides().size === 0) {
+    findings.push({ level: 'error', rule: 'content-types-missing', message: 'the package declares no content types and has no [Content_Types].xml, so no reader can resolve its parts' })
+  }
+
   for (const name of names) {
     if (name === '[Content_Types].xml') continue
     if (pkg.contentTypeOf(name) === undefined) {

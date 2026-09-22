@@ -47,7 +47,7 @@ deck/
 | `src/cli.ts` + `src/commands/` | argv、退出码、接线 | 渲染 |
 | `src/frontend.ts` | 定位并驱动 pptwise CLI、解析 JSON、其失败分类 | import pptwise 内部 |
 | `src/bridge/theme.ts` | ThemeFile v2（`style.*`）→ tokens → master 调色板 | 改上游主题 |
-| `src/bridge/merge.ts` | slide 级合并：内容感知复用、layout remap、单一母版 | 解析 shape 语义 |
+| `src/bridge/merge.ts` | slide 级合并：内容感知复用、layout remap、单一母版、creationId 去重 | 解析 shape 语义 |
 | `src/bridge/post.ts`（M4 第 2 部分 ✅） | 合并后统一施加动画/切换/旁白 | 在合并前运行 |
 | `src/bridge/compat.ts`（M4 第 2 部分 ✅） | 兼容 pass：scan/transform/stamp/lint，对照 `src/compat/registry.json` | 注册表之外的隐式改写 |
 | `src/commands/audit.ts`（M4 第 2 部分 ✅） | 八源统一审计门：validate / pptwise / 引擎门 / OPC+P1 / compat / ΔE | 吞失败门、缺产物静默跳过 |

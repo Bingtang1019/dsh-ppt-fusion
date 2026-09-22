@@ -24,6 +24,8 @@ export interface MergeReport {
   readonly multiMaster: boolean
   /** Deep parts deliberately not imported. */
   readonly dropped: readonly string[]
+  /** `p14:creationId` values renumbered to keep each slide duplicate-free. */
+  readonly renumberedCreationIds: number
 }
 
 /** Options for `mergeDeep`. */
@@ -186,6 +188,8 @@ export async function mergeDeep(options: {
     replaced.push({ index: route.index, basePart, deepPart })
   }
 
+  const renumberedCreationIds = renumberDuplicateCreationIds(merged)
+
   if (multiMaster) {
     // In the escape hatch a layout/master/theme closure is imported on purpose,
     // so nothing about it counts as dropped.
@@ -199,8 +203,45 @@ export async function mergeDeep(options: {
 
   return {
     merged,
-    report: { replaced, imported, reused, layoutRemap, multiMaster, dropped: [...new Set(dropped)] },
+    report: { replaced, imported, reused, layoutRemap, multiMaster, dropped: [...new Set(dropped)], renumberedCreationIds },
   }
+}
+
+/**
+ * Renumber duplicate `p14:creationId` values inside every slide of a merged package.
+ *
+ * Upstream `template_validation.py` rejects duplicates (plan §1.5), and a deep deck
+ * that numbers its animation nodes from 1 will collide with a base deck that does the
+ * same once its pages are replaced. The first occurrence keeps its id; later ones move
+ * above the slide's highest id, in document order, so the renumbering is deterministic.
+ *
+ * @param pkg - the merged package, mutated in place.
+ * @returns how many values were renumbered.
+ */
+export function renumberDuplicateCreationIds(pkg: OpcPackage): number {
+  let renumbered = 0
+  for (const name of pkg.names()) {
+    if (!/^ppt\/slides\/slide\d+\.xml$/.test(name)) continue
+    const xml = pkg.text(name)
+    const ids = [...xml.matchAll(/\sp14:creationId="(\d+)"/g)].map((match) => Number(match[1] ?? '0'))
+    if (ids.length === 0) continue
+    const seen = new Set<number>()
+    let next = Math.max(...ids)
+    let changed = false
+    const patched = xml.replace(/(\sp14:creationId=")(\d+)(")/g, (_match: string, prefix: string, digits: string, suffix: string) => {
+      const id = Number(digits)
+      if (!seen.has(id)) {
+        seen.add(id)
+        return `${prefix}${String(id)}${suffix}`
+      }
+      next += 1
+      renumbered += 1
+      changed = true
+      return `${prefix}${String(next)}${suffix}`
+    })
+    if (changed) pkg.setPart(name, patched)
+  }
+  return renumbered
 }
 
 /** @returns the slide parts in presentation order, or the file order when the index is broken. */

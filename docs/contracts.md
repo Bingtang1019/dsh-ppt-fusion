@@ -316,6 +316,16 @@ project exists per page set rather than one per run.
 - Authored part names are kept when they are free.
 - `[Content_Types].xml` gains what the imported parts need; `rels` and `xml` defaults are
   left to the source packages.
+- `p14:creationId` values are renumbered per slide when the replaced page (or a kept page)
+  repeats one: the first occurrence keeps its id and later ones move above the slide's
+  highest id, in document order. Upstream `template_validation.py` rejects duplicates, and
+  two decks that each number their animation nodes from 1 collide once pages are merged;
+  the count enters `out/manifest.json` as `merge.renumberedCreationIds` (ADR-036).
+- `mc:AlternateContent` blocks travel as XML, so a slide-level replacement never splits a
+  Choice/Fallback pair; the compat lint re-checks every pair on the published package
+  (ADR-034), and `tests/merge-discipline.test.ts` pins the pair migration and the zip
+  discipline (unique entries, no encryption, one `[Content_Types].xml`) on the recorded
+  golden (ADR-036).
 
 **CLI path rules**: deck commands take paths relative to the **deck** (not the process
 working directory) because the engine may only write inside the workspace; `deep render
