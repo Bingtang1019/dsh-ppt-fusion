@@ -46,6 +46,7 @@ anything redistributed. See `docs/licensing.md`.
 | `src/bridge/route.ts` (M2) | per-page engine choice; deep-page file completeness | degrade silently when a deep page is incomplete |
 | `src/bridge/merge.ts` (M4) | slide-level OOXML merge, closure import, layout remap | parse or rewrite shape semantics |
 | `src/bridge/post.ts` (M4) | the single place animations, transitions and narration are applied | run before the merge |
+| `src/bridge/compat.ts` (M4) | the compatibility pass (scan, registered downgrades, MCE/PNG stamping, lint) against `src/compat/registry.json` | transform anything the registry does not name |
 | `src/engine/venv.ts` | venv lifecycle, uv resolution, lock-file install, repair | install anything on the DSH boot path |
 | `src/engine/master.ts` | the only spawn site for Python; timeouts, error classes, logs | accept an unregistered command or a path outside the workspace |
 | `src/engine/runner.ts` | the child-process primitive and the environment whitelist | inherit credentials by default |
@@ -93,6 +94,11 @@ passes only when a caller names it in `allowCredentials`.
   under `<deck>/.dsh-ppt/logs/`.
 - **Failures are classified, never stringly.** Every failure carries a code from a closed
   union in `src/engine/errors.ts`, and the CLI prints `dsh-ppt: <code> <message>`.
+- **Compatibility is declared, not assumed.** Every version-sensitive marker is listed in
+  `src/compat/registry.json` with its minimum Office version, WPS support and required
+  fallback. A package that uses something above the deck's `--compat` level is an error
+  unless the registry names a downgrade — silent degradation is the failure mode this
+  invariant exists to prevent (v3 §3.14, `docs/compat/probe.md`).
 
 ## Environment facts this design depends on
 

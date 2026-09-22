@@ -8,3 +8,16 @@
 # or its venv: the venv is built locally by the user's own `doctor` run, and
 # `docs/licensing.md` records the distinction.
 ppt-master==0.1.128
+
+# PNG rasteriser for the exporter's Office compatibility mode (plan 3.4). The
+# upstream detects cairosvg, then svglib, and silently degrades to pure SVG mode
+# when neither imports -- which Office LTSC 2021 and WPS may not display.
+#
+# Measured in M0.G: on Windows without a separate cairo runtime, cairosvg
+# installs but raises OSError on import ("no library called cairo-2 was found"),
+# and svglib/reportlab fail the same way because they resolve libcairo through
+# ctypes while pycairo statically links its own copy. The lock keeps cairosvg so
+# the dependency is declared and used wherever cairo is available; `doctor`
+# reports the renderer state instead of letting the degradation stay silent, and
+# `docs/compat/probe.md` records the B7 fallback (rasterise in Node with sharp).
+cairosvg==2.9.1

@@ -3,6 +3,7 @@ import { createFrontend, resolvePptwiseCli } from '../frontend.ts'
 import { DshPptFailure, tailOf } from '../engine/errors.ts'
 import { buildEnv, type Runner } from '../engine/runner.ts'
 import { DEFAULT_PYPI_INDEX, createVenvManager, resolveDshHome, resolveUv, type FileSystemPort, type UvResolution } from '../engine/venv.ts'
+import { packageAsset } from '../package-paths.ts'
 
 /** Pinned upstream versions this build is developed and recorded against. */
 export const PINNED = {
@@ -11,6 +12,25 @@ export const PINNED = {
   python: '3.13',
   node: '22.19',
 } as const
+
+/** What `python-assets/probe-png-renderer.py` reports. */
+export interface RendererProbe {
+  /** Renderer name the engine detected at import time, or null when none imports. */
+  readonly renderer: string | null
+  /** Human-readable status from the engine's own detector. */
+  readonly status: string
+  /** Install hint the engine offers, or null when it is happy. */
+  readonly hint: string | null
+  /** Whether the probe actually wrote a PNG. */
+  readonly converted: boolean
+  readonly pngBytes: number
+  /** Failure text when the renderer imported but could not render. */
+  readonly error?: string | null
+  /** Versions of the distributions the probe looked for; null means absent. */
+  readonly installed?: Record<string, string | null>
+  /** Why an installed renderer still failed to import (the cairo-runtime case). */
+  readonly importError?: string | null
+}
 
 /** Outcome of one doctor check. `skipped` means the platform does not have it. */
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped'
@@ -99,7 +119,7 @@ export function runDoctor(options: {
   const runner = options.dependencies.runner
   const dshHome = options.dshHome ?? resolveDshHome(env)
   const engineVersion = options.engineVersion ?? PINNED.pptMaster
-  const requirementsFile = options.requirementsFile ?? join(process.cwd(), 'python-assets', 'requirements.lock')
+  const requirementsFile = options.requirementsFile ?? packageAsset('python-assets/requirements.lock')
   const workspace = options.workspace ?? join(dshHome, 'ppt-fusion', 'doctor')
   const checks: DoctorCheck[] = []
   const repaired: string[] = []
@@ -214,6 +234,74 @@ export function runDoctor(options: {
       detail: 'skipped because the engine venv is unusable',
       fix: 'dsh-ppt doctor --repair',
     })
+  }
+
+  // 8. PNG rasteriser, which the exporter''s Office compatibility mode needs.
+  // Upstream degrades to pure SVG mode in silence when no renderer imports, and
+  // Office LTSC 2021 and WPS may then show nothing for SVG-backed images, so the
+  // check runs the engine''s own probe: a renderer that imports but cannot write
+  // a PNG counts as a failure too (M0.G measured exactly that case).
+  if (!state.ok) {
+    checks.push({
+      id: 'png-renderer',
+      title: 'PNG rasteriser (compat mode)',
+      status: 'fail',
+      detail: 'skipped because the engine venv is unusable',
+      fix: 'dsh-ppt doctor --repair',
+    })
+  } else {
+    const scriptsDir = join(state.paths.sitePackages, 'skills', 'ppt-master', 'scripts')
+    const probe = runner(state.paths.pythonExe, [packageAsset('python-assets/probe-png-renderer.py'), scriptsDir], {
+      cwd: dshHome,
+      timeoutMs: 180_000,
+      env: buildEnv({ source: env, extra: { PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' } }),
+    })
+    let parsed: RendererProbe | null = null
+    try {
+      parsed = JSON.parse(probe.stdout.trim()) as RendererProbe
+    } catch {
+      parsed = null
+    }
+    if (parsed === null) {
+      checks.push({
+        id: 'png-renderer',
+        title: 'PNG rasteriser (compat mode)',
+        status: 'fail',
+        detail: tailOf(probe.stderr) || `the probe produced no JSON (exit ${String(probe.status)})`,
+        fix: 'install a cairo runtime for the engine venv, or rely on the Node-side rasteriser (plan B7)',
+      })
+    } else if (parsed.renderer === null) {
+      // Distinguish "not installed" from "installed but the native library is
+      // missing": the second case is what this machine hits, and the upstream
+      // detector reports both as simply absent.
+      const cairosvg = parsed.installed?.cairosvg ?? null
+      const detail =
+        cairosvg === null
+          ? `no SVG-to-PNG renderer imports in the engine venv ${parsed.status}`
+          : `cairosvg ${cairosvg} is installed but cannot import: ${parsed.importError ?? 'unknown error'}`
+      checks.push({
+        id: 'png-renderer',
+        title: 'PNG rasteriser (compat mode)',
+        status: 'fail',
+        detail,
+        fix: 'provide a cairo runtime so cairosvg imports, or rely on the Node-side rasteriser (plan B7)',
+      })
+    } else if (!parsed.converted) {
+      checks.push({
+        id: 'png-renderer',
+        title: 'PNG rasteriser (compat mode)',
+        status: 'fail',
+        detail: `renderer ${parsed.renderer} imports but produced no PNG ${parsed.error === null || parsed.error === undefined ? '' : `(${parsed.error})`}`,
+        fix: 'install a cairo runtime, or rely on the Node-side rasteriser (plan B7)',
+      })
+    } else {
+      checks.push({
+        id: 'png-renderer',
+        title: 'PNG rasteriser (compat mode)',
+        status: 'ok',
+        detail: `${parsed.renderer} ${parsed.status} produced a ${String(parsed.pngBytes)}-byte PNG`,
+      })
+    }
   }
 
   // 5. pptwise

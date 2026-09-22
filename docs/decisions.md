@@ -317,6 +317,10 @@ edited to match reality.
     PowerPoint COM 16.0, and a one-page self-test render — exit 0.
   - The self-test deck (`%DSH_HOME%/ppt-fusion/doctor/self-test.pptx`, 18117 bytes) opens
     in PowerPoint with exactly 1 slide, `Saved=true`, bytes unchanged.
+  - **Amended by ADR-024/ADR-025:** v3 added an eighth check (`png-renderer`) and that row
+    is red on this machine because no Python-side rasteriser works here. "Doctor green"
+    for M1 therefore means every check green except the row v3 introduced after the fact,
+    whose remedy is B7 in M4.
   - The venv was renamed aside and `doctor --repair` rebuilt it from
     `python-assets/requirements.lock`: 212 MB / 18048 files, dispatcher healthy, doctor
     green again. The 500-file difference against the M0 capture is `__pycache__` written
@@ -387,3 +391,55 @@ edited to match reality.
 - **Alternatives rejected:** accepting M2 on unit tests alone (the snapshot gate is the
   row of the acceptance table that actually exercises upstream data, and it caught three
   contract mistakes that mocks never would have).
+
+## ADR-024 — Plan v3 alignment: what was retro-fitted into the finished milestones
+
+- **Date:** 2026-09-22
+- **Decision:** v3's compatibility domain is adopted as written, and the parts that
+  belong to milestones already closed were retro-fitted rather than deferred:
+  - **M0.G** ran as a real experiment with its artifact `docs/compat/probe.md`; the
+    decision gate in `docs/m0-decision.md` now lists seven experiments and G's row ends
+    in `B7 activated`.
+  - **M1** gains `cairosvg` in `python-assets/requirements.lock` (now 2398 lines) and an
+    eighth `doctor` check, `png-renderer`, which runs the engine's own probe
+    (`python-assets/probe-png-renderer.py`) and fails when no renderer imports *or* when
+    one imports but cannot write a PNG.
+  - **M4/M8** keep their v3 scope: `bridge/compat.ts` with the scan/transform/stamp/lint
+    pass, `--compat safe|standard|max` on `render`, `compat lint`, the LibreOffice
+    headless CI leg, and S15–S17.
+  - `src/compat/registry.json` exists now, with the entries M0.G could measure, so the
+    later milestones extend a real registry instead of inventing one.
+- **Evidence:** plan v3 §1.5, §3.4, §3.14, M0.G, S15–S17, R14/R15. The probe's raw
+  measurements are in `docs/compat/probe.md`.
+- **Alternatives rejected:** deferring G to M4 (its whole purpose is to price the
+  rasteriser before the merge bridge is built, and the price turned out to be B7);
+  leaving the registry to M4 (then M4 would design it without measurements and S15's
+  lint would have nothing to check against).
+
+## ADR-025 — B7 activated: no Python-side PNG rasteriser on this machine
+
+- **Date:** 2026-09-22
+- **Decision:** the compatibility pass rasterises SVG with the Node-side `sharp` (B7)
+  instead of the engine's `use_compat_mode` PNG path, and `doctor`'s `png-renderer` row
+  is red on this machine by design until that lands in M4.
+- **Evidence:** `cairosvg 2.9.1` installs from the lock and then fails to import —
+  `OSError: no library called "cairo-2" was found`; upstream swallows exactly that error
+  and prints "No PNG rendering library installed, cannot use compatibility mode …
+  Will use pure SVG mode (may not display in Office LTSC 2021 and similar versions)".
+  The upstream fallback fares no better: with `svglib` + `reportlab` the detector says
+  `svglib` but conversion fails with `cannot import desired renderPM backend rlPyCairo`;
+  adding `rlPyCairo` + `pycairo` makes the detector report **no** renderer, because
+  `reportlab`/`cairocffi` resolve libcairo through `ctypes` while pycairo statically
+  links its own copy (pycairo itself works and reports cairo 1.18.4). `sharp` is proven
+  available on this machine (`pptwise doctor`: `sharp=true`).
+- **Also measured, and it bounds the cost:** our native-shape export does not use compat
+  mode at all — upstream ignores it in native mode — and a marker census over
+  `fixtures/golden/deep.pptx` finds only `p14:dur` on all five slides, with no `asvg`,
+  `a14:m` or `mc:AlternateContent`. So B7's customer is M5's SVG-image content
+  (formulas, imported icons, template materialisation), not the v1 chart/table path.
+- **Alternatives rejected:** installing a GTK/cairo runtime on the user's machine as a
+  prerequisite (a heavyweight, machine-specific dependency for a fallback path, and it
+  would not help CI); pinning an older `reportlab` with the bundled `_renderPM` extension
+  (tested: 4.2.5 still routes through `rlPyCairo`); dropping the requirement and letting
+  upstream degrade silently (that is precisely the failure mode v3 §3.4 exists to
+  prevent, and `doctor` would be lying).

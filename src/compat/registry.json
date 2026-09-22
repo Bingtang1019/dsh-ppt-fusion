@@ -1,0 +1,180 @@
+{
+  "schema": "dsh-ppt-fusion.compat-registry.v1",
+  "version": 1,
+  "measuredAt": "2026-09-22",
+  "measuredBy": "M0.G compatibility probe (docs/compat/probe.md)",
+  "levels": {
+    "safe": {
+      "label": "Office 2013+ / WPS 2016+",
+      "minOffice": 2013,
+      "allows": ["p14:dur"],
+      "forbids": ["morph-transition", "chart-2016-tier", "chart-2019-tier"],
+      "notes": "SVG-backed images must carry a PNG fallback; animations limited to the basic whitelist; audio mp3/m4a only."
+    },
+    "standard": {
+      "label": "Office 2016+ / WPS 2019+ (default)",
+      "minOffice": 2016,
+      "allows": ["p14:dur", "chart-2016-tier", "animation-mce-fallback"],
+      "forbids": ["morph-transition", "chart-2019-tier"],
+      "notes": "The v1 release claim. Everything the fusion ships today sits inside this level."
+    },
+    "max": {
+      "label": "Microsoft 365",
+      "minOffice": 365,
+      "allows": ["p14:dur", "chart-2016-tier", "chart-2019-tier", "morph-transition", "full-animation-registry"],
+      "forbids": [],
+      "notes": "Not the default: a deck that uses morph cannot be opened meaningfully by WPS or old Office."
+    }
+  },
+  "features": [
+    {
+      "feature": "p14:dur",
+      "namespace": "p14",
+      "marker": "//*[@p14:dur]",
+      "minOffice": 2010,
+      "wpsSupport": "tolerated",
+      "mceFallbackRequired": false,
+      "downgradeTo": null,
+      "measured": {
+        "presentIn": "fixtures/golden/deep.pptx on all 5 slides",
+        "note": "Also the only version-sensitive marker a pptwise-produced deck carries (plan 1.5), so it is the one entry both engines already exercise."
+      }
+    },
+    {
+      "feature": "morph-transition",
+      "namespace": "p159",
+      "marker": "//*[local-name()='transition' and @p159:morph]",
+      "minOffice": 2019,
+      "wpsSupport": "ignored",
+      "mceFallbackRequired": true,
+      "downgradeTo": "fade",
+      "measured": {
+        "presentIn": "nothing we emit today",
+        "note": "Not producible by pptwise at all; ppt-master exposes it through its transition registry. Levels safe/standard downgrade it to fade."
+      }
+    },
+    {
+      "feature": "advanced-transition-family",
+      "namespace": "p14",
+      "marker": "//*[local-name()='transition']/*[namespace-uri()='http://schemas.microsoft.com/office/powerpoint/2010/main']",
+      "minOffice": 2010,
+      "wpsSupport": "partial",
+      "mceFallbackRequired": true,
+      "downgradeTo": "fade",
+      "measured": {
+        "presentIn": "the fade transition ppt-master writes by default",
+        "note": "Grouped by the master transition namespace list; anything above the level's allowance downgrades to fade rather than being dropped."
+      }
+    },
+    {
+      "feature": "animation-bounce-extension",
+      "namespace": "p14",
+      "marker": "//*[local-name()='animEffect' and @p14:presetBounceEnd]",
+      "minOffice": 2010,
+      "wpsSupport": "partial",
+      "mceFallbackRequired": true,
+      "downgradeTo": "fade",
+      "measured": {
+        "presentIn": "nothing we emit today (no animation pass yet; M4 owns it)",
+        "note": "The MCE fallback pair must survive the merge intact, which is why M4.10 tests AlternativeContent migration."
+      }
+    },
+    {
+      "feature": "asvg:svgBlip",
+      "namespace": "asvg",
+      "marker": "//*[@asvg:svgBlip]",
+      "minOffice": 2016,
+      "wpsSupport": "unverified",
+      "mceFallbackRequired": true,
+      "downgradeTo": "raster-png",
+      "requiresPngSibling": true,
+      "measured": {
+        "presentIn": "nothing we emit today: the native-shape export ignores compat mode (builder.py: 'ignored in native mode')",
+        "note": "Becomes live with SVG-image content (formulas, imported SVG icons, template materialisation) in M5. The PNG sibling cannot be produced on this machine by the Python stack at all, so B7's Node-side rasteriser (sharp) owns it (docs/compat/probe.md)."
+      }
+    },
+    {
+      "feature": "formula-a14m",
+      "namespace": "a14",
+      "marker": "//mc:AlternateContent/mc:Choice[@Requires='a14']/*[local-name()='m']",
+      "minOffice": 2010,
+      "wpsSupport": "unverified",
+      "mceFallbackRequired": true,
+      "downgradeTo": "linear-text",
+      "measured": {
+        "presentIn": "nothing we emit today (no formula page in the fixture set)",
+        "note": "ppt-master writes Choice=a14:m with a linear-text Fallback; the lint must check the pair rather than trust it."
+      }
+    },
+    {
+      "feature": "chart-2016-tier",
+      "namespace": "c",
+      "marker": "//c:plotArea/*[local-name()='treemapChart' or local-name()='sunburstChart' or local-name()='histogramChart' or local-name()='waterfallChart' or local-name()='funnelChart']",
+      "minOffice": 2016,
+      "wpsSupport": "unverified",
+      "mceFallbackRequired": true,
+      "downgradeTo": "bar-chart",
+      "measured": {
+        "presentIn": "nothing we emit today: the fixture chart is a plain column chart",
+        "note": "The native-object marker payload names the chart type, so the downgrade is a payload edit before export, not an XML rewrite."
+      }
+    },
+    {
+      "feature": "chart-2019-tier",
+      "namespace": "c",
+      "marker": "//c:plotArea/*[local-name()='mapChart']",
+      "minOffice": 2019,
+      "wpsSupport": "unverified",
+      "mceFallbackRequired": true,
+      "downgradeTo": "bar-chart",
+      "measured": {
+        "presentIn": "nothing we emit today",
+        "note": "Levels safe and standard refuse it; max allows it."
+      }
+    },
+    {
+      "feature": "audio-mp3",
+      "namespace": "p",
+      "marker": "//p:pic/p:blipFill/a:blip[@r:embed]/../..//p14:media",
+      "minOffice": 2010,
+      "wpsSupport": "partial",
+      "mceFallbackRequired": false,
+      "downgradeTo": "drop-narration",
+      "measured": {
+        "presentIn": "nothing we emit today (narrate lands in M5; edge-tts writes mp3)",
+        "note": "safe/standard restrict the media container to mp3/m4a."
+      }
+    },
+    {
+      "feature": "ea-font-slot",
+      "namespace": "a",
+      "marker": "//a:rPr/a:ea",
+      "minOffice": 2007,
+      "wpsSupport": "required",
+      "mceFallbackRequired": false,
+      "downgradeTo": null,
+      "measured": {
+        "presentIn": "pptwise CJK decks (S12); the deep path inherits fonts from the authored SVG",
+        "note": "WPS substitutes fonts aggressively, so the east-asian slot must exist on every run of CJK text; the substitution list lives in docs/compat/fonts.md."
+      }
+    },
+    {
+      "feature": "p14-creation-id",
+      "namespace": "p14",
+      "marker": "//*[@p14:creationId]",
+      "minOffice": 2010,
+      "wpsSupport": "tolerated",
+      "mceFallbackRequired": false,
+      "downgradeTo": null,
+      "measured": {
+        "presentIn": "nothing we emit today",
+        "note": "Upstream template_validation.py rejects duplicate ids; the merge bridge inherits that rule (M4.10)."
+      }
+    }
+  ],
+  "unverifiedOnThisMachine": [
+    "WPS Office 2019+ (not installed; S17 needs a user machine or VM)",
+    "Office 2016/2019/2021 (no licence on this machine; static lint plus LibreOffice and python-pptx act as proxies)",
+    "LibreOffice Impress headless (not installed locally; the plan puts it in the CI Linux leg)"
+  ]
+}

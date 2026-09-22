@@ -58,6 +58,7 @@ Checks, in order:
 | Python interpreter | `python --version` reports 3.12+ |
 | Engine venv | the venv holds the interpreter, the dispatcher and the pinned `ppt_master-<version>.dist-info` |
 | ppt-master dispatcher | `<venv>/ppt-master --help` exits 0 and lists its commands |
+| PNG rasteriser (compat mode) | the engine's own probe finds a renderer that imports *and* writes a PNG; a renderer that imports but cannot render fails too, with the import error in the detail line (`python-assets/probe-png-renderer.py`) |
 | pptwise front end | `@liustack/pptwise` resolves and its version matches the pin |
 | PowerPoint COM | Windows only: a COM `PowerPoint.Application` can be started and reports its version |
 | Self-test render | one cover page renders through the front end and the pptx appears |
@@ -65,6 +66,11 @@ Checks, in order:
 `--repair` rebuilds the engine venv first (it never touches deck data). `--json` prints
 the full `DoctorReport` for machine consumption. Exit code is 0 only when no check
 failed and the self-test passed.
+
+On this machine the PNG rasteriser row is red by design: cairosvg is installed from the
+lock but cannot import without a cairo runtime (`docs/compat/probe.md`). The compat pass
+compensates by rasterising with Node-side `sharp` (plan B7); until that lands in M4 the
+row stays visible on purpose.
 
 ## Implemented (M2)
 

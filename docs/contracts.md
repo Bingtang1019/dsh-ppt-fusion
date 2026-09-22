@@ -217,3 +217,34 @@ Root required: `version` (const `"5"`), `filename`, `theme` (`{id}`), `meta`, `a
 - **Doctor checks.** Node, uv, Python, engine venv, ppt-master dispatcher, pptwise front
   end, PowerPoint COM (Windows only), plus a one-page render self-test; `--repair`
   rebuilds the venv from the lock file and never touches deck data.
+
+## 8. Cross-version compatibility (v3)
+
+Measured facts and the B7 decision live in `docs/compat/probe.md`; the machine-readable
+registry is `src/compat/registry.json` (`dsh-ppt-fusion.compat-registry.v1`, bundled into
+the CLI at build time so it cannot go missing at install).
+
+- **Levels.** `safe` (Office 2013+/WPS 2016+), `standard` (Office 2016+/WPS 2019+,
+  default), `max` (Microsoft 365). The level is recorded in the manifest and passed to
+  `render --compat`.
+- **Registry entries.** `{feature, namespace, marker (XPath), minOffice, wpsSupport,
+  mceFallbackRequired, downgradeTo}`; `downgradeTo: null` means the feature is allowed
+  everywhere the level permits it.
+- **Compat pass** (`bridge/compat.ts`, M4): scan → transform (only registered
+  downgrades; anything over-level without a rule is an error, never a silent edit) →
+  stamp (complete MCE fallback pairs and PNG+SVG dual format) → lint, producing
+  `compat-report.json` whose hash enters `out/manifest.json`.
+- **PNG rasterisation.** The Python stack cannot produce it on this machine (probe:
+  cairosvg imports fail on a missing cairo runtime; svglib/reportlab fail the same way),
+  so the `stamp` step uses the Node-side `sharp` (B7). `doctor` reports the Python-side
+  renderer state with the exact import error rather than letting upstream's silent
+  degradation stand.
+- **Verification matrix.** Local: PowerPoint 365 COM smoke, `python-pptx` reopen
+  (`scripts/probe-pptx-reopen.py`, which must recurse into group shapes or it reports
+  zero text on ppt-master pages), static `compat lint`. CI Linux: LibreOffice Impress
+  headless conversion. User machine: the WPS checklist (S17). Until S17 is done, the
+  release note claims T2 only, never T1.
+- **What our decks carry today.** `p14:dur` on every slide; no `asvg`, `a14:m` or
+  `mc:AlternateContent`, because the native-shape export ignores upstream compat mode.
+  The PNG-fallback requirement therefore bites M5's SVG-image content, not the v1
+  chart/table path.

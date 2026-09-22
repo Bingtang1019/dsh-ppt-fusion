@@ -5,8 +5,9 @@ v2 §5: one conclusion per experiment, the path chosen, and the Plan B status. E
 and raw captures are in `docs/m0-report.md`; contracts are frozen in
 `docs/contracts.md`; deviations are `decisions.md` ADR-001 … ADR-018.
 
-**Gate verdict: PASS — proceed to M1. No experiment needs a Plan B, no assumption is
-left unresolved.** One planned verification (the browser plugin card) is deferred to a
+**Gate verdict: PASS — proceed to M1. Six experiments need no Plan B; experiment G
+activates Plan B7 for PNG rasterisation, which v3 places in M4. No assumption is left
+unresolved.** One planned verification (the browser plugin card) is deferred to a
 user restart window and is the only open item; it is a UI confirmation of a
 registration already proven at the API and profile-tree level, and it is not on the
 M1 critical path.
@@ -21,6 +22,7 @@ M1 critical path.
 | D | merge prototype with layout remap; PowerPoint opens with no repair; **highest risk** | **PASS** | Ran at full scope, not the minimal scope: base slide 3 ← deep native-chart page imported with its closure (`charts/chart401.xml`→`charts/chart1.xml`, workbook→`…Sheet1.xlsx`, 2 content-type overrides, chart rels + slide rels rewritten), layout remapped to the base layout. Result: 47 parts, 5 slides, **1 slideMaster / 1 theme / 5 layouts**, no dangling rels, no duplicate rIds; PowerPoint COM: 5 slides, `Saved=true` (no repair), file bytes unchanged | **B4 ladder not needed.** See P1 below |
 | E | `theme new --from brief` yields complete StyleTokens | **PASS** | ThemeFile v2 `{id,label,style,occasions,identity,story,emphasis,version,menu}` with `style.{colors,fonts,shape,defaultBackgrounds}`; key inventory in `contracts.md` §3 | **B5 not needed** |
 | F | pipe capture from the DSH terminal (EPERM?) | **PASS, premise refuted** | `tests/m0/spawn-probe.mjs`: piped `spawnSync`, `execSync`, async piped `spawn`, `inherit`, `ignore`, and a 5 KB engine capture all succeeded, exit 0, intact output (ADR-004) | **B6 not needed**; the file contract stays as a design choice, not a constraint |
+| G | compatibility probe: markers, MCE/PNG fallbacks, `cairosvg`, local Office versions | **PASS for the census, B7 for the rasteriser** | deep deck carries only `p14:dur` on all 5 slides (no `asvg`/`a14`/`mc:AlternateContent`); python-pptx reopens base/deep/merged cleanly; PowerPoint 16.0 build 20326; no WPS and no LibreOffice installed; **no Python-side SVG→PNG rasteriser imports** (cairosvg installed but `no library called "cairo-2" was found`; svglib/reportlab fail through `rlPyCairo`) | **B7 activated**: rasterise in Node with `sharp` inside the M4 compat `stamp` step; cost +1–2 pd in M4, not M1 |
 
 ## Product invariant P1 (single master) — verified, not assumed
 
@@ -74,6 +76,12 @@ an M4 escape hatch with its `multi-master: true` warning marker.
 | Experiments E + F | ~0.3 pd |
 | Contracts, ADRs, reports, golden manifest | ~0.6 pd |
 | **Total** | **~4.5 pd** (plan budget 3–4 pd; +12 % over the top of the band, within the 30 % review line) |
+
+Plan v3 added experiment G after this document''s first draft; its probe is recorded in
+`docs/compat/probe.md` with `src/compat/registry.json` as the first output. G''s finding —
+no working Python-side PNG rasteriser on Windows without a cairo runtime, and our
+native-shape export needs none today — is why the `png-renderer` row of `doctor` is red
+on this machine by design rather than by accident.
 
 The overrun is concentrated in experiment C: the deep authoring contract (seven
 undocumented rules, ADR-007) and the SVG-first fallback projection gate had to be
