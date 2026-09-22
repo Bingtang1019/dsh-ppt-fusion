@@ -23,16 +23,16 @@ the row.
 | S13 | opens without a repair prompt | `scripts/win-com-smoke.ps1` on the golden (5 slides), the S10 render (5) and the M6 eval decks (6 / 4 / 5): all `ok`, `unchanged` | verified |
 | S14 | one design master | P1 single-master invariant in `audit`/`opc` and in every matrix snapshot; python-pptx reports one master across all 10 matrix artifacts (`docs/compat/matrix.md`) | verified |
 | S15 | other Office versions | `pnpm compat:matrix`: 10/10 artifacts pass `compat lint` at `safe`/`standard`/`max`; golden compat-level snapshots equal in `fixtures:verify` | verified |
-| S16 | WPS and older Office | python-pptx reopen 10/10 (`docs/compat/matrix.md`); LibreOffice headless conversion is wired into `pnpm compat:matrix` and installed by CI, but `soffice` is absent on this machine | python-pptx verified; LibreOffice pending CI |
+| S16 | WPS and older Office | python-pptx reopen 10/10 (`docs/compat/matrix.md`); LibreOffice headless conversion runs in `pnpm compat:matrix` — the ubuntu CI leg installs `libreoffice-impress` and compares the rendered PDF page count (run 35761959099, green) | python-pptx verified; LibreOffice verified in CI (PDF page count per artifact) |
 | S17 | signed off on a real WPS machine | user confirmed on 2026-09-22 that the ten-point checklist passed (`docs/compat/wps-report.md`, ADR-051); concrete WPS build and per-item notes to be captured next run | **user-confirmed; v1 may claim T1** (ADR-051); a future failure reverts to T2 |
 
 ## What is deliberately not claimed
 
 - **T1 (canonical equality) is proven for this repository's fixtures**, not for every customer
   deck; the tier definitions live in `docs/architecture.md` and ADR-033/037.
-- **LibreOffice conversion** runs in CI (ubuntu-latest installs `libreoffice-impress`) but has
-  not executed on this machine; `compat:matrix` reports it as `skipped` when `soffice` is
-  missing rather than pretending it ran.
+- **LibreOffice conversion** runs on the ubuntu CI leg (installs `libreoffice-impress`, compares the
+  PDF page count per artifact; run 35761959099 green) and is reported as `skipped` on this machine,
+  which has no `soffice`.
 - **WPS** is user-confirmed (2026-09-22) and ADR-051 allows the v1 release notes to claim
   T1; `docs/compat/wps-report.md` still needs the concrete WPS build and per-item notes on
   the next real-machine run, and any future failure reverts the claim to T2.
