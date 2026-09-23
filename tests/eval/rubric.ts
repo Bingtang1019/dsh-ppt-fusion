@@ -17,6 +17,8 @@ export interface ScenarioRubric {
   readonly requireAttribution: boolean
   readonly requireCheckpoint: boolean
   readonly requireBrandTheme: boolean
+  /** The deck carries a design profile and the profile audit reports no design error (V7.2 B5). */
+  readonly requireDesignProfile: boolean
 }
 
 /** One staged input file the harness copies into the scenario workspace. */
@@ -74,6 +76,10 @@ export interface DeckObservation {
   readonly chromeDeclared: boolean
   /** Error-level `chrome-*` findings, as `rule: message`. */
   readonly chromeProblems: readonly string[]
+  /** Whether `audit --profile` ran and found no error-level `design-*` finding (V7.2 B5). */
+  readonly designProfileOk: boolean | null
+  /** Error-level `design-*` findings, as `rule: message`. */
+  readonly designProfileProblems: readonly string[]
 }
 
 /** One evaluated check, before the catalog supplies its severity. */
@@ -100,6 +106,7 @@ export const CHECK_IDS = [
   'role-layout',
   'budget',
   'chrome',
+  'design-profile',
 ] as const
 
 export type CheckId = (typeof CHECK_IDS)[number]
@@ -121,6 +128,8 @@ export const CHECK_SEVERITY: Readonly<Record<CheckId, 'error' | 'warning'>> = {
   'role-layout': 'error',
   budget: 'error',
   chrome: 'error',
+  // V7.2 B5/S26: the profile audit is the quality-alignment delivery gate.
+  'design-profile': 'error',
 }
 
 /**
@@ -224,6 +233,16 @@ export function evaluateRubric(rubric: ScenarioRubric, observation: DeckObservat
           ? 'the deck declares chrome and the audit reports no chrome error'
           : observation.chromeProblems.join('; ')
         : 'the manifest declares no chrome block',
+    ),
+    'design-profile': toggle(
+      'design-profile',
+      rubric.requireDesignProfile,
+      observation.designProfileOk === true && observation.designProfileProblems.length === 0,
+      observation.designProfileOk === null
+        ? 'the deck carries no design profile to audit'
+        : observation.designProfileProblems.length === 0
+          ? 'the package follows the design profile inside tolerance'
+          : observation.designProfileProblems.join('; '),
     ),
   }
   return CHECK_IDS.map((id) => results[id])

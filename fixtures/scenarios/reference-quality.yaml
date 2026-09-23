@@ -1,0 +1,27 @@
+name: reference-quality
+title: The reference design system, reused on a new topic
+maxAttempts: 3
+inputs:
+  - from: fixtures/reference/profile.json
+    to: design/design-profile.json
+task: |
+  Use the dsh-ppt-fusion skill. The numeric design profile at {{workspace}}/design/design-profile.json is a quality bar:
+  palette, fonts, type scale, per-role geometry, chrome and background strategy. It came from a licensed deck, so its photos
+  must not be copied: set `background.mode` in your deck's copy of the profile to `flat` or `svg` before rendering.
+  Build a twelve-page Chinese deck at {{deck}} for a food-safety internship report: a cover, a table of contents, four chapters
+  (each with one section page and one content page), and an ending page. Start with
+  `dsh-ppt init {{deck}} --theme brief --profile {{workspace}}/design/design-profile.json`, then follow the SKILL's phase 3/4
+  rules: every storyboard page declares its role (use `toc` on page 2 and `section` on the four chapter pages, `content` on the
+  remaining inner pages), and the authored pages follow the profile's type scale and role geometry, with 2-3 column cards on
+  content pages. Keep one editable native chart and one editable native table. Finish by running
+  `dsh-ppt audit {{deck}} --profile design-profile.json` and paste its final result line.
+rubric:
+  minSlides: 12
+  maxSlides: 12
+  requireTextShapes: true
+  requireNativeChart: true
+  requireNativeTable: true
+  requireAttribution: false
+  requireCheckpoint: true
+  requireBrandTheme: false
+  requireDesignProfile: true

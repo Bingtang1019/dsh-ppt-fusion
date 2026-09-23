@@ -100,6 +100,9 @@ export function loadScenario(root: string, name: string): ScenarioSpec {
   for (const key of ['requireTextShapes', 'requireNativeChart', 'requireNativeTable', 'requireAttribution', 'requireCheckpoint', 'requireBrandTheme'] as const) {
     if (typeof rubric[key] !== 'boolean') throw new Error(`${file}: rubric.${key} must be a boolean`)
   }
+  if (rubric.requireDesignProfile !== undefined && typeof rubric.requireDesignProfile !== 'boolean') {
+    throw new Error(`${file}: rubric.requireDesignProfile must be a boolean`)
+  }
   return {
     name,
     title: raw.title,
@@ -118,6 +121,7 @@ export function loadScenario(root: string, name: string): ScenarioSpec {
       requireAttribution: rubric.requireAttribution,
       requireCheckpoint: rubric.requireCheckpoint,
       requireBrandTheme: rubric.requireBrandTheme,
+      requireDesignProfile: rubric.requireDesignProfile === true,
     },
   }
 }
@@ -506,7 +510,7 @@ function emptyMetrics(sessionFile: string | null): SessionMetrics {
  */
 export async function observeDeck(workspace: string, deckDir: string): Promise<DeckObservation> {
   const manifest = readJson(join(deckDir, 'out', 'manifest.json')) as { slides?: unknown; file?: unknown } | null
-  const deckManifest = readJson(join(deckDir, 'deck.fusion.json')) as { theme?: { file?: unknown }; chrome?: unknown } | null
+  const deckManifest = readJson(join(deckDir, 'deck.fusion.json')) as { theme?: { file?: unknown }; chrome?: unknown; designProfile?: unknown } | null
   const themeFile = typeof deckManifest?.theme?.file === 'string' ? deckManifest.theme.file : null
   const themeFileExists = themeFile !== null && existsSync(join(deckDir, themeFile))
   const checkpoint = readJson(join(deckDir, '.dsh-ppt', 'checkpoint.json')) as { phase?: unknown } | null
@@ -539,6 +543,30 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
   const describe = (finding: { rule: string; message: string }): string => `${finding.rule}: ${finding.message}`
   const storyboardErrors = errors.filter((finding) => finding.source === 'storyboard')
   const chromeDeclared = deckManifest?.chrome !== undefined
+
+  // V7.2 B5/S26: when the deck declares a profile, re-run the audit with it and
+  // keep only the design-source errors; the profile is the quality bar the deck
+  // must reproduce inside the tolerances.
+  let designProfileOk: boolean | null = null
+  let designProfileProblems: string[] = []
+  const profileFile =
+    typeof deckManifest?.designProfile === 'string' && deckManifest.designProfile !== ''
+      ? deckManifest.designProfile
+      : existsSync(join(deckDir, 'design-profile.json'))
+        ? 'design-profile.json'
+        : null
+  if (profileFile !== null && existsSync(deckDir)) {
+    try {
+      const report = await auditDeck({ dir: deckDir, strict: false, pixels: false, profile: profileFile, deps: defaultDependencies({ cwd: workspace }) })
+      const designErrors = report.findings.filter((finding) => finding.source === 'design' && finding.level === 'error')
+      designProfileOk = designErrors.length === 0
+      designProfileProblems = designErrors.map(describe)
+    } catch (error) {
+      designProfileOk = false
+      designProfileProblems = [error instanceof Error ? error.message : String(error)]
+    }
+  }
+
   return {
     auditOk,
     auditErrorCount,
@@ -559,6 +587,8 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
     budgetProblems: storyboardErrors.filter((finding) => finding.rule === 'budget-exceeded').map(describe),
     chromeProblems: errors.filter((finding) => finding.rule.startsWith('chrome-')).map(describe),
     chromeDeclared,
+    designProfileOk,
+    designProfileProblems,
   }
 }
 

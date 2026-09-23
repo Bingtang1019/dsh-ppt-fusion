@@ -11,6 +11,7 @@ const strict: ScenarioRubric = {
   requireAttribution: true,
   requireCheckpoint: true,
   requireBrandTheme: true,
+  requireDesignProfile: true,
 }
 
 /** A deck that satisfies `strict`. */
@@ -34,6 +35,8 @@ const good: DeckObservation = {
   budgetProblems: [],
   chromeDeclared: true,
   chromeProblems: [],
+  designProfileOk: true,
+  designProfileProblems: [],
 }
 
 /** @returns the check with `id`, or undefined. */
@@ -66,11 +69,12 @@ describe('evaluateRubric', () => {
   })
 
   it('passes optional checks with `not required` when the rubric does not ask', () => {
-    const lenient: ScenarioRubric = { ...strict, requireNativeChart: false, requireNativeTable: false, requireAttribution: false, requireCheckpoint: false, requireBrandTheme: false }
-    const bare: DeckObservation = { ...good, chartParts: [], hasTable: false, attributionPresent: false, checkpointPhase: null, themeFile: null, themeFileExists: false }
+    const lenient: ScenarioRubric = { ...strict, requireNativeChart: false, requireNativeTable: false, requireAttribution: false, requireCheckpoint: false, requireBrandTheme: false, requireDesignProfile: false }
+    const bare: DeckObservation = { ...good, chartParts: [], hasTable: false, attributionPresent: false, checkpointPhase: null, themeFile: null, themeFileExists: false, designProfileOk: null }
     const results = evaluateRubric(lenient, bare)
     expect(results.every((entry) => entry.passed)).toBe(true)
     expect(results.find((entry) => entry.id === 'native-chart')?.message).toBe('not required by this scenario')
+    expect(results.find((entry) => entry.id === 'design-profile')?.message).toBe('not required by this scenario')
   })
 
   it('fails attribution when an item has no licence or author', () => {
@@ -120,5 +124,14 @@ describe('evaluateRubric', () => {
     const bad = check({ ...good, chromeProblems: ['chrome-coverage: page 2 has no slidenum field'] }, strict, 'chrome')
     expect(bad?.passed).toBe(false)
     expect(bad?.message).toContain('chrome-coverage')
+  })
+
+  it('fails design-profile when the deck carries no profile or the profile audit reports one', () => {
+    const absent = check({ ...good, designProfileOk: null }, strict, 'design-profile')
+    expect(absent?.passed).toBe(false)
+    expect(absent?.message).toContain('no design profile')
+    const drift = check({ ...good, designProfileOk: false, designProfileProblems: ['design-role-title-font: content title is 45 pt but the profile says 36 ±1 pt'] }, strict, 'design-profile')
+    expect(drift?.passed).toBe(false)
+    expect(drift?.message).toContain('45 pt')
   })
 })

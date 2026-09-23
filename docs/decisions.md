@@ -79,6 +79,7 @@ the ADR wins.**
 | 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
 | 067 | Three asset channels (svg/office/user) and the post background layer (V7 B2.5) |
 | 068 | Design language reference and the Phase 3/4 authoring rules (V7 B3) |
+| 069 | Reference-quality split: scenario/rubric landed; the profile design pass is the S27 prerequisite (V7 B5a) |
 
 ---
 
@@ -2016,3 +2017,38 @@ the ADR wins.**
   the audit); skipping the reference self-check (S26 is the proof the tolerances describe a real
   deck); leaving the `#` in `srgbClr` (invalid OOXML, tolerated only by PowerPoint's repair
   path).
+
+## ADR-069 — Reference-quality split: scenario/rubric landed; the profile design pass is the S27 prerequisite (V7.2 B5a)
+
+- **Date:** 2026-09-24
+- **Measured fact.** The reference profile expects the cover title at 44 pt on
+  (0.69, 3.08) in, the content title at 36 pt on (0.59, 0.58) and the body at 14 pt; the
+  `brief` preset renders a cover title at 54 pt on (0.58, 0.58) and a content title at 45 pt
+  on (1.00, 1.48) with 18 pt body runs. pptwise IR carries no per-shape geometry (slides are
+  `type`/`kind`/`components`; layouts own positions and sizes), and `init --profile` maps
+  colours, fonts and the deck-local theme but not the profile's `typeScale`/`roles`; it also
+  writes only `pageNumber`, not the profile's `sectionMarker`/`metaFooter` chrome. A
+  model-authored preset deck therefore cannot satisfy the `design-role-*`/`design-chrome-match`
+  rules of S26 no matter how well the components are chosen.
+- **Decision.** Split B5. **B5a (this entry, landed with the scenario):** add the
+  `reference-quality` scenario (12 pages: cover, toc, 4 × section+content, ending; staged
+  `design/design-profile.json`; task says the reference photos are not copyable, so the deck's
+  profile copy switches `background.mode` to `flat` or `svg`, and every storyboard page declares
+  its role) and the `design-profile` rubric check: the harness re-runs
+  `audit --profile <deck>/design-profile.json` after the normal audit and fails the attempt on
+  any error-level `design-*` finding. **B5b (next):** implement the profile design pass that
+  renders the profile's standard-page language before the font pass — representative title size,
+  colour and anchor per role, dominant body run size/colour with accent runs preserved, content
+  card columns re-spaced to the profile gap, and the profile's section/meta-footer chrome; deep
+  pages stay model-authored against the SKILL and are judged by the same audit. Only after B5b
+  run `pnpm eval:run --scenario reference-quality`, write `docs/quality.md` (3-sample 1–5
+  baseline) and produce the `tmp/quality-demo` package/preview/audit JSON for S27.
+- **Evidence.** `reference-quality.yaml` loads through the harness, the rubric now carries 14
+  checks in stable order, `design-profile` is an error gate that passes only when the profile
+  audit finds no design error, and `tests/eval/rubric.test.ts` (13 tests) covers the absent
+  profile and the drift message. Full `pnpm test` remains green.
+- **Alternatives rejected:** loosening the S26 tolerances until a preset deck passes (the
+  profile would stop describing the reference); copying the reference photos or shipping a
+  pre-baked reference deck (deck discipline and copyright); asking the scenario prompt to
+  hand-place every shape (the capability must live in the toolchain, not in one task's wording);
+  auditing only plugin-generated pages (S26 audits the deck as delivered).

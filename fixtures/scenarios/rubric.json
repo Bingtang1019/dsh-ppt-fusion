@@ -65,6 +65,11 @@
       "id": "chrome",
       "description": "the deck declares chrome and the audit reports no chrome error (coverage, geometry, skip)",
       "severity": "error"
+    },
+    {
+      "id": "design-profile",
+      "description": "`audit --profile` reports no error-level `design-*` finding against the deck's design profile",
+      "severity": "error"
     }
   ],
   "metrics": [
