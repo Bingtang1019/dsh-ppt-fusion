@@ -8,6 +8,8 @@ import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
+import { chromeRoleFor } from '../schema/fusion.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import type { CompatLevel } from '../compat/registry.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
@@ -36,6 +38,8 @@ export interface RenderResult {
   readonly merge: MergeReport
   /** What the post pass applied, when the manifest declared motion. */
   readonly post?: PostReport
+  /** What the chrome pass applied, when the manifest declared a chrome contract. */
+  readonly chrome?: ChromeReport
   /** The compat pass result, the file it was serialised to, and that file's hash. */
   readonly compat: { readonly report: CompatReport; readonly reportFile: string; readonly reportSha256: string }
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
@@ -150,7 +154,18 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
     postflight = { deep: deepResult.postflight }
   }
 
-  return finalize({ pkg, dir, stagedRoot, staged, postConfig, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps })
+  // The chrome contract, like motion, is applied after the merge: the engines
+  // render content, this layer owns deck-level chrome (plan V6 WP1, ADR-058).
+  const chrome: ChromeOptions | null =
+    context.deck.chrome === undefined
+      ? null
+      : {
+          chrome: context.deck.chrome,
+          tokens: context.tokens,
+          pages: chromePagesFrom(context.deck.pages, (index) => chromeRoleFor(context.ir.slides[index - 1]?.type)),
+        }
+
+  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps })
 }
 
 /** Publish path, staged artifacts and the shared gate tail. */
@@ -160,6 +175,7 @@ async function finalize(input: {
   stagedRoot: string
   staged: readonly string[]
   postConfig: ReturnType<typeof readPostConfig> | null
+  chrome: ChromeOptions | null
   compat: CompatChoice
   output: string | undefined
   name: string
@@ -181,7 +197,12 @@ async function finalize(input: {
     )
   }
 
-  // 5. Compatibility pass: registered downgrades and fallback stamps, after motion
+  // 5. Chrome: the deck-level contract — page numbers (native field), footer and
+  //    section — written after motion and before the compat scan, so the scan sees
+  //    the shapes the deck actually ships (plan V6 WP1, ADR-058).
+  const chromeApplied = input.chrome === null ? null : applyChrome(pkg, input.chrome)
+
+  // 6. Compatibility pass: registered downgrades and fallback stamps, after motion
   //    (a downgrade must see the transitions it judges) and before the gates.
   const compatReport = await applyCompatPass(pkg, { level: input.compat.level })
   const compatErrors = compatReport.findings.filter((finding) => finding.level === 'error')
@@ -197,13 +218,13 @@ async function finalize(input: {
   fs.writeBytes(mergedPath, await pkg.write())
   const staged = [...input.staged, mergedPath]
 
-  // 6. Hard gates: OPC structure and the single-master invariant, then the engine's
+  // 7. Hard gates: OPC structure and the single-master invariant, then the engine's
   //    own delivery check when a deep page participated.
   const opcFindings = auditPackage(pkg, { requireSingleMaster: true })
   assertNoErrors(opcFindings)
   const delivery = input.runDelivery ? engineFor(dir, input.deps).deliveryCheck({ file: mergedPath }) : null
 
-  // 7. Publish atomically, then record what was published.
+  // 8. Publish atomically, then record what was published.
   const outputFile = publishPath(dir, input.output, input.name)
   const bytes = await pkg.write()
   return publish({
@@ -219,6 +240,7 @@ async function finalize(input: {
     compat: { report: compatReport, source: input.compat.source },
     ...(delivery === null ? {} : { delivery: { stdout: delivery.result.stdout, status: delivery.result.status } }),
     ...(postApplied === null ? {} : { post: postApplied }),
+      ...(chromeApplied === null ? {} : { chrome: chromeApplied }),
   })
 }
 

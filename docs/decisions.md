@@ -68,6 +68,7 @@ the ADR wins.**
 | 055 | First CI run: platform threading in the venv manager, host-measured `advTm` normalised |
 | 056 | Published name is the unscoped `dsh-ppt-flashmade` (2FA-gated publish) |
 | 057 | Preview tool renders inside the deck and copies into the store (0.1.1) |
+| 058 | Deck-level chrome pass: native page-number field, footer/section, signature strip (0.1.2) |
 
 ---
 
@@ -1598,3 +1599,33 @@ the ADR wins.**
 - **Alternatives rejected:** letting the CLI write outside the deck (breaks ADR-026 and every
   path assumption in the publish flow); having the card read the deck directory directly (the card
   runs in a browser and must read the same-origin store).
+
+## ADR-058 — Deck-level chrome pass: native page-number field, footer/section, signature strip
+
+- **Date:** 2026-09-23
+- **Context:** V6 WP1 (plan §3). v0.1.1 decks had no deck-level chrome contract: a page number
+  appeared only where a layout happened to draw one (`pptwise` content pages), so the `hello`
+  deck numbered page 2 but not its deep pages, cover or ending, and no gate noticed (`O2` in the
+  feedback book).
+- **Decision:** `deck.fusion.json` declares a `chrome` block (`pageNumber` with `skipRoles`, four
+  anchor positions and `tokens` styling; optional `footer`, `logo`, `section`), and `pages[]` may
+  declare a `section`. One pass owns the shapes: `applyChrome` in `bridge/chrome.ts`, called from
+  `render.ts` after motion and before the compat scan, so standard and deep pages receive the same
+  chrome. Page numbers are **native fields** (`<a:fld type="slidenum">`, text `‹#›`), never literal
+  digits, so deleting or reordering pages keeps them right. Field ids are deterministic
+  (`SHA-1` seed → UUID-v5 shape) and shapes carry stable names (`chrome-page-number`,
+  `chrome-footer`, `chrome-section`), which makes the pass idempotent and byte-stable. The engines'
+  baked page numbers are removed by **signature** — bottom band, wide bar or right-half badge,
+  single 1–3 digit run, right-aligned, translucent fill (≤ 60000 alpha) — because their shapes have
+  generic names (`Text 8`); a body figure is left untouched.
+- **Evidence:** the demo deck (`tmp/preview-hello`, chrome: skip cover/ending, footer, two
+  sections) renders to `out/hello-chrome.pptx`: slides 1 and 5 carry one chrome shape (footer) and
+  no field, slides 2–4 carry exactly one `slidenum` field, the footer on every page and the section
+  on the two declaring pages; the layout's baked `02` bar is gone while a synthetic body `42`
+  survives (`chrome.test.ts`); identical geometry across pages, idempotent re-apply and two-run
+  byte equality are unit-tested; `pnpm test` is 340 tests / 44 files green, `typecheck`/`lint` 0.
+  `fixtures/golden` re-records as fixtureVersion 6 in WP1-P4.
+- **Alternatives rejected:** literal page numbers (wrong after any edit); stripping by shape name
+  (the engines use generic names); leaving layout chrome in place and adding nothing (the reported
+  defect); teaching each engine to emit chrome (deep pages are SVG-authored and would need the same
+  logic twice).
