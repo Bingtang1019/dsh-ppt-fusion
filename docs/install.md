@@ -21,7 +21,9 @@ dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.3.0
 ```
 
 From the GitHub Release (the attached tarball is byte-identical to the npm package, shasum
-`d354434ef86d22b40d6b8578cdd462ebd1d8af77`): download `dsh-ppt-flashmade-0.3.0.tgz` from
+`d354434ef86d22b40d6b8578cdd462ebd1d8af77`, sha256
+`a616af0169e2539377ee9b853098f97c4c225efbea2ecbd0359102c258dcf5ff`): download
+`dsh-ppt-flashmade-0.3.0.tgz` from
 `https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.3.0`, then
 
 ```sh

@@ -81,6 +81,7 @@ the ADR wins.**
 | 067 | Three asset channels (svg/office/user) and the post background layer (V7 B2.5) |
 | 068 | Design language reference and the Phase 3/4 authoring rules (V7 B3) |
 | 069 | Reference-quality split: scenario/rubric landed; the profile design pass is the S27 prerequisite (V7 B5a) |
+| 070 | v0.3.0 dual-channel release and the fixtureVersion 8 quality-alignment record (V7 B6) |
 
 ---
 
@@ -2102,3 +2103,30 @@ the ADR wins.**
   selection and provider keys differ); letting the engine write provenance (it does not know the
   fusion's manifest contract); passing the whole environment to the child (credential leak);
   keeping the harness's camelCase attribution check (false failures on every sourced image).
+
+## ADR-070 — v0.3.0 dual-channel release and the fixtureVersion 8 quality-alignment record (V7.2 B6)
+
+- **Date:** 2026-09-24
+- **Decision.** v0.3.0 ships the design-system alignment work (ADR-061/062/064/066/067/068/069)
+  on both channels from the same bytes. `package.json` moves to 0.3.0; `CHANGELOG.md` carries the
+  v0.3.0 notes, `docs/guide.zh.md` gains the profile workflow, and the WPS checklist adds rows 12
+  (profile theme consistency) and 13 (profile background) as pending.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.3.0`, tarball
+  847,668 bytes, 85 files, shasum `d354434ef86d22b40d6b8578cdd462ebd1d8af77`; the registry tarball
+  was re-downloaded and matched the shasum before release. GitHub: annotated tag `v0.3.0` (API tag
+  object `e05d64f0b142ab8d0c9044389845cef3e69cde9f` → commit
+  `5a1287d9f6f37bf16d74272707e4d58a074cae37`), Release id 394997486 with asset
+  `dsh-ppt-flashmade-0.3.0.tgz` (digest `sha256:a616af0169e2539377ee9b853098f97c4c225efbea2ecbd0359102c258dcf5ff`);
+  the downloaded-back asset's sha1 equals npm's, so the channels are byte-identical.
+  `fixtures/golden` is fixtureVersion 8 (the `srgbClr` literal fix of ADR-062);
+  `fixtures:verify`, `matrix:verify` 6/6 and the full suite (468 tests / 58 files) are green, and
+  the B5.5 commit's CI run is green on both platforms while the metadata commit's run is in
+  progress at this record.
+- **Known limits carried into the release.** `photo`/`office`/`user` backgrounds still need an
+  explicit asset reference (render falls back to flat and the profile audit reports the mode
+  mismatch); deep pages warn on MiSans ea slots/non-PPT-safe font stacks; the human checks
+  (S19, S23, S27, S28, WPS rows 11–13) remain pending on the user's machine.
+- **Alternatives rejected:** tagging before the metadata commit (the tagged tree would lack the
+  install/CHANGELOG/guide updates); releasing a locally built tgz instead of the registry bytes
+  (no third-party verification); shipping only npm (breaks the dual-channel rule of ADR-056);
+  declaring v0.3.0 as the v1 (the plan keeps v1 for after the human checks).
