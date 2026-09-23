@@ -1,8 +1,8 @@
-# Release checklist (current: v0.1.1)
+# Release checklist (current: v0.1.2)
 
 Everything below runs from the repository root. The local gates are already green
 (`typecheck`, `lint`, `test` 319, `fixtures:verify`, `matrix:verify`, `compat:matrix`,
-`prepack`); this page is the credentialed half. `v0.1.1` is a patch release and follows the same
+`prepack`); this page is the credentialed half. `v0.1.2` is a patch release and follows the same
 steps as `v0.1.0` with the version, tag and asset names replaced throughout.
 
 ## 0. Identity
