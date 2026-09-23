@@ -85,10 +85,10 @@ describe('discoverOfficeAssets', () => {
 
 describe('officeRootCandidates', () => {
   it('puts DSH_PPT_OFFICE_ROOTS entries first and then the Office defaults', () => {
-    const env = { ProgramFiles: 'C:\\PF', APPDATA: 'C:\\AD', DSH_PPT_OFFICE_ROOTS: `icon=C:\\Icons${delimiter}D:\\Extra` }
+    const env = { ProgramFiles: 'C:\\PF', APPDATA: 'C:\\AD', DSH_PPT_OFFICE_ROOTS: `icon=/opt/icons${delimiter}/opt/extra` }
     const candidates = officeRootCandidates(env)
-    expect(candidates[0]).toEqual({ path: 'C:\\Icons', category: 'icon' })
-    expect(candidates[1]).toEqual({ path: 'D:\\Extra', category: 'clip-art' })
+    expect(candidates[0]).toEqual({ path: '/opt/icons', category: 'icon' })
+    expect(candidates[1]).toEqual({ path: '/opt/extra', category: 'clip-art' })
     expect(candidates.some((candidate) => candidate.path === join('C:\\PF', 'Microsoft Office', 'root', 'CLIPART'))).toBe(true)
     expect(candidates.some((candidate) => candidate.path === join('C:\\AD', 'Microsoft', 'Templates', 'LiveContent'))).toBe(true)
   })
