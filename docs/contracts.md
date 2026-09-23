@@ -672,7 +672,15 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
 - **`toc` role.** `deck.storyboard.json` may declare `role: "toc"` on a content IR slide (the
   storyboard-only role); it uses the content menu slots and takes page-number participation from
   its coarse chrome role.
-- **Font availability.** The theme declares the profile's families first; pptwise renders only
-  families it can measure, so an uninstalled family falls down the stack and the rendered
-  typeface may differ. The theme file is the declared authority; B4 reports the rendered
-  mismatch as a warning and the manual rubric owns the visual call.
+- **Manifest field.** `deck.fusion.json` may declare `designProfile: "<workspace-relative path>"`.
+  `init --profile` copies the profile into the deck as `design-profile.json` and writes the field;
+  `validate` rejects a declared profile that is missing or invalid (`design-profile-missing`,
+  `design-profile-invalid`).
+- **Font pass.** pptwise resolves a font stack against a hardcoded safe-font allowlist, so the
+  theme file alone cannot make a profile family render. When `designProfile` is declared,
+  `render` rewrites the merged package's run typefaces (`bridge/fonts.ts`): runs at or above
+  28 pt take the heading family, digit-only runs at or above 32 pt take the number family, the
+  rest the body family, and the EA slot follows the same choice. The pass is idempotent,
+  `post animate` re-applies it, and `out/manifest.json` records
+  `design: {fontPass, typefaces}`. A family that is not installed on the viewer's machine still
+  falls back there; the deck-local theme remains the declared authority.

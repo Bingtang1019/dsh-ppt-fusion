@@ -8,8 +8,11 @@ import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyProfileFonts, slideTypefaces, type FontApplicationReport } from '../bridge/fonts.ts'
 import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
+import { parseDesignProfile } from '../schema/design-profile.ts'
+import { assertInsideWorkspace } from '../engine/contracts.ts'
 import type { CompatLevel } from '../compat/registry.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
@@ -46,6 +49,8 @@ export interface RenderResult {
   readonly post?: PostReport
   /** What the chrome pass applied, when the manifest declared a chrome contract. */
   readonly chrome?: ChromeReport
+  /** What the design-profile font pass applied, when the manifest declared a profile. */
+  readonly design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
   /** The compat pass result, the file it was serialised to, and that file's hash. */
   readonly compat: { readonly report: CompatReport; readonly reportFile: string; readonly reportSha256: string }
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
@@ -164,6 +169,23 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
     postflight = { deep: deepResult.postflight }
   }
 
+  // The design profile's fonts are applied after the merge and before motion/chrome:
+  // pptwise resolves font stacks against a safe-font allowlist, so a deck-local theme
+  // that names MiSans still needs this pass to carry the profile's families into the
+  // published package (ADR-066).
+  let design: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] } | undefined
+  if (context.deck.designProfile !== undefined) {
+    const profilePath = assertInsideWorkspace(dir, context.deck.designProfile, 'designProfile')
+    const profileText = fs.readText(profilePath)
+    if (profileText === null) {
+      throw new DshPptFailure('OutputMissing', `designProfile points at ${context.deck.designProfile} but that file is absent`, {
+        detail: { designProfile: context.deck.designProfile },
+      })
+    }
+    const profile = parseDesignProfile(JSON.parse(profileText) as unknown)
+    design = { fontPass: applyProfileFonts(pkg, profile), typefaces: slideTypefaces(pkg) }
+  }
+
   // The chrome contract, like motion, is applied after the merge: the engines
   // render content, this layer owns deck-level chrome (plan V6 WP1, ADR-058).
   const chrome: ChromeOptions | null =
@@ -175,7 +197,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
           pages: chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index)),
         }
 
-  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps })
+  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps, design })
 }
 
 /** Publish path, staged artifacts and the shared gate tail. */
@@ -193,6 +215,7 @@ async function finalize(input: {
   postflight: { deep?: PostflightReceipt }
   runDelivery: boolean
   deps: CommandDependencies
+  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
 }): Promise<RenderResult> {
   const fs = input.deps.fs
   const { dir, pkg } = input
@@ -252,6 +275,7 @@ async function finalize(input: {
     deps: input.deps,
     compat: { report: compatReport, source: input.compat.source },
     showTimings,
+    ...(input.design === undefined ? {} : { design: input.design }),
     ...(delivery === null ? {} : { delivery: { stdout: delivery.result.stdout, status: delivery.result.status } }),
     ...(postApplied === null ? {} : { post: postApplied }),
       ...(chromeApplied === null ? {} : { chrome: chromeApplied }),
@@ -315,6 +339,8 @@ function publish(input: {
   post?: PostReport
   /** Whether narration auto-advance needed the package show-timings flag. */
   showTimings: boolean
+  /** What the design-profile font pass applied, when the manifest declared a profile. */
+  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
   compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input
@@ -347,6 +373,7 @@ function publish(input: {
       },
       // True when narration auto-advance required `p:showPr useTimings="1"` (V6 Q5).
       showTimings: input.showTimings,
+      ...(input.design === undefined ? {} : { design: input.design }),
       ...(input.delivery === undefined ? {} : { delivery: { status: input.delivery.status, receipt: input.delivery.stdout.trim().split(/\r?\n/).slice(-3) } }),
       ...(input.post === undefined ? {} : { post: input.post }),
     }),
@@ -357,6 +384,7 @@ function publish(input: {
     bytes: bytes.length,
     slides: input.slides,
     showTimings: input.showTimings,
+    ...(input.design === undefined ? {} : { design: input.design }),
     postflight: input.postflight,
     merge: input.merge,
     compat: { report: input.compat.report, reportFile, reportSha256 },

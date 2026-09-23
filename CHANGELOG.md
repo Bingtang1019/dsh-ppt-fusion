@@ -21,7 +21,12 @@
   （`body|muted|title` 对 `bg`/`surface` ≥4.5，`onAccent` 对 `accent`、`accent` 对 `bg` ≥3.0），不通过显式报错
   并给出实测比值；`emphasisInk` 不映射（否则白底白字会被 pptwise 拒绝），跨菜单 id 直接拒绝（ADR-052）。
 - **`init --profile`（B2）**：物化预设后就地改写 `theme.json`、按新调色板重导 `tokens.json`/`master-design.json`，
-  档案无页码时写 `chrome = { pageNumber: { show: false } }`，storyboard 按改写后的菜单生成。
+  档案无页码时写 `chrome = { pageNumber: { show: false } }`，storyboard 按改写后的菜单生成；档案副本写入
+  `design-profile.json` 并在 manifest 记 `designProfile`。
+- **字体套用 pass（B2，ADR-066）**：pptwise 0.35.0 用硬编码 safe-font 白名单解析字体栈，主题里写 MiSans 也只会
+  回退；因此 manifest 声明 `designProfile` 时，`render` 在 merge 后按档案重写每段 run 的 `a:latin`/`a:ea`/`a:cs`
+  （≥28pt→heading、≥32pt 纯数字→number、其余→body，EA 槽同选），幂等且 `post animate` 会重放，
+  结果记入 `out/manifest.json` 的 `design`。
 - **storyboard `toc` role（B2）**：storyboard 可为 content 页声明 `role: "toc"`（目录页用 content 菜单槽位；
   chrome 角色保持不变）。
 

@@ -5,6 +5,8 @@ import { toWorkspaceRelative } from '../engine/contracts.ts'
 import { loadDeck } from '../deck.ts'
 import { OpcPackage } from '../bridge/opc.ts'
 import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyProfileFonts } from '../bridge/fonts.ts'
+import { parseDesignProfile } from '../schema/design-profile.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import { resolveCompatLevel } from './render.ts'
 import { resolveDeckDir, type CommandDependencies } from './context.ts'
@@ -71,6 +73,16 @@ export async function postAnimate(options: PostAnimateOptions): Promise<PostAnim
   // Keep recorded-narration auto-advance effective when re-animating a package whose
   // `presProps.xml` predates the Q5 fix (ADR-060).
   ensureShowTimings(pkg)
+  // Re-animating must not undo the design-profile fonts (ADR-066); the pass is
+  // idempotent, so applying it to an already-fonted package changes nothing.
+  if (context.deck.designProfile !== undefined) {
+    const profilePath = resolve(dir, context.deck.designProfile)
+    const profileText = fs.readText(profilePath)
+    if (profileText === null) {
+      throw new DshPptFailure('OutputMissing', `designProfile points at ${context.deck.designProfile} but that file is absent`, { detail: { designProfile: context.deck.designProfile } })
+    }
+    applyProfileFonts(pkg, parseDesignProfile(JSON.parse(profileText) as unknown))
+  }
   if (report.unmatched.length > 0) {
     throw new DshPptFailure('ContractViolation', `post configuration selected shapes that do not exist on slide ${report.unmatched.join(', ')}; check the target names against the published pages`, {
       detail: { unmatched: report.unmatched },

@@ -12,6 +12,7 @@ import {
 } from '../schema/storyboard.ts'
 import { checkBudgets, formatBudgetViolation, measureDeepSvg, measureIrSlide, type PageMeasurement } from '../schema/budget.ts'
 import { missingDeepFiles } from '../schema/deep-page.ts'
+import { parseDesignProfile } from '../schema/design-profile.ts'
 import { collectPaletteFindings, buildReport, type FusionFinding, type FusionReport } from '../audit.ts'
 import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from '../schema/tokens.ts'
 import type { FileSystemPort } from '../engine/venv.ts'
@@ -90,6 +91,31 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
   }
 
   findings.push(...chromeFindings(context.deck, context.ir.slides, dir, deps.fs))
+
+  // A declared design profile must be readable and valid: `render` applies its fonts,
+  // so a missing or broken profile is a pre-render finding, not a render crash.
+  if (context.deck.designProfile !== undefined) {
+    const text = deps.fs.readText(join(dir, context.deck.designProfile))
+    if (text === null) {
+      findings.push({
+        level: 'error',
+        source: 'manifest',
+        rule: 'design-profile-missing',
+        message: `designProfile points at ${context.deck.designProfile} but that file is absent`,
+      })
+    } else {
+      try {
+        parseDesignProfile(JSON.parse(text) as unknown)
+      } catch (error) {
+        findings.push({
+          level: 'error',
+          source: 'manifest',
+          rule: 'design-profile-invalid',
+          message: isDshPptFailure(error) ? error.message : `${context.deck.designProfile} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        })
+      }
+    }
+  }
 
   const deepPages = context.deck.pages.filter((page) => page.route === 'ppt-master')
   for (const page of deepPages) {

@@ -82,8 +82,9 @@ to overwrite an existing manifest. The storyboard is written after the theme is 
 so each skeleton page gets the first layout its role may use in that theme's menu (V6 WP2).
 With `--profile`, the deck-local `theme.json` is rewritten from the design profile (keeping the
 preset id and menu), tokens/master-design are re-derived, chrome follows the profile (a reference
-deck without page numbers writes `{pageNumber: {show: false}}`), and the storyboard uses the
-patched menu (ADR-066).
+deck without page numbers writes `{pageNumber: {show: false}}`), the storyboard uses the patched
+menu, and the profile is copied into the deck as `design-profile.json` with the manifest's
+`designProfile` field pointing at it (ADR-066).
 
 ### `dsh-ppt plan <dir> [--from <file...>] [--confirm]`
 
@@ -177,8 +178,12 @@ publish to `out/<name>.pptx` plus `out/manifest.json` (sha256, slide count, expo
 receipts, merge report, staged artifacts).
 
 Render refuses a deck whose `validate` reports errors, including the storyboard gates
-(`storyboard-layout`, `budget-exceeded`); `--no-storyboard` drops the `storyboard` findings
-and exists for debugging only (plan §4.1).
+(`storyboard-layout`, `budget-exceeded`) and a declared `designProfile` that is missing or
+invalid; `--no-storyboard` drops the `storyboard` findings and exists for debugging only
+(plan §4.1). A deck that declares `designProfile` also gets the profile's fonts applied after
+the merge (runs ≥ 28 pt → heading family, digit-only runs ≥ 32 pt → number family, the rest →
+body family, EA slot following), recorded in `out/manifest.json` as
+`design: {fontPass, typefaces}` (ADR-066).
 
 Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
 leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.

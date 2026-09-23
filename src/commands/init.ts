@@ -66,7 +66,12 @@ export function skeletonIr(name: string, themeId: string): { document: Record<st
  * @param slideCount - number of slides the IR has.
  * @returns the manifest document.
  */
-export function skeletonManifest(name: string, preset: string, slideCount: number, chrome: FusionChrome = defaultChrome()): FusionDeck {
+export function skeletonManifest(
+  name: string,
+  preset: string,
+  slideCount: number,
+  options: { readonly chrome?: FusionChrome; readonly designProfile?: string } = {},
+): FusionDeck {
   return parseFusionDeck({
     version: 1,
     name,
@@ -76,7 +81,8 @@ export function skeletonManifest(name: string, preset: string, slideCount: numbe
     // A fresh deck starts with the plan's chrome contract: cover and ending skip
     // page numbers, everything else carries one. A profile whose reference deck has
     // no page numbers passes `{ pageNumber: { show: false } }` instead.
-    chrome,
+    chrome: options.chrome ?? defaultChrome(),
+    ...(options.designProfile === undefined ? {} : { designProfile: options.designProfile }),
   })
 }
 
@@ -98,19 +104,31 @@ export function initDeck(options: InitOptions): InitResult {
   const name = basename(dir)
   deps.fs.mkdirp(dir)
   const profile = options.profile === undefined ? null : readDesignProfile(options.profile, deps.fs)
+  const designProfileName = profile === null ? undefined : 'design-profile.json'
 
   const irPath = join(dir, 'deck.ir.json')
   const ir = skeletonIr(name, options.theme)
   // A reference deck without page numbers keeps chrome switched off entirely, which
   // is the profile's `chrome.pageNumber === false` measured on the reference pages.
   const chrome = profile !== null && !profile.chrome.pageNumber ? { pageNumber: { show: false } } : defaultChrome()
-  const deck = skeletonManifest(name, options.theme, ir.slideCount, chrome)
+  const deck = skeletonManifest(name, options.theme, ir.slideCount, {
+    chrome,
+    ...(designProfileName === undefined ? {} : { designProfile: designProfileName }),
+  })
   deps.fs.writeText(irPath, toJsonDocument(ir.document))
   deps.fs.writeText(manifestPath, toJsonDocument(deck))
+  const created = [irPath, manifestPath]
+  if (profile !== null && designProfileName !== undefined) {
+    // The deck keeps its own copy of the profile: `render` applies its fonts and
+    // `validate` can check it without needing the user's original path.
+    const profilePath = join(dir, designProfileName)
+    deps.fs.writeText(profilePath, toJsonDocument(profile))
+    created.push(profilePath)
+  }
   // Materialise the theme first: its menu decides which layout each skeleton page
   // gets, so `init` leaves a deck whose storyboard already validates (V6 WP2).
   const firstTheme = themeBridgeFor(dir, deps).ensure(deck)
-  const created = [irPath, manifestPath, ...firstTheme.changed]
+  created.push(...firstTheme.changed)
   let theme = firstTheme
   if (profile !== null) {
     // Patch the deck-local theme in place (it keeps the preset id, so both pptwise

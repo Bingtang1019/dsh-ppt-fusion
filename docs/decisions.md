@@ -1841,19 +1841,28 @@ the ADR wins.**
   role vocabulary (not the chrome roles): a toc page is a content slide in the IR, the
   storyboard may promote it, and it uses the content menu slots; page-number participation
   stays with the coarse chrome role.
-- **Measured limitation (font fidelity).** pptwise only renders families it can measure, so
-  a declared family that is not installed falls down the stack (MiSans is absent on this
-  machine: the theme lists MiSans first, the rendered deck shows Georgia plus Microsoft YaHei
-  for the EA slot). B4 compares the theme's declared fonts and reports a rendered mismatch
-  as a warning, and the plan's manual rubric owns the visual call; installing the reference
-  font is the fidelity fix.
+- **Measured limitation and the font pass.** Installing the reference font is not enough:
+  pptwise 0.35.0 resolves a font stack against a hardcoded `SAFE_FONTS` allowlist
+  (`resolveFontFace`), so a theme that names MiSans still renders with a listed fallback
+  (measured before and after installing MiSans per-user: latin Georgia, EA Microsoft YaHei).
+  `render` therefore applies the profile's families itself when the manifest declares
+  `designProfile`: `bridge/fonts.ts` rewrites every paragraph's `a:rPr`/`a:defRPr`/
+  `a:endParaRPr` typefaces — runs at or above 28 pt take the heading family, large numerals
+  (≥ 32 pt, digit-only text) take the number family when one is declared, everything else the
+  body family, and the EA slot follows the same choice. The pass is idempotent, `post animate`
+  re-applies it after motion, `validate` rejects a declared profile that is missing or
+  invalid, and `out/manifest.json` records `design: {fontPass, typefaces}`. Measured with
+  MiSans installed per-user and the pass enabled: the published deck carries
+  `latin=MiSans ea=MiSans` on every run and `audit` stays at 0 error / 0 warning.
 - **Evidence.** S25 end-to-end on `tmp/profile-deck`: `init --profile` → `validate` OK 4
-  gates → `render` (sha256 `a30b0d3693b9a96d…`) → rendered slide XML carries
-  `#FFFFFF/#0D0D0D/#595959/#577FD2` and `audit` reports 11 sources, 0 error, 0 warning.
+  gates → `render` → rendered slide XML carries `#FFFFFF/#0D0D0D/#595959/#577FD2` plus
+  `latin=MiSans ea=MiSans` (font pass: 16 runs, 8 latin + 8 ea slots), `out/manifest.json`
+  records `design.typefaces: ["MiSans"]`, and `audit` reports 11 sources, 0 error, 0 warning.
   Unit tests: `profile-theme.test.ts` (colour math, mapping, contrast failure),
   `theme.test.ts` (materialise/patch/reuse/cross-menu refusal), `init.test.ts` (profile
-  theme + chrome + tokens + storyboard + validate), `storyboard.test.ts` (toc role), 415
-  tests / 53 files green.
+  theme + chrome + tokens + storyboard + validate + missing-profile finding),
+  `fonts.test.ts` (family mapping per size/numerals, idempotence),
+  `storyboard.test.ts` (toc role); 419 tests / 54 files green.
 - **Alternatives rejected:** rewriting every `srgbClr`/`typeface` in the merged package
   (a second colour engine with no semantic mapping for charts, gradients and images);
   giving the generated theme a new id (breaks the IR's preset binding and validate's

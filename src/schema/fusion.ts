@@ -25,6 +25,8 @@ export interface FusionDeck {
   }
   /** Deck-level chrome contract; absent keeps the legacy per-layout chrome. */
   readonly chrome?: FusionChrome
+  /** Workspace-relative design profile whose fonts `render` applies after the merge. */
+  readonly designProfile?: string
 }
 
 /** Roles the chrome contract names; v0.2's storyboard reuses this vocabulary. */
@@ -121,6 +123,12 @@ export const FusionDeckSchema = z.strictObject({
   compat: CompatLevelSchema.optional(),
   post: PostSchema.optional(),
   chrome: ChromeSchema.optional(),
+  /**
+   * Workspace-relative design profile (V7.2 B2). When present, `render` applies the
+   * profile's font families to the merged package because pptwise's safe-font
+   * allowlist cannot render them from the theme alone (ADR-066).
+   */
+  designProfile: z.string().min(1).optional(),
 })
 
 /**

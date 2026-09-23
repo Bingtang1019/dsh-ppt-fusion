@@ -24,9 +24,11 @@ describe('initDeck with a design profile (V7.2 B2)', () => {
     const { fs, deps } = build()
     const result = initDeck({ dir: workspace, theme: 'brief', profile: join(workspace, 'design-profile.json'), deps })
 
-    const deck = JSON.parse(fs.readText(join(workspace, 'deck.fusion.json')) ?? '{}') as { chrome?: { pageNumber?: { show?: boolean } }; theme?: { preset?: string } }
+    const deck = JSON.parse(fs.readText(join(workspace, 'deck.fusion.json')) ?? '{}') as { chrome?: { pageNumber?: { show?: boolean } }; theme?: { preset?: string }; designProfile?: string }
     expect(deck.theme?.preset).toBe('brief')
     expect(deck.chrome?.pageNumber?.show).toBe(false)
+    expect(deck.designProfile).toBe('design-profile.json')
+    expect(fs.readText(join(workspace, 'design-profile.json'))).toContain('"accent": "#577FD2"')
 
     const theme = JSON.parse(fs.readText(join(workspace, 'theme.json')) ?? '{}') as { id?: string; style?: { colors?: { accent?: string; bg?: string } } }
     expect(theme.id).toBe('brief')
@@ -64,5 +66,14 @@ describe('initDeck with a design profile (V7.2 B2)', () => {
     expect(() => initDeck({ dir: workspace, theme: 'brief', profile: join(workspace, 'nope.json'), deps })).toThrowError(/absent/)
     fs.writeText(join(workspace, 'broken.json'), JSON.stringify({ version: 1 }))
     expect(() => initDeck({ dir: workspace, theme: 'brief', profile: join(workspace, 'broken.json'), deps })).toThrowError(/invalid/)
+  })
+
+  it('reports a manifest designProfile whose file is absent', () => {
+    const { fs, deps } = build()
+    initDeck({ dir: workspace, theme: 'brief', profile: join(workspace, 'design-profile.json'), deps })
+    fs.files.delete(join(workspace, 'design-profile.json'))
+    const report = validateDeck({ dir: workspace, deps })
+    expect(report.findings.some((finding) => finding.rule === 'design-profile-missing')).toBe(true)
+    expect(report.ok).toBe(false)
   })
 })
