@@ -15,6 +15,7 @@ import { compatLint, compatLintDocument, formatCompatLint } from './commands/com
 import { auditDeck } from './commands/audit.ts'
 import { formatSkillAuditReport, runSkillAudit } from './commands/skill.ts'
 import { brandExtract } from './commands/brand.ts'
+import { extractDesignProfile, formatDesignProfile } from './commands/design.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
@@ -561,6 +562,31 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       if (options.json === true) printJson(compatLintDocument(result))
       else process.stdout.write(`${formatCompatLint(result)}` + '\n')
       process.exitCode = result.ok ? 0 : 1
+    })
+
+  const design = program.command('design').description('reference-deck design system commands')
+  design
+    .command('profile')
+    .description('design-profile commands')
+    .command('extract')
+    .description('extract a numeric design profile (colours/fonts/sizes/geometry) from a reference .pptx')
+    .argument('<file>', 'reference .pptx, resolved against --dir')
+    .option('-o, --output <file>', 'profile JSON to write', 'design-profile.json')
+    .option('--roles <spec>', 'role overrides, e.g. "cover=1;content=2,3"')
+    .option('--copy-media', 'copy the deck media under <output dir>/.dsh-ppt/design-media (off by default)')
+    .option('--json', 'print the result as JSON')
+    .option('--dir <dir>', 'directory the paths resolve against', '.')
+    .action((file: string, options: { output: string; roles?: string; copyMedia?: boolean; dir: string; json?: boolean }) => {
+      const result = extractDesignProfile({
+        file,
+        output: options.output,
+        dir: options.dir,
+        copyMedia: options.copyMedia === true,
+        ...(options.roles === undefined ? {} : { roles: options.roles }),
+        deps,
+      })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatDesignProfile(result)}\n`)
     })
 
   const deep = program.command('deep').description('deep-page engine operations')

@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## v0.3.0 — 未发布（V7.2 Part B）
+
+设计系统对齐：参考 deck → 数值化 design profile → theme/chrome/storyboard 套用 → 符合性审计。
+
+### 新增
+
+- **`design profile extract`（B1，ADR-061）**：`dsh-ppt design profile extract <ref.pptx> -o design-profile.json
+  [--roles <spec>] [--copy-media]` 由 engine venv 的 python-pptx 提取色板、字体、字号阶梯、role 几何、chrome 与
+  背景策略为**纯数值**档案（无文本、无媒体、无输入路径），严格 schema 校验；`--copy-media` 默认关，开启时只写
+  `<output dir>/.dsh-ppt/design-media`。
+- **参考档案夹具 + S24 门禁**：`fixtures/reference/profile.json`（已人工对照计划附录 A 复核）；
+  `pnpm design:verify` 用 `DSH_PPT_REFERENCE_DECK` 指向的本地参考 deck 重提取并逐字段比对，未设置该变量时
+  skip（CI 友好）。
+- **deck 纪律防护**：`.gitignore`（`fixtures/reference/*` 仅放行 `profile.json`）、`scripts/check-pack.mjs`
+  （tarball 禁 deck/media/profile）与 `tests/repo-discipline.test.ts`（CI 断言 tracked 文件与 `files` 白名单），
+  保证任何真实 deck 及其媒体不以任何形式进入 git 或 npm。
+
 ## v0.2.0 — 2026-09-23
 
 规划与一致性层：先分镜（storyboard）→ 每页 role/版式/预算 → 生成前机械自检（ADR-059）。

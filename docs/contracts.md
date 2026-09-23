@@ -624,3 +624,29 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   agreement with the manifest, layout legality against the bound menu and every page's budget.
   `render` requires the storyboard by default; `--no-storyboard` drops those findings for debugging
   only.
+
+## 19. Design profile contract (V7.2 B1, ADR-061)
+
+- **Source.** `design-profile.json` is extracted from one reference `.pptx` by
+  `python-assets/scripts/design-profile.py`, run under the engine venv's Python (python-pptx).
+  `dsh-ppt design profile extract <ref.pptx> -o design-profile.json [--roles <spec>] [--copy-media]`
+  writes and validates it; the schema lives in `src/schema/design-profile.ts` and rejects unknown
+  fields, unknown roles and malformed hex.
+- **Numbers only.** The document carries canvas EMU, palette hex (`bg`/`title`/`accent`/`body`/
+  `muted`/`watermark`/`onAccent`), font names (`heading`/`body`/`number`), per-role title/body
+  styles, per-role title anchor and column geometry, chrome booleans and a background mode with
+  overlay opacity. It never carries a run's text, a media file or the input path, and the recorded
+  fixture is ASCII-only.
+- **Roles and styles.** Roles come from measured hints (cover/ending by position, section by a
+  light ≥60 pt watermark, toc by ≥2 numeral runs on page 2, the rest content) with `--roles`
+  overriding; the title is the largest dark run, the body the mode of the remaining dark runs, and
+  palette entries are modes per category. Columns are clustered per slide with a 1 in tolerance and
+  the smallest positive inter-cluster gap is the card gap.
+- **Media.** `--copy-media` is off by default. When on, the deck's media is copied into
+  `<output dir>/.dsh-ppt/design-media`, an ignored scratch directory; it is never written next to
+  the profile.
+- **Deck discipline.** Only `fixtures/reference/profile.json` may be tracked under
+  `fixtures/reference/`; `.gitignore`, `scripts/check-pack.mjs` and
+  `tests/repo-discipline.test.ts` keep decks, media and local profiles out of git and the package.
+- **Gate.** `pnpm design:verify` re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares
+  it field by field with the fixture (S24); without that variable it reports `skipped` and exits 0.

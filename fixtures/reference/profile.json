@@ -1,0 +1,134 @@
+{
+  "background": {
+    "mode": "photo",
+    "overlayOpacity": 0.15
+  },
+  "canvas": {
+    "heightEmu": 6858000,
+    "widthEmu": 12192000
+  },
+  "chrome": {
+    "metaFooter": true,
+    "pageNumber": false,
+    "sectionMarker": true
+  },
+  "fonts": {
+    "body": "MiSans",
+    "heading": "MiSans",
+    "number": "Noto Sans SC"
+  },
+  "palette": {
+    "accent": "#577FD2",
+    "bg": "#FFFFFF",
+    "body": "#262626",
+    "muted": "#595959",
+    "onAccent": "#FFFFFF",
+    "title": "#0D0D0D",
+    "watermark": "#F2F7FA"
+  },
+  "roles": {
+    "content": {
+      "cardGapIn": 0.43,
+      "columns": 2,
+      "columnsMax": 3,
+      "titlePos": {
+        "x": 0.59,
+        "y": 0.58
+      }
+    },
+    "cover": {
+      "columns": 1,
+      "titlePos": {
+        "x": 0.69,
+        "y": 3.08
+      }
+    },
+    "ending": {
+      "columns": 1,
+      "titlePos": {
+        "x": 0.69,
+        "y": 3.79
+      }
+    },
+    "section": {
+      "columns": 1,
+      "titlePos": {
+        "x": 0.64,
+        "y": 3.43
+      },
+      "watermarkSizePt": 85.0
+    },
+    "toc": {
+      "cardGapIn": 1.04,
+      "columns": 3,
+      "columnsMax": 3,
+      "titlePos": {
+        "x": 5.19,
+        "y": 1.79
+      }
+    }
+  },
+  "typeScale": {
+    "content": {
+      "body": {
+        "color": "#262626",
+        "font": "MiSans",
+        "sizePt": 14.0
+      },
+      "title": {
+        "bold": false,
+        "color": "#0D0D0D",
+        "font": "MiSans",
+        "sizePt": 36.0
+      }
+    },
+    "cover": {
+      "body": {
+        "color": "#000000",
+        "font": "MiSans",
+        "sizePt": 16.0
+      },
+      "title": {
+        "bold": true,
+        "color": "#000000",
+        "font": "MiSans",
+        "sizePt": 44.0
+      }
+    },
+    "ending": {
+      "body": {
+        "color": "#000000",
+        "font": "MiSans",
+        "sizePt": 16.0
+      },
+      "title": {
+        "bold": false,
+        "color": "#000000",
+        "font": "MiSans",
+        "sizePt": 54.0
+      }
+    },
+    "section": {
+      "title": {
+        "bold": false,
+        "color": "#0D0D0D",
+        "font": "MiSans",
+        "sizePt": 34.0
+      }
+    },
+    "toc": {
+      "body": {
+        "color": "#595959",
+        "font": "MiSans",
+        "sizePt": 20.0
+      },
+      "title": {
+        "bold": false,
+        "color": "#000000",
+        "font": "Noto Sans SC",
+        "sizePt": 40.0
+      }
+    }
+  },
+  "version": 1
+}

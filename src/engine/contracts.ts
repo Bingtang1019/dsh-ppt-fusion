@@ -378,6 +378,7 @@ export const POST_TIMEOUTS = {
   source: 300_000,
   template: 600_000,
   roundtrip: 600_000,
+  design: 300_000,
 } as const
 
 /** Parameters for `ppt-master notes-to-audio`. */
@@ -710,4 +711,35 @@ export function registerTemplate(params: RegisterTemplateParams): EngineInvocati
   if (params.rebuildAll === true) argv.push('--rebuild-all')
   if (params.dryRun === true) argv.push('--dry-run')
   return { id: 'register-template', argv, timeoutMs: POST_TIMEOUTS.template, outputFiles: [] }
+}
+
+/** Parameters for `python-assets/scripts/design-profile.py` (fusion-owned, engine venv). */
+export interface DesignProfileExtractParams {
+  /** Absolute path of the extractor script. */
+  readonly scriptPath: string
+  /** Source `.pptx`; read-only and never copied into the profile. */
+  readonly input: string
+  /** Profile JSON to write. */
+  readonly output: string
+  /** Role overrides, e.g. `cover=1;content=2,3`; omitted uses the measured roles. */
+  readonly roles?: string
+  /** Explicit media copy directory; omitted leaves the deck's media untouched. */
+  readonly copyMedia?: string
+}
+
+/**
+ * Build the argv for the design-profile extractor.
+ *
+ * The extractor is this package's own script, so it is not part of
+ * `REGISTERED_ENGINE_COMMANDS`: it runs under the engine venv's Python because that
+ * is where `python-pptx` lives, and it writes only the numeric profile.
+ *
+ * @param params - script, input, output and the two optional switches.
+ * @returns the invocation; `outputFiles` names the profile the caller must read.
+ */
+export function designProfileExtract(params: DesignProfileExtractParams): EngineInvocation {
+  const argv = [params.scriptPath, '--input', params.input, '--output', params.output]
+  if (params.roles !== undefined) argv.push('--roles', params.roles)
+  if (params.copyMedia !== undefined) argv.push('--copy-media', params.copyMedia)
+  return { id: 'design-profile', argv, timeoutMs: POST_TIMEOUTS.design, outputFiles: [params.output] }
 }

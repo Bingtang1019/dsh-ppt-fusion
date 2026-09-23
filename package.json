@@ -51,6 +51,7 @@
     "themes:verify": "node --import tsx tests/themes-verify.ts",
     "fixtures:record": "node --import tsx tests/fixtures-record.ts",
     "fixtures:verify": "node --import tsx tests/fixtures-verify.ts",
+    "design:verify": "node --import tsx scripts/design-verify.ts",
     "engine:lock": "uv pip compile python-assets/requirements.in --output-file python-assets/requirements.lock --generate-hashes --python-version 3.13 --index-url https://pypi.tuna.tsinghua.edu.cn/simple",
     "opc:check": "node scripts/opc-invariants.mjs",
     "com:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-com-smoke.ps1",

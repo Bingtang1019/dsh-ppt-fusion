@@ -322,6 +322,21 @@ command and serves the result through `/dsh-ppt/preview` (ADR-049).
 (CLI, plugin shell, skill, vendored docs, lock). Install/uninstall, the `-w` requirement and
 the M7.5 scratch-profile rehearsal are documented in [install.md](install.md) (ADR-050).
 
+## Implemented (v0.3)
+
+### `dsh-ppt design profile extract <file> [-o <output>] [--roles <spec>] [--copy-media] [--dir <dir>] [--json]`
+
+Reads the numeric design system out of one reference `.pptx` and writes
+`design-profile.json` (default name, resolved against `--dir`): canvas EMU, palette hex,
+fonts, per-role title/body styles, per-role title anchor and column geometry, chrome booleans
+and a background mode with overlay opacity. The extractor runs under the engine venv's Python
+(python-pptx); the output is validated by the strict schema in `src/schema/design-profile.ts`.
+It carries no text, no media and no input path. `--roles` overrides the measured roles, e.g.
+`cover=1;content=2,3`; `--copy-media` is off by default and, when given, copies the deck's media
+into `<output dir>/.dsh-ppt/design-media` (an ignored scratch directory). `pnpm design:verify`
+re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares it with
+`fixtures/reference/profile.json`; without that variable it skips (ADR-061).
+
 ## JSON output
 
 Every leaf command accepts `--json` and prints one JSON document on stdout (exit codes are

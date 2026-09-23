@@ -72,6 +72,7 @@ the ADR wins.**
 | 058 | Deck-level chrome pass: native page-number field, footer/section, signature strip (0.1.2) |
 | 059 | Storyboard roles, the theme-menu allow-matrix and measured content budgets (v0.2 Q2) |
 | 060 | Narration auto-advance recomputed from embedded audio; `useTimings` restored after merge (Q5) |
+| 061 | Design profile: numeric extraction of a reference deck, deck-discipline guard (V7 B1) |
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 
@@ -1722,25 +1723,53 @@ the ADR wins.**
   drift); a sidecar duration list (a second source of truth beside the audio bytes);
   hardcoding `duration + 900` without reading the bytes (breaks on VBR and ID3 framing).
 
-## ADR-065 — `serve` and `deep check|chart` are dropped, not carried (V7 A3)
+## ADR-061 — The design profile: numeric extraction of a reference deck (V7.2 B1)
 
-- **Date:** 2026-09-23
-- **Context:** `docs/cli.md` listed `serve` (M5) and `deep check|chart` (M3/M5) as
-  Planned since v1. Neither command was implemented, no current release path owns them,
-  and the plan's V7.2 §A3 asks for a decision at v0.2.0 close: implement them or remove
-  them from the planned surface.
-- **Decision:** remove both from the planned table. `dsh-ppt` teaches only implemented
-  commands, and `docs/cli.md` now says so explicitly; the CHANGELOG v0.2.0 change list
-  records the removal. Re-adding either requires a milestone that needs it and its own
-  ADR, exactly like any other documented surface change.
-- **Evidence:** `docs/cli.md`'s `## Planned` table carries no rows; the CLI test that
-  lists the taught surface (documented groups) stays green; no source registers either
-  command.
-- **Alternatives rejected:** implementing `serve` as a thin wrapper over `preview --html`
-  (a second viewer surface with no owner for its lifecycle, auth or port policy) and
-  `deep check|chart` as aliases of `deep render`'s internal steps (the underlying checks
-  already run inside the four-step gate, so the aliases would only add a second way to
-  report the same facts).
+- **Date:** 2026-09-24
+- **Context:** V7.2's v0.3 aligns generated decks with a user reference deck at the design-system
+  level (palette, fonts, type scale, role geometry, chrome, background strategy). Appendix A of
+  the plan holds numbers from an ad-hoc analysis script, which is not a contract and not
+  reproducible. The reference deck itself is a local file that must never enter the repository or
+  the package.
+- **Decision:** `dsh-ppt design profile extract <ref.pptx> -o design-profile.json` runs
+  `python-assets/scripts/design-profile.py` under the engine venv's Python (where `python-pptx`
+  lives) and validates the result with the strict `DesignProfileSchema`
+  (`src/schema/design-profile.ts`). The profile carries numbers only — canvas EMU, palette hex,
+  font names, per-role title/body styles, per-role title anchor and column geometry, chrome
+  booleans and a background mode with overlay opacity. It never carries a run's text, a media
+  file or the input path. Roles are measured per slide (cover/ending by position, section by a
+  light ≥60 pt watermark, toc by ≥2 numeral runs on page 2, the rest content) with a `--roles`
+  override; the title is the largest dark run, the body the mode of the remaining dark runs,
+  palette entries are modes per category, and columns come from clustering body runs per slide
+  with a 1 in tolerance. `--copy-media` is off by default and, when on, copies into
+  `<output dir>/.dsh-ppt/design-media` — an ignored scratch directory, never next to the profile.
+- **Deck discipline (user constraint, 2026-09-23).** The recorded fixture
+  `fixtures/reference/profile.json` is ASCII-only and is the only file allowed under
+  `fixtures/reference/`; `.gitignore`, `scripts/check-pack.mjs` and
+  `tests/repo-discipline.test.ts` enforce that no deck, media or local profile reaches git or
+  npm. The S24 gate `pnpm design:verify` re-extracts the deck named by
+  `DSH_PPT_REFERENCE_DECK` and compares it field by field with the fixture; without that
+  variable (CI, other machines) it reports `skipped` and exits 0, like the LibreOffice half of
+  `compat:matrix`.
+- **Measured basis.** On the reference deck the extractor reproduces Appendix A for canvas,
+  every palette entry, the three fonts and all five role type rows (for example content title
+  36 pt `#0D0D0D` MiSans, section title 34 pt with an 85 pt watermark, accent `#577FD2`, number
+  font Noto Sans SC). Geometry is anchored to shape bounding boxes rather than the appendix's
+  text anchors, so the toc number column reads x=5.19 in where the appendix's text anchor says
+  4.88 in; the profile is self-consistent for B4's tolerance checks and Appendix A remains the
+  human reference. Two first-pass defects were fixed while recording it: numerals written as
+  `02.` were not recognised as toc rows, and column clustering pooled every content slide into
+  one count instead of aggregating per slide.
+- **Evidence:** `pnpm design:verify` prints `profile matches
+  fixtures/reference/profile.json (5 role(s), 5 type row(s))`; the fixture is byte-identical to a
+  fresh extraction through the real CLI and venv; `src/schema/design-profile.test.ts` (4 tests)
+  and `src/commands/design.test.ts` (5 tests) cover the schema, the venv runner, the media
+  scratch directory, the failure codes and the ASCII-only fixture; `typecheck`/`lint` are 0.
+- **Alternatives rejected:** parsing OOXML in TypeScript (duplicates python-pptx's text/geometry
+  work for no determinism gain); committing a synthetic copy of the reference deck (deck
+  discipline); recording text runs or per-slide text (leaks content and adds no design signal);
+  measuring with host tools such as ImageMagick (a second host dependency where the package
+  bytes already answer the question).
 
 ## ADR-063 — The flaky CLI-surface test: one module import under a 30 s hook (V7 A0)
 
@@ -1764,3 +1793,23 @@ the ADR wins.**
   the global `testTimeout` (would hide genuine hangs in unrelated tests).
 - **Doc debt closed in the same work package:** the index gains row 059 (V6 WP2 Q2) and row `054b`
   for the second ADR-054 (public identity); both historical bodies stay untouched.
+
+## ADR-065 — `serve` and `deep check|chart` are dropped, not carried (V7 A3)
+
+- **Date:** 2026-09-23
+- **Context:** `docs/cli.md` listed `serve` (M5) and `deep check|chart` (M3/M5) as
+  Planned since v1. Neither command was implemented, no current release path owns them,
+  and the plan's V7.2 §A3 asks for a decision at v0.2.0 close: implement them or remove
+  them from the planned surface.
+- **Decision:** remove both from the planned table. `dsh-ppt` teaches only implemented
+  commands, and `docs/cli.md` now says so explicitly; the CHANGELOG v0.2.0 change list
+  records the removal. Re-adding either requires a milestone that needs it and its own
+  ADR, exactly like any other documented surface change.
+- **Evidence:** `docs/cli.md`'s `## Planned` table carries no rows; the CLI test that
+  lists the taught surface (documented groups) stays green; no source registers either
+  command.
+- **Alternatives rejected:** implementing `serve` as a thin wrapper over `preview --html`
+  (a second viewer surface with no owner for its lifecycle, auth or port policy) and
+  `deep check|chart` as aliases of `deep render`'s internal steps (the underlying checks
+  already run inside the four-step gate, so the aliases would only add a second way to
+  report the same facts).
