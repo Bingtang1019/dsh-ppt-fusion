@@ -1,10 +1,11 @@
 import { join } from 'node:path'
 import { isDshPptFailure } from '../engine/errors.ts'
 import { loadDeck } from '../deck.ts'
-import { checkPageCoverage } from '../schema/fusion.ts'
+import { checkPageCoverage, chromeRoleFor, isPageNumberSkipped, type FusionDeck } from '../schema/fusion.ts'
 import { missingDeepFiles } from '../schema/deep-page.ts'
 import { collectPaletteFindings, buildReport, type FusionFinding, type FusionReport } from '../audit.ts'
 import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from '../schema/tokens.ts'
+import type { FileSystemPort } from '../engine/venv.ts'
 import type { CommandDependencies } from './context.ts'
 
 /**
@@ -45,6 +46,8 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
   }
 
   sources.push('ir')
+
+  findings.push(...chromeFindings(context.deck, context.ir.slides, dir, deps.fs))
 
   const deepPages = context.deck.pages.filter((page) => page.route === 'ppt-master')
   for (const page of deepPages) {
@@ -174,4 +177,57 @@ function themeFindings(
 /** @returns `path` relative to `root` with forward slashes, for messages. */
 function relative(root: string, path: string): string {
   return path.startsWith(root) ? path.slice(root.length).replace(/^[\\/]/, '').replace(/\\/g, '/') : path
+}
+
+/**
+ * Workspace-level chrome checks the manifest schema cannot express.
+ *
+ * These run before rendering, so a deck whose chrome contract is unfulfillable
+ * fails without spending an engine run. Page geometry and the rendered shapes are
+ * the audit gate's job (WP1-P3).
+ *
+ * @param deck - validated manifest.
+ * @param slides - IR slides, aligned by page index.
+ * @param dir - absolute deck workspace.
+ * @param fs - filesystem port.
+ * @returns one finding per violation; empty means the chrome block is consistent.
+ */
+export function chromeFindings(
+  deck: FusionDeck,
+  slides: readonly { readonly type?: unknown }[],
+  dir: string,
+  fs: FileSystemPort,
+): FusionFinding[] {
+  const chrome = deck.chrome
+  if (chrome === undefined) return []
+  const findings: FusionFinding[] = []
+  const declaredSections = deck.pages.filter((page) => page.section !== undefined)
+  if (declaredSections.length > 0 && chrome.section === undefined) {
+    findings.push({
+      level: 'error',
+      source: 'manifest',
+      rule: 'chrome-section-undeclared',
+      message: `pages declare a section (${declaredSections.map((page) => String(page.index)).join(', ')}) but chrome.section is absent; declare chrome.section or drop pages[].section`,
+    })
+  }
+  if (chrome.logo !== undefined && !fs.exists(join(dir, chrome.logo.file))) {
+    findings.push({
+      level: 'error',
+      source: 'manifest',
+      rule: 'chrome-logo-missing',
+      message: `chrome.logo.file is not in the deck: ${chrome.logo.file}`,
+    })
+  }
+  if (chrome.pageNumber?.show !== false) {
+    const roles = deck.pages.map((_page, offset) => chromeRoleFor(slides[offset]?.type === undefined ? undefined : String(slides[offset]?.type)))
+    if (roles.every((role) => isPageNumberSkipped(chrome, role))) {
+      findings.push({
+        level: 'error',
+        source: 'manifest',
+        rule: 'chrome-skip-all',
+        message: 'chrome.pageNumber skips every page of this deck; show page numbers somewhere or drop the contract',
+      })
+    }
+  }
+  return findings
 }

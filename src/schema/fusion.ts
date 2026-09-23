@@ -23,12 +23,43 @@ export interface FusionDeck {
     readonly animations?: string | null
     readonly narration?: null | { readonly provider: string; readonly voice?: string }
   }
+  /** Deck-level chrome contract; absent keeps the legacy per-layout chrome. */
+  readonly chrome?: FusionChrome
+}
+
+/** Roles the chrome contract names; v0.2's storyboard reuses this vocabulary. */
+export const CHROME_ROLES = ['cover', 'section', 'content', 'data', 'quote', 'ending'] as const
+export type ChromeRole = (typeof CHROME_ROLES)[number]
+
+/** The four chrome anchors v0.1.2 allows (plan §3.2). */
+export const CHROME_POSITIONS = ['footer-left', 'footer-right', 'header-left', 'header-right'] as const
+export type ChromePosition = (typeof CHROME_POSITIONS)[number]
+
+/** Styling selector: `tokens` follows the deck's exported theme tokens. */
+export type ChromeStyle = 'tokens'
+
+/** Deck-level chrome contract; absent means the deck keeps its legacy layout chrome. */
+export interface FusionChrome {
+  readonly pageNumber?: {
+    readonly show?: boolean
+    readonly skipRoles?: readonly ChromeRole[]
+    readonly position?: ChromePosition
+    readonly style?: ChromeStyle
+  }
+  readonly footer?: { readonly text: string; readonly position?: ChromePosition; readonly style?: ChromeStyle }
+  readonly logo?: { readonly file: string; readonly position?: ChromePosition; readonly widthEmu?: number }
+  readonly section?: { readonly position?: ChromePosition; readonly style?: ChromeStyle }
 }
 
 /** One page entry. A deep page must say why it is deep. */
 export type FusionPage =
-  | { readonly index: number; readonly route: 'pptwise' }
-  | { readonly index: number; readonly route: 'ppt-master'; readonly deep: z.infer<typeof DeepPageSpecSchema> }
+  | { readonly index: number; readonly route: 'pptwise'; readonly section?: string }
+  | {
+      readonly index: number
+      readonly route: 'ppt-master'
+      readonly deep: z.infer<typeof DeepPageSpecSchema>
+      readonly section?: string
+    }
 
 const ThemeBindingSchema = z.union([
   z.strictObject({ preset: z.string().min(1) }),
@@ -44,9 +75,40 @@ const PostSchema = z.strictObject({
 
 const CompatLevelSchema = z.enum(COMPAT_LEVELS)
 
+const ChromePositionSchema = z.enum(CHROME_POSITIONS)
+const ChromeRoleSchema = z.enum(CHROME_ROLES)
+
+/** `chrome` in `deck.fusion.json`; strict like the rest of the manifest. */
+const ChromeSchema = z.strictObject({
+  pageNumber: z
+    .strictObject({
+      show: z.boolean().optional(),
+      skipRoles: z.array(ChromeRoleSchema).optional(),
+      position: ChromePositionSchema.optional(),
+      style: z.literal('tokens').optional(),
+    })
+    .optional(),
+  footer: z
+    .strictObject({ text: z.string().min(1), position: ChromePositionSchema.optional(), style: z.literal('tokens').optional() })
+    .optional(),
+  logo: z
+    .strictObject({
+      file: z.string().min(1),
+      position: ChromePositionSchema.optional(),
+      widthEmu: z.number().int().positive().optional(),
+    })
+    .optional(),
+  section: z.strictObject({ position: ChromePositionSchema.optional(), style: z.literal('tokens').optional() }).optional(),
+})
+
 const PageSchema = z.discriminatedUnion('route', [
-  z.strictObject({ index: z.number().int().positive(), route: z.literal('pptwise') }),
-  z.strictObject({ index: z.number().int().positive(), route: z.literal('ppt-master'), deep: DeepPageSpecSchema }),
+  z.strictObject({ index: z.number().int().positive(), route: z.literal('pptwise'), section: z.string().min(1).optional() }),
+  z.strictObject({
+    index: z.number().int().positive(),
+    route: z.literal('ppt-master'),
+    deep: DeepPageSpecSchema,
+    section: z.string().min(1).optional(),
+  }),
 ])
 
 /** Zod schema for the manifest; unknown keys are rejected so typos fail loudly. */
@@ -58,6 +120,7 @@ export const FusionDeckSchema = z.strictObject({
   pages: z.array(PageSchema).min(1),
   compat: CompatLevelSchema.optional(),
   post: PostSchema.optional(),
+  chrome: ChromeSchema.optional(),
 })
 
 /**
@@ -122,4 +185,55 @@ export function checkPageCoverage(deck: FusionDeck, slideCount: number): string[
     problems.push(`pages indices must be contiguous from 1; received ${indices.join(', ')}`)
   }
   return problems
+}
+
+/**
+ * The chrome block a new deck starts from.
+ *
+ * Covers and endings skip page numbers, which is the plan's default; `init` writes
+ * it so a fresh deck never falls back to whatever chrome a layout happens to draw.
+ *
+ * @returns a chrome declaration that passes `FusionDeckSchema`.
+ */
+export function defaultChrome(): FusionChrome {
+  return {
+    pageNumber: { show: true, skipRoles: ['cover', 'ending'], position: 'footer-right', style: 'tokens' },
+  }
+}
+
+/**
+ * Map a pptwise IR slide type onto the chrome role vocabulary.
+ *
+ * @param slideType - the IR slide's `type`, when it has one.
+ * @returns the matching role; anything unknown is `content`, which is never skipped.
+ */
+export function chromeRoleFor(slideType: string | undefined): ChromeRole {
+  switch (slideType) {
+    case 'cover':
+      return 'cover'
+    case 'section':
+      return 'section'
+    case 'quote':
+      return 'quote'
+    case 'ending':
+      return 'ending'
+    case 'data':
+    case 'evidence':
+    case 'chart':
+    case 'table':
+      return 'data'
+    default:
+      return 'content'
+  }
+}
+
+/**
+ * @param chrome - the deck's chrome block, when declared.
+ * @param role - role of the page being rendered.
+ * @returns whether the page-number contract skips this page.
+ */
+export function isPageNumberSkipped(chrome: FusionChrome | undefined, role: ChromeRole): boolean {
+  const pageNumber = chrome?.pageNumber
+  if (pageNumber === undefined || pageNumber.show === false) return true
+  return (pageNumber.skipRoles ?? []).includes(role)
 }

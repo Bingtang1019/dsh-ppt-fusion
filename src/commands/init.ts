@@ -1,6 +1,6 @@
 import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
-import { parseFusionDeck, type FusionDeck } from '../schema/fusion.ts'
+import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
 import { FUSION_MANIFEST } from '../deck.ts'
 import { toJsonDocument, type BridgeResult } from '../bridge/theme.ts'
 import { themeBridgeFor, type CommandDependencies } from './context.ts'
@@ -64,6 +64,9 @@ export function skeletonManifest(name: string, preset: string, slideCount: numbe
     pptwiseIr: 'deck.ir.json',
     theme: { preset },
     pages: Array.from({ length: slideCount }, (_, offset) => ({ index: offset + 1, route: 'pptwise' })),
+    // A fresh deck starts with the plan's chrome contract: cover and ending skip
+    // page numbers, everything else carries one.
+    chrome: defaultChrome(),
   })
 }
 

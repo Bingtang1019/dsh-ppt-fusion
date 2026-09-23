@@ -165,4 +165,58 @@ describe('validateDeck', () => {
     expect(report.ok).toBe(false)
     expect(report.findings[0]?.rule).toBe('manifest-missing')
   })
+
+  it('reports a page section while chrome.section is absent', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise', section: 'Intro' }],
+      chrome: { pageNumber: { show: true, skipRoles: ['ending'] } },
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'chrome-section-undeclared')
+    expect(finding?.level).toBe('error')
+    expect(finding?.message).toContain('chrome.section')
+  })
+
+  it('reports a chrome logo file that is not in the deck', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+      chrome: { pageNumber: { show: true, skipRoles: ['ending'] }, logo: { file: 'assets/logo.png' } },
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'chrome-logo-missing')
+    expect(finding?.message).toContain('assets/logo.png')
+  })
+
+  it('reports a page-number contract that skips every page', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+      chrome: { pageNumber: { show: true, skipRoles: ['cover'] } },
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    expect(validate(fs).findings.some((entry) => entry.rule === 'chrome-skip-all')).toBe(true)
+  })
+
+  it('leaves a deck without a chrome block untouched', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    expect(validate(fs).findings.filter((entry) => entry.rule.startsWith('chrome-'))).toEqual([])
+  })
 })

@@ -1,6 +1,6 @@
 import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
-import { parseFusionDeck, type FusionDeck } from '../schema/fusion.ts'
+import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
 import { FUSION_MANIFEST, readManifest } from '../deck.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
 import type { CommandDependencies } from './context.ts'
@@ -72,6 +72,9 @@ export function planDeck(options: { dir: string; deps: CommandDependencies; sour
       pptwiseIr: 'deck.ir.json',
       theme: { preset: 'brief' },
       pages: Array.from({ length: slideCount }, (_, offset) => ({ index: offset + 1, route: 'pptwise' })),
+      // Drafts carry the default chrome contract, so a deck never starts from
+      // whatever chrome a layout happens to draw.
+      chrome: defaultChrome(),
     })
     needsConfirmation.push('theme.preset (chosen from `dsh-ppt theme try` candidates)')
     needsConfirmation.push('name')
