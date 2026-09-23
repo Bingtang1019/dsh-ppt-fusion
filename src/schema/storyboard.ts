@@ -22,6 +22,19 @@ export const STORYBOARD_ROLES = CHROME_ROLES
 /** Routes a page may declare; must agree with `deck.fusion.json`. */
 export const STORYBOARD_ROUTES = ['pptwise', 'ppt-master'] as const
 
+/**
+ * Map an IR slide onto the storyboard role vocabulary.
+ *
+ * Delegates to the chrome role mapping so the storyboard's role requirement and
+ * the chrome skip rule share one definition.
+ *
+ * @param slide - IR slide fields, when the slide exists.
+ * @returns the role the storyboard must declare for that page.
+ */
+export function storyboardRoleFor(slide: { readonly type?: string; readonly kind?: string } | undefined): ChromeRole {
+  return chromeRoleFor(slide?.type, slide?.kind)
+}
+
 /** Per-page content budget; every field is a ceiling, not a target. */
 export interface StoryboardBudget {
   readonly maxWords?: number
@@ -48,6 +61,153 @@ export interface StoryboardPage {
 export interface Storyboard {
   readonly version: 1
   readonly pages: readonly StoryboardPage[]
+}
+
+/**
+ * First-version per-role content ceilings (plan §4.3), applied to every page whose
+ * budget omits the field. Q4 re-measures them against the eval scenarios and
+ * records the calibrated numbers in an ADR.
+ */
+export const DEFAULT_BUDGETS: Record<ChromeRole, Required<StoryboardBudget>> = {
+  cover: { maxWords: 24, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
+  section: { maxWords: 24, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
+  content: { maxWords: 90, maxItems: 6, maxCharts: 1, maxTables: 1, maxImages: 2 },
+  data: { maxWords: 40, maxItems: 4, maxCharts: 1, maxTables: 1, maxImages: 1 },
+  quote: { maxWords: 40, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
+  ending: { maxWords: 24, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
+}
+
+/**
+ * @param page - one storyboard page.
+ * @returns the page's ceilings: the role defaults, overridden field by field by the page's own budget.
+ */
+export function effectiveBudget(page: StoryboardPage): Required<StoryboardBudget> {
+  return { ...DEFAULT_BUDGETS[page.role], ...page.budget }
+}
+
+/**
+ * Which theme-menu slots may host each role (plan §4.2).
+ *
+ * A slot is a path into the theme's `menu` (`cover`, `chapter`, `content.<kind>`,
+ * `ending`); a role matches a slot when the slot equals the entry or extends it
+ * with `.`, so `content` accepts every `content.<kind>`.
+ */
+export const ROLE_LAYOUT_MENU: Record<ChromeRole, readonly string[]> = {
+  cover: ['cover'],
+  section: ['chapter'],
+  content: ['content'],
+  data: ['content.data', 'content.fact', 'content.evidence'],
+  quote: ['content.statement'],
+  ending: ['ending'],
+}
+
+/**
+ * Read a theme document's `menu` into face → menu paths.
+ *
+ * The menu is upstream-owned and stays untyped here; unrecognised shapes are
+ * ignored rather than trusted, so a menu this package cannot read behaves like an
+ * absent one (the layout check then reports the face as unregistered).
+ *
+ * @param menu - the theme document's `menu` value, whatever it holds.
+ * @returns every face the menu advertises, with the slots that advertise it.
+ */
+export function layoutMenuPaths(menu: unknown): Map<string, string[]> {
+  const paths = new Map<string, string[]>()
+  const faceOf = (value: unknown): string | undefined => {
+    if (typeof value === 'string') return value
+    if (value !== null && typeof value === 'object') {
+      const face = (value as { face?: unknown }).face
+      return typeof face === 'string' ? face : undefined
+    }
+    return undefined
+  }
+  const add = (value: unknown, path: string): void => {
+    const face = faceOf(value)
+    if (face === undefined || face === '') return
+    paths.set(face, [...(paths.get(face) ?? []), path])
+  }
+  if (menu === null || typeof menu !== 'object') return paths
+  const roots = menu as Record<string, unknown>
+  for (const root of ['cover', 'chapter', 'ending']) add(roots[root], root)
+  const content = roots.content
+  if (content !== null && typeof content === 'object') {
+    for (const [kind, value] of Object.entries(content as Record<string, unknown>)) add(value, `content.${kind}`)
+    // Some documents flatten the content menu to a single face.
+    add(content, 'content')
+  }
+  return paths
+}
+
+/**
+ * Split a storyboard layout id into its theme pin and its face.
+ *
+ * The canonical id is `<themeId>:<face>` (for example `brief:gauge-stats`); a bare
+ * face is accepted and pinned implicitly to the deck's bound theme.
+ *
+ * @param layout - the storyboard page's layout id.
+ * @returns the explicit theme when the id carries one, and the face.
+ */
+export function parseLayoutId(layout: string): { theme?: string; face: string } {
+  const separator = layout.indexOf(':')
+  if (separator <= 0) return { face: layout }
+  return { theme: layout.slice(0, separator), face: layout.slice(separator + 1) }
+}
+
+/**
+ * @param role - storyboard role.
+ * @param themeId - the bound theme's id.
+ * @param menu - the bound theme's `menu`.
+ * @returns the first menu face that can host the role, as `<themeId>:<face>`, or null when the menu has none.
+ */
+export function defaultLayoutFor(role: ChromeRole, themeId: string, menu: unknown): string | null {
+  const allowed = ROLE_LAYOUT_MENU[role]
+  for (const [face, paths] of layoutMenuPaths(menu)) {
+    if (paths.some((path) => allowed.some((entry) => path === entry || path.startsWith(`${entry}.`)))) {
+      return `${themeId}:${face}`
+    }
+  }
+  return null
+}
+
+/**
+ * Check every storyboard layout against the bound theme's menu.
+ *
+ * A storyboard does not survive a theme rebind: pptwise refuses cross-menu
+ * rebinding (ADR-052), so the layout's theme pin must be the bound theme and its
+ * face must sit in a menu slot the page's role may use.
+ *
+ * @param storyboard - parsed storyboard.
+ * @param theme - bound theme id and menu, or null when no readable theme exists
+ *   (the theme gate already reports that).
+ * @returns one message per violation; empty means every layout is legal.
+ */
+export function checkStoryboardLayouts(storyboard: Storyboard, theme: { readonly id: string; readonly menu?: unknown } | null): string[] {
+  if (theme === null) return []
+  const paths = layoutMenuPaths(theme.menu)
+  const problems: string[] = []
+  for (const page of storyboard.pages) {
+    const { theme: pinned, face } = parseLayoutId(page.layout)
+    if (pinned !== undefined && pinned !== theme.id) {
+      problems.push(
+        `storyboard page ${String(page.index)} pins layout theme "${pinned}" but the deck binds "${theme.id}"; re-plan the storyboard when the theme changes (ADR-052)`,
+      )
+      continue
+    }
+    const facePaths = paths.get(face)
+    if (facePaths === undefined) {
+      problems.push(
+        `storyboard page ${String(page.index)}: layout "${page.layout}" is not in the "${theme.id}" menu; set a face from \`pptwise layouts\` for that theme`,
+      )
+      continue
+    }
+    const allowed = ROLE_LAYOUT_MENU[page.role]
+    if (!facePaths.some((path) => allowed.some((entry) => path === entry || path.startsWith(`${entry}.`)))) {
+      problems.push(
+        `storyboard page ${String(page.index)}: role "${page.role}" cannot use layout "${page.layout}" (the "${theme.id}" menu files it under ${facePaths.join(', ')})`,
+      )
+    }
+  }
+  return problems
 }
 
 const BudgetSchema = z.strictObject({
@@ -95,24 +255,28 @@ export function parseStoryboard(raw: unknown): Storyboard {
 /**
  * The storyboard skeleton `plan` writes.
  *
- * Roles come from the IR slide types, routes from the manifest, and the layout is
- * the placeholder `unconfirmed` — a model or an author replaces it with an id from
- * the bound theme's menu before the planning gate passes.
+ * Roles come from the IR slide types (with the content `kind` deciding data and
+ * quote pages) and routes from the manifest. When the bound theme's menu is known,
+ * each page also gets the first menu face its role may use, so a fresh workspace
+ * already validates; otherwise the layout stays `unconfirmed` and `validate` fails
+ * until the model or author fills it from `pptwise layouts`.
  *
  * @param deck - validated manifest.
  * @param ir - the IR the manifest points at.
+ * @param theme - bound theme id and menu when the theme file is readable.
  * @returns a schema-valid skeleton.
  */
-export function storyboardSkeleton(deck: FusionDeck, ir: IrView): Storyboard {
+export function storyboardSkeleton(deck: FusionDeck, ir: IrView, theme?: { readonly id: string; readonly menu?: unknown }): Storyboard {
   return {
     version: 1,
     pages: deck.pages.map((page) => {
       const slide = ir.slides[page.index - 1]
-      const role = chromeRoleFor(slide?.type)
+      const role = storyboardRoleFor(slide === undefined ? undefined : { type: slide.type, kind: typeof slide.kind === 'string' ? slide.kind : undefined })
+      const layout = theme === undefined ? null : defaultLayoutFor(role, theme.id, theme.menu)
       return {
         index: page.index,
         role,
-        layout: 'unconfirmed',
+        layout: layout ?? 'unconfirmed',
         route: page.route,
         // The skeleton mirrors the manifest's page-number rule; `validate` proves
         // the two agree once the manifest declares chrome.
@@ -163,7 +327,7 @@ export function checkStoryboardAgainstManifest(storyboard: Storyboard, deck: Fus
       problems.push(`storyboard page ${String(page.index)} routes ${page.route} but the manifest routes ${manifestPage.route}`)
     }
     const slide = ir.slides[page.index - 1]
-    const irRole = chromeRoleFor(slide?.type)
+    const irRole = storyboardRoleFor(slide === undefined ? undefined : { type: slide.type, kind: typeof slide.kind === 'string' ? slide.kind : undefined })
     if (slide?.type !== undefined && slide.type !== '' && irRole !== page.role) {
       problems.push(`storyboard page ${String(page.index)} says role ${page.role} but the IR slide type ${slide.type} maps to ${irRole}`)
     }

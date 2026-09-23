@@ -2,7 +2,7 @@ import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
 import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
 import { STORYBOARD_FILE, parseStoryboard, storyboardSkeleton, type Storyboard } from '../schema/storyboard.ts'
-import { FUSION_MANIFEST, readManifest, type IrView } from '../deck.ts'
+import { FUSION_MANIFEST, readManifest, readThemeDocument, themePaths, type IrView } from '../deck.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
 import type { CommandDependencies } from './context.ts'
 
@@ -98,8 +98,12 @@ export function planDeck(options: { dir: string; deps: CommandDependencies; sour
       ir = { slides: [] }
     }
   }
-  const storyboard = storyboardSkeleton(deck, ir)
-  needsConfirmation.push('storyboard: fill role/layout/budget/source per page (`layout` must be an id from the bound theme menu)')
+  // A planned workspace has a materialised theme; its menu supplies each page's
+  // default layout. Without one (a draft for a brand-new workspace) the layouts
+  // stay `unconfirmed` until the model fills them from `pptwise layouts`.
+  const themeDocument = readThemeDocument(themePaths(dir, deck).themePath, deps.fs)
+  const storyboard = storyboardSkeleton(deck, ir, themeDocument === null ? undefined : { id: themeDocument.id, menu: themeDocument.menu })
+  needsConfirmation.push('storyboard: confirm role/layout/budget/source per page (`layout` must be an id from the bound theme menu)')
   deps.fs.writeText(draftPath, toJsonDocument({ needsConfirmation, manifest: deck, storyboard }))
   return { draftPath, needsConfirmation, pageCount: deck.pages.length, storyboard }
 }

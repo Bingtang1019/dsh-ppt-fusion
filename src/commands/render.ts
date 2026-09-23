@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
-import { loadDeck } from '../deck.ts'
+import { irRoleAt, loadDeck } from '../deck.ts'
 import { validateDeck } from './validate.ts'
 import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from './context.ts'
 import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
@@ -9,7 +9,6 @@ import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
-import { chromeRoleFor } from '../schema/fusion.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import type { CompatLevel } from '../compat/registry.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
@@ -171,7 +170,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
       : {
           chrome: context.deck.chrome,
           tokens: context.tokens,
-          pages: chromePagesFrom(context.deck.pages, (index) => chromeRoleFor(context.ir.slides[index - 1]?.type)),
+          pages: chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index)),
         }
 
   return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps })

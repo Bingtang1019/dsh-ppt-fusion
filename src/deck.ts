@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { join } from 'node:path'
 import { DshPptFailure } from './engine/errors.ts'
-import { describeIssues, parseFusionDeck, type FusionDeck } from './schema/fusion.ts'
-import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from './schema/tokens.ts'
+import { describeIssues, chromeRoleFor, parseFusionDeck, type ChromeRole, type FusionDeck } from './schema/fusion.ts'
+import { exportTokens, parseThemeFile, tokensEqual, type ThemeFile, type TokensFile } from './schema/tokens.ts'
 import type { FileSystemPort } from './engine/venv.ts'
 
 /** File name of the authoritative manifest. */
@@ -17,18 +17,22 @@ export const FUSION_MANIFEST = 'deck.fusion.json'
 const IrViewSchema = z.object({
   version: z.union([z.string(), z.number()]).optional(),
   slides: z.array(
-    z.object({
-      type: z.string(),
-      id: z.string().optional(),
-      placeholder: z.boolean().optional(),
-    }),
+    z
+      .object({
+        type: z.string(),
+        id: z.string().optional(),
+        placeholder: z.boolean().optional(),
+      })
+      // Slide fields beyond the view stay in the parsed document: the budget gate
+      // measures their prose and components (V6 WP2).
+      .passthrough(),
   ),
 })
 
 /** The parts of the IR this package reads. */
 export interface IrView {
   readonly version?: string | number
-  readonly slides: readonly { type: string; id?: string; placeholder?: boolean }[]
+  readonly slides: readonly { type: string; id?: string; placeholder?: boolean; readonly [key: string]: unknown }[]
 }
 
 /** Everything the deck commands need, already loaded and validated. */
@@ -101,6 +105,39 @@ export function readIr(dir: string, deck: FusionDeck, fs: FileSystemPort): { ir:
 export function themePaths(dir: string, deck: FusionDeck): { themePath: string; tokensPath: string; masterPath: string } {
   const themePath = 'preset' in deck.theme ? join(dir, 'theme.json') : join(dir, deck.theme.file)
   return { themePath, tokensPath: join(dir, 'tokens.json'), masterPath: join(dir, 'master-design.json') }
+}
+
+/**
+ * @param ir - loaded IR view.
+ * @param index - 1-based page index.
+ * @returns the page's chrome and storyboard role; a missing slide is `content`.
+ */
+export function irRoleAt(ir: IrView, index: number): ChromeRole {
+  const slide = ir.slides[index - 1]
+  return chromeRoleFor(slide?.type, typeof slide?.kind === 'string' ? slide.kind : undefined)
+}
+
+/**
+ * Read a theme document when it is readable.
+ *
+ * An absent or malformed theme file is a finding the theme gate owns; callers that
+ * only need the theme's data (the layout menu, the storyboard skeleton) treat it as
+ * absent instead of duplicating that finding.
+ *
+ * @param path - absolute theme file path.
+ * @param fs - filesystem port.
+ * @returns the parsed ThemeFile, or null when it is missing or invalid.
+ */
+export function readThemeDocument(path: string, fs: FileSystemPort): ThemeFile | null {
+  const text = fs.readText(path)
+  if (text === null) return null
+  try {
+    return parseThemeFile(JSON.parse(text))
+  } catch {
+    // Deliberately swallowed: the theme gate reports the malformed file, so the
+    // caller only needs to know there is no document to read.
+    return null
+  }
 }
 
 /**

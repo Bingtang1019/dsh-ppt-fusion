@@ -43,7 +43,17 @@ export function fakeThemeDocument(id: string, overrides: Record<string, unknown>
     occasions: ['business'],
     identity: 'medium',
     version: 2,
-    menu: { cover: { face: 'gauge-verdict' } },
+    menu: {
+      cover: { face: 'gauge-verdict' },
+      chapter: { face: 'gauge-section' },
+      content: {
+        points: { face: 'narrow-column' },
+        data: { face: 'gauge-stats' },
+        evidence: { face: 'one-evidence' },
+        statement: { face: 'quote-stage' },
+      },
+      ending: { face: 'gauge-next' },
+    },
     ...overrides,
   }
 }

@@ -8,7 +8,7 @@ describe('parseThemeFile', () => {
   it('accepts a v2 theme and keeps unmodelled fields for pass-through', () => {
     const parsed = parseThemeFile(fakeThemeDocument('acme'))
     expect(parsed.id).toBe('acme')
-    expect(parsed.menu).toEqual({ cover: { face: 'gauge-verdict' } })
+    expect(parsed.menu).toEqual(fakeThemeDocument('acme').menu)
   })
 
   it('rejects a document without the style groups', () => {

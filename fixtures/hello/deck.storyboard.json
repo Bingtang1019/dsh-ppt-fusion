@@ -21,7 +21,7 @@
     },
     {
       "index": 3,
-      "role": "content",
+      "role": "data",
       "layout": "brief:gauge-stats",
       "route": "ppt-master",
       "chrome": { "pageNumber": "show" },
@@ -30,7 +30,7 @@
     },
     {
       "index": 4,
-      "role": "content",
+      "role": "data",
       "layout": "brief:one-evidence",
       "route": "ppt-master",
       "chrome": { "pageNumber": "show" },

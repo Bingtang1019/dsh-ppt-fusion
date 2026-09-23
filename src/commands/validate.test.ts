@@ -36,8 +36,11 @@ function buildDeck(options: {
   fs.writeText(join(workspace, 'deck.fusion.json'), JSON.stringify(options.deck))
   // Every deck carries a storyboard from v0.2 on; tests that need it absent or
   // broken overwrite this file afterwards.
-  const slides = options.slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? '') }))
-  fs.writeText(join(workspace, 'deck.storyboard.json'), JSON.stringify(storyboardSkeleton(options.deck, { slides })))
+  const slides = options.slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? ''), kind: String((slide as { kind?: unknown }).kind ?? '') }))
+  fs.writeText(
+    join(workspace, 'deck.storyboard.json'),
+    JSON.stringify(storyboardSkeleton(options.deck, { slides }, { id: 'brief', menu: fakeThemeDocument('brief').menu })),
+  )
   return { fs, dir: workspace }
 }
 
@@ -278,5 +281,59 @@ describe('validateDeck', () => {
     const problems = validate(fs).findings.filter((entry) => entry.rule === 'storyboard-manifest')
     expect(problems.some((entry) => entry.message.includes('routes ppt-master'))).toBe(true)
     expect(problems.some((entry) => entry.message.includes('role content'))).toBe(true)
+  })
+
+  it('reports a layout the bound theme menu does not offer, including the unconfirmed placeholder', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    fs.writeText(
+      join(workspace, 'deck.storyboard.json'),
+      JSON.stringify({ version: 1, pages: [{ index: 1, role: 'cover', layout: 'unconfirmed', route: 'pptwise' }] }),
+    )
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'storyboard-layout')
+    expect(finding?.level).toBe('error')
+    expect(finding?.message).toContain('is not in the "brief" menu')
+  })
+
+  it('reports a layout filed under a menu slot the page role cannot use', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    fs.writeText(
+      join(workspace, 'deck.storyboard.json'),
+      JSON.stringify({ version: 1, pages: [{ index: 1, role: 'cover', layout: 'brief:gauge-next', route: 'pptwise' }] }),
+    )
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'storyboard-layout')
+    expect(finding?.message).toContain('role "cover" cannot use layout "brief:gauge-next"')
+  })
+
+  it('reports a page over its budget with page, role, measurement and limit', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover', heading: 'one two three four five six' }] })
+    fs.writeText(
+      join(workspace, 'deck.storyboard.json'),
+      JSON.stringify({ version: 1, pages: [{ index: 1, role: 'cover', layout: 'brief:gauge-verdict', route: 'pptwise', budget: { maxWords: 3 } }] }),
+    )
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'budget-exceeded')
+    expect(finding?.level).toBe('error')
+    expect(finding?.page).toBe(1)
+    expect(finding?.message).toBe('page 1 (cover): words measured 6, maxWords limit 3')
   })
 })

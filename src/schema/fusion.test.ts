@@ -149,6 +149,14 @@ describe('chrome role and skip rules', () => {
     expect(chromeRoleFor(undefined)).toBe('content')
   })
 
+  it('lets a content slide kind decide the data and quote roles', () => {
+    expect(chromeRoleFor('content', 'data')).toBe('data')
+    expect(chromeRoleFor('content', 'Evidence')).toBe('data')
+    expect(chromeRoleFor('content', 'statement')).toBe('quote')
+    expect(chromeRoleFor('content', 'points')).toBe('content')
+    expect(chromeRoleFor('content', undefined)).toBe('content')
+  })
+
   it('skips page numbers on cover and ending by default, and when no contract exists', () => {
     const chrome = defaultChrome()
     expect(isPageNumberSkipped(chrome, 'cover')).toBe(true)

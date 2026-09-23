@@ -201,13 +201,25 @@ export function defaultChrome(): FusionChrome {
   }
 }
 
+/** Content kinds that make a content slide a data page rather than prose. */
+const DATA_KINDS = new Set(['data', 'evidence', 'fact', 'stat', 'stats', 'chart', 'charts', 'table', 'kpi', 'metric', 'metrics', 'numbers'])
+
+/** Content kinds that make a content slide a quotation. */
+const QUOTE_KINDS = new Set(['statement', 'quote'])
+
 /**
- * Map a pptwise IR slide type onto the chrome role vocabulary.
+ * Map a pptwise IR slide onto the chrome role vocabulary.
+ *
+ * The top-level `type` carries the deck's coarse structure; a `content` slide's
+ * `kind` decides whether the page behaves like prose, data or a quote. One mapping
+ * serves the chrome skip rule and the storyboard's role requirement, so the two
+ * can never disagree (V6 WP2).
  *
  * @param slideType - the IR slide's `type`, when it has one.
+ * @param slideKind - the IR slide's `kind`, when it has one.
  * @returns the matching role; anything unknown is `content`, which is never skipped.
  */
-export function chromeRoleFor(slideType: string | undefined): ChromeRole {
+export function chromeRoleFor(slideType: string | undefined, slideKind?: string): ChromeRole {
   switch (slideType) {
     case 'cover':
       return 'cover'
@@ -222,8 +234,12 @@ export function chromeRoleFor(slideType: string | undefined): ChromeRole {
     case 'chart':
     case 'table':
       return 'data'
-    default:
+    default: {
+      const kind = slideKind?.toLowerCase() ?? ''
+      if (DATA_KINDS.has(kind)) return 'data'
+      if (QUOTE_KINDS.has(kind)) return 'quote'
       return 'content'
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
 import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
 import { STORYBOARD_FILE, storyboardSkeleton } from '../schema/storyboard.ts'
-import { FUSION_MANIFEST, type IrView } from '../deck.ts'
+import { FUSION_MANIFEST, readThemeDocument, themePaths, type IrView } from '../deck.ts'
 import { toJsonDocument, type BridgeResult } from '../bridge/theme.ts'
 import { themeBridgeFor, type CommandDependencies } from './context.ts'
 
@@ -94,11 +94,22 @@ export function initDeck(options: InitOptions): InitResult {
   const deck = skeletonManifest(name, options.theme, ir.slideCount)
   deps.fs.writeText(irPath, toJsonDocument(ir.document))
   deps.fs.writeText(manifestPath, toJsonDocument(deck))
+  // Materialise the theme first: its menu decides which layout each skeleton page
+  // gets, so `init` leaves a deck whose storyboard already validates (V6 WP2).
+  const theme = themeBridgeFor(dir, deps).ensure(deck)
+  const themeDocument = readThemeDocument(themePaths(dir, deck).themePath, deps.fs)
   // A deck is not planned until it has a storyboard (plan §4.1); `init` writes the
   // skeleton so `validate` and `render` can require it from the first command.
   const storyboardPath = join(dir, STORYBOARD_FILE)
-  deps.fs.writeText(storyboardPath, toJsonDocument(storyboardSkeleton(deck, { slides: ir.document.slides as IrView['slides'] })))
-
-  const theme = themeBridgeFor(dir, deps).ensure(deck)
+  deps.fs.writeText(
+    storyboardPath,
+    toJsonDocument(
+      storyboardSkeleton(
+        deck,
+        { slides: ir.document.slides as IrView['slides'] },
+        themeDocument === null ? undefined : { id: themeDocument.id, menu: themeDocument.menu },
+      ),
+    ),
+  )
   return { dir, created: [irPath, manifestPath, storyboardPath, ...theme.changed], theme }
 }

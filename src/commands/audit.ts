@@ -1,13 +1,12 @@
 import { join, resolve } from 'node:path'
 import { isDshPptFailure } from '../engine/errors.ts'
 import { assertInsideWorkspace } from '../engine/contracts.ts'
-import { loadDeck } from '../deck.ts'
+import { irRoleAt, loadDeck } from '../deck.ts'
 import { validateDeck } from './validate.ts'
 import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from './context.ts'
 import { resolveCompatLevel } from './render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { auditChrome, chromePagesFrom } from '../bridge/chrome.ts'
-import { chromeRoleFor } from '../schema/fusion.ts'
 import { inspectCompat } from '../bridge/compat.ts'
 import { collectPixelFindings } from '../bridge/pixels.ts'
 import { runSkillAudit } from './skill.ts'
@@ -110,7 +109,7 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
       }
       if (context !== null && context.deck.chrome !== undefined) {
         ran.add('chrome')
-        const pages = chromePagesFrom(context.deck.pages, (index) => chromeRoleFor(context.ir.slides[index - 1]?.type))
+        const pages = chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index))
         findings.push(...auditChrome(pkg, { chrome: context.deck.chrome, pages }))
       }
       const level = resolveCompatLevel(options.compat, context?.deck.compat).level

@@ -33,8 +33,11 @@ function buildDeck(options: { manifest: unknown; slides: unknown[]; svg?: string
   const deck = parseFusionDeck(options.manifest)
   createThemeBridge({ workspace, frontend, fs, upstream: '0.35.0' }).ensure(deck)
   fs.writeText(join(workspace, 'deck.fusion.json'), JSON.stringify(deck))
-  const slides = (options.slides as readonly { type?: unknown }[]).map((slide) => ({ type: String(slide.type ?? '') }))
-  fs.writeText(join(workspace, 'deck.storyboard.json'), JSON.stringify(storyboardSkeleton(deck, { slides })))
+  const slides = (options.slides as readonly { type?: unknown; kind?: unknown }[]).map((slide) => ({ type: String(slide.type ?? ''), kind: String(slide.kind ?? '') }))
+  fs.writeText(
+    join(workspace, 'deck.storyboard.json'),
+    JSON.stringify(storyboardSkeleton(deck, { slides }, { id: 'brief', menu: fakeThemeDocument('brief').menu })),
+  )
   return fs
 }
 

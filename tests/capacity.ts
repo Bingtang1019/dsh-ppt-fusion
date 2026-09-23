@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { defaultDependencies } from '../src/commands/context.ts'
 import { initDeck } from '../src/commands/init.ts'
 import { renderDeck } from '../src/commands/render.ts'
+import { readThemeDocument, themePaths } from '../src/deck.ts'
 import { parseFusionDeck } from '../src/schema/fusion.ts'
 import { storyboardSkeleton } from '../src/schema/storyboard.ts'
 import { themeEnsure } from '../src/commands/theme.ts'
@@ -37,9 +38,15 @@ writeFileSync(join(WORK, 'deck.ir.json'), `${JSON.stringify({ ...ir, slides }, n
 const manifest = JSON.parse(readFileSync(join(WORK, 'deck.fusion.json'), 'utf8')) as { pages: unknown }
 manifest.pages = slides.map((_, index) => ({ index: index + 1, route: 'pptwise' }))
 writeFileSync(join(WORK, 'deck.fusion.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
-// The 60-page deck needs its own storyboard: `init` wrote one for two pages.
+// The 60-page deck needs its own storyboard: `init` wrote one for two pages. The
+// bound theme's menu supplies each page's default layout, exactly as `init` does.
 const capacityDeck = parseFusionDeck(JSON.parse(readFileSync(join(WORK, 'deck.fusion.json'), 'utf8')))
-const capacityStoryboard = storyboardSkeleton(capacityDeck, { slides: slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? '') })) })
+const capacityTheme = readThemeDocument(themePaths(WORK, capacityDeck).themePath, deps.fs)
+const capacityStoryboard = storyboardSkeleton(
+  capacityDeck,
+  { slides: slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? ''), kind: String((slide as { kind?: unknown }).kind ?? '') })) },
+  capacityTheme === null ? undefined : { id: capacityTheme.id, menu: capacityTheme.menu },
+)
 writeFileSync(join(WORK, 'deck.storyboard.json'), `${JSON.stringify(capacityStoryboard, null, 2)}\n`, 'utf8')
 themeEnsure({ dir: WORK, deps })
 

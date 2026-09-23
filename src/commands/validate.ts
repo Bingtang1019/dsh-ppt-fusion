@@ -1,8 +1,16 @@
 import { join } from 'node:path'
 import { isDshPptFailure } from '../engine/errors.ts'
-import { loadDeck } from '../deck.ts'
+import { loadDeck, readThemeDocument } from '../deck.ts'
 import { checkPageCoverage, chromeRoleFor, isPageNumberSkipped, type FusionDeck } from '../schema/fusion.ts'
-import { STORYBOARD_FILE, checkStoryboardAgainstManifest, checkStoryboardCoverage, parseStoryboard } from '../schema/storyboard.ts'
+import {
+  STORYBOARD_FILE,
+  checkStoryboardAgainstManifest,
+  checkStoryboardCoverage,
+  checkStoryboardLayouts,
+  parseStoryboard,
+  type Storyboard,
+} from '../schema/storyboard.ts'
+import { checkBudgets, formatBudgetViolation, measureDeepSvg, measureIrSlide, type PageMeasurement } from '../schema/budget.ts'
 import { missingDeepFiles } from '../schema/deep-page.ts'
 import { collectPaletteFindings, buildReport, type FusionFinding, type FusionReport } from '../audit.ts'
 import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from '../schema/tokens.ts'
@@ -12,10 +20,12 @@ import type { CommandDependencies } from './context.ts'
 /**
  * Validate a deck workspace.
  *
- * This is the pre-render gate: it proves the manifest, the IR page list, the deep
- * page files and the theme files agree before anything spends time rendering.
- * Content legality inside pptwise components is pptwise's own business and is
- * checked by the unified audit gate that M4 wires in.
+ * This is the pre-render gate: it proves the manifest, the IR page list, the
+ * storyboard (existence, coverage, role/route agreement, layout legality against the
+ * bound theme's menu, per-page content budgets), the deep page files and the theme
+ * files agree before anything spends time rendering. Content legality inside
+ * pptwise components is pptwise's own business and is checked by the unified audit
+ * gate that M4 wires in.
  *
  * @param options.dir - absolute deck workspace.
  * @param options.deps - command dependencies.
@@ -52,6 +62,7 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
   // contract for role, layout or budget, so its absence is an error.
   sources.push('storyboard')
   const storyboardText = deps.fs.readText(join(dir, STORYBOARD_FILE))
+  let storyboard: Storyboard | null = null
   if (storyboardText === null) {
     findings.push({
       level: 'error',
@@ -61,7 +72,7 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
     })
   } else {
     try {
-      const storyboard = parseStoryboard(JSON.parse(storyboardText) as unknown)
+      storyboard = parseStoryboard(JSON.parse(storyboardText) as unknown)
       for (const problem of checkStoryboardCoverage(storyboard, context.ir.slides.length)) {
         findings.push({ level: 'error', source: 'storyboard', rule: 'storyboard-coverage', message: problem })
       }
@@ -104,6 +115,25 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
     }
   }
   if (deepPages.length > 0) sources.push('deep')
+
+  // V6 WP2: every layout must sit in a menu slot its role may use, and every page's
+  // measured content must fit its budget. Layouts need the bound theme's menu; the
+  // theme gate reports an absent or malformed theme, so the check stays silent then.
+  if (storyboard !== null) {
+    const theme = readThemeDocument(context.themePath, deps.fs)
+    for (const problem of checkStoryboardLayouts(storyboard, theme === null ? null : { id: theme.id, menu: theme.menu })) {
+      findings.push({ level: 'error', source: 'storyboard', rule: 'storyboard-layout', message: problem })
+    }
+    const measurements = new Map<number, PageMeasurement>()
+    context.ir.slides.forEach((slide, offset) => measurements.set(offset + 1, measureIrSlide(slide)))
+    for (const page of deepPages) {
+      const svg = deps.fs.readText(join(dir, page.deep.dir, 'page.svg'))
+      if (svg !== null) measurements.set(page.index, measureDeepSvg(svg))
+    }
+    for (const violation of checkBudgets(storyboard, measurements)) {
+      findings.push({ level: 'error', source: 'storyboard', page: violation.page, rule: 'budget-exceeded', message: formatBudgetViolation(violation) })
+    }
+  }
 
   if (context.deck.post?.animations !== undefined && context.deck.post.animations !== null) {
     const path = join(dir, context.deck.post.animations)
@@ -225,7 +255,7 @@ function relative(root: string, path: string): string {
  */
 export function chromeFindings(
   deck: FusionDeck,
-  slides: readonly { readonly type?: unknown }[],
+  slides: readonly { readonly type?: unknown; readonly kind?: unknown }[],
   dir: string,
   fs: FileSystemPort,
 ): FusionFinding[] {
@@ -250,7 +280,10 @@ export function chromeFindings(
     })
   }
   if (chrome.pageNumber?.show !== false) {
-    const roles = deck.pages.map((_page, offset) => chromeRoleFor(slides[offset]?.type === undefined ? undefined : String(slides[offset]?.type)))
+    const roles = deck.pages.map((_page, offset) => {
+      const slide = slides[offset]
+      return chromeRoleFor(typeof slide?.type === 'string' ? slide.type : undefined, typeof slide?.kind === 'string' ? slide.kind : undefined)
+    })
     if (roles.every((role) => isPageNumberSkipped(chrome, role))) {
       findings.push({
         level: 'warning',

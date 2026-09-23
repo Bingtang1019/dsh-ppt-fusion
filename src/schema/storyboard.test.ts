@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   checkStoryboardAgainstManifest,
   checkStoryboardCoverage,
+  checkStoryboardLayouts,
+  defaultLayoutFor,
+  layoutMenuPaths,
   parseStoryboard,
+  storyboardRoleFor,
   storyboardSkeleton,
   STORYBOARD_FILE,
 } from './storyboard.ts'
@@ -67,9 +71,106 @@ describe('storyboardSkeleton', () => {
     expect(skeleton.pages.every((page) => page.layout === 'unconfirmed')).toBe(true)
   })
 
+  it('fills each page from the bound theme menu when one is readable', () => {
+    const menu = {
+      cover: { face: 'gauge-verdict' },
+      chapter: { face: 'gauge-section' },
+      content: { points: { face: 'narrow-column' }, data: { face: 'gauge-stats' } },
+      ending: { face: 'gauge-next' },
+    }
+    const withData = { slides: [{ type: 'cover' }, { type: 'content', kind: 'data' }, { type: 'ending' }] }
+    const skeleton = storyboardSkeleton(deck, withData, { id: 'brief', menu })
+    expect(skeleton.pages.map((page) => page.role)).toEqual(['cover', 'data', 'ending'])
+    expect(skeleton.pages.map((page) => page.layout)).toEqual(['brief:gauge-verdict', 'brief:gauge-stats', 'brief:gauge-next'])
+  })
+
   it('falls back to content for deep pages without an IR type', () => {
     const skeleton = storyboardSkeleton(deck, { slides: [] })
     expect(skeleton.pages.map((page) => page.role)).toEqual(['content', 'content', 'content'])
+  })
+})
+
+describe('storyboardRoleFor', () => {
+  it('splits content slides by their kind and keeps the structural roles', () => {
+    expect(storyboardRoleFor({ type: 'cover' })).toBe('cover')
+    expect(storyboardRoleFor({ type: 'section' })).toBe('section')
+    expect(storyboardRoleFor({ type: 'ending' })).toBe('ending')
+    expect(storyboardRoleFor({ type: 'quote' })).toBe('quote')
+    expect(storyboardRoleFor({ type: 'content', kind: 'points' })).toBe('content')
+    expect(storyboardRoleFor({ type: 'content', kind: 'data' })).toBe('data')
+    expect(storyboardRoleFor({ type: 'content', kind: 'Evidence' })).toBe('data')
+    expect(storyboardRoleFor({ type: 'content', kind: 'statement' })).toBe('quote')
+    expect(storyboardRoleFor(undefined)).toBe('content')
+  })
+})
+
+describe('layout menu', () => {
+  const menu = {
+    cover: { face: 'gauge-verdict' },
+    chapter: { face: 'gauge-section' },
+    content: { points: { face: 'narrow-column' }, data: { face: 'gauge-stats' }, statement: { face: 'quote-stage' } },
+    ending: { face: 'gauge-next' },
+  }
+
+  it('reads every face with the slots that advertise it', () => {
+    const paths = layoutMenuPaths(menu)
+    expect(paths.get('gauge-verdict')).toEqual(['cover'])
+    expect(paths.get('narrow-column')).toEqual(['content.points'])
+    expect(paths.get('gauge-stats')).toEqual(['content.data'])
+    expect(paths.get('missing')).toBeUndefined()
+    expect(layoutMenuPaths(undefined).size).toBe(0)
+  })
+
+  it('picks the first menu face each role may use', () => {
+    expect(defaultLayoutFor('cover', 'brief', menu)).toBe('brief:gauge-verdict')
+    expect(defaultLayoutFor('data', 'brief', menu)).toBe('brief:gauge-stats')
+    expect(defaultLayoutFor('section', 'brief', menu)).toBe('brief:gauge-section')
+    expect(defaultLayoutFor('content', 'brief', menu)).toBe('brief:narrow-column')
+    expect(defaultLayoutFor('ending', 'brief', menu)).toBe('brief:gauge-next')
+    expect(defaultLayoutFor('quote', 'brief', {})).toBeNull()
+  })
+})
+
+describe('checkStoryboardLayouts', () => {
+  const menu = {
+    cover: { face: 'gauge-verdict' },
+    chapter: { face: 'gauge-section' },
+    content: { points: { face: 'narrow-column' }, data: { face: 'gauge-stats' } },
+    ending: { face: 'gauge-next' },
+  }
+  const storyboard = {
+    version: 1 as const,
+    pages: [
+      { index: 1, role: 'cover' as const, layout: 'brief:gauge-verdict', route: 'pptwise' as const },
+      { index: 2, role: 'data' as const, layout: 'brief:gauge-stats', route: 'pptwise' as const },
+    ],
+  }
+
+  it('accepts faces that the bound theme files under a slot the role may use', () => {
+    expect(checkStoryboardLayouts(storyboard, { id: 'brief', menu })).toEqual([])
+    // A bare face is pinned to the bound theme; `data` may use any data-family slot.
+    expect(checkStoryboardLayouts({ version: 1, pages: [{ ...storyboard.pages[1]!, layout: 'gauge-stats' }] }, { id: 'brief', menu })).toEqual([])
+  })
+
+  it('reports an unknown face, a foreign theme pin and a role mismatch', () => {
+    const problems = checkStoryboardLayouts(
+      {
+        version: 1,
+        pages: [
+          { index: 1, role: 'cover', layout: 'brief:nope', route: 'pptwise' },
+          { index: 2, role: 'content', layout: 'thesis:narrow-column', route: 'pptwise' },
+          { index: 3, role: 'content', layout: 'brief:gauge-next', route: 'pptwise' },
+        ],
+      },
+      { id: 'brief', menu },
+    )
+    expect(problems.join('\n')).toContain('is not in the "brief" menu')
+    expect(problems.join('\n')).toContain('pins layout theme "thesis" but the deck binds "brief"')
+    expect(problems.join('\n')).toContain('role "content" cannot use layout "brief:gauge-next"')
+  })
+
+  it('stays silent when there is no readable theme', () => {
+    expect(checkStoryboardLayouts(storyboard, null)).toEqual([])
   })
 })
 
