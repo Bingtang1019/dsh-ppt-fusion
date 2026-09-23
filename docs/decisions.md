@@ -75,6 +75,7 @@ the ADR wins.**
 | 061 | Design profile: numeric extraction of a reference deck, deck-discipline guard (V7 B1) |
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
+| 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
 
 ---
 
@@ -1813,3 +1814,50 @@ the ADR wins.**
   `deep check|chart` as aliases of `deep render`'s internal steps (the underlying checks
   already run inside the four-step gate, so the aliases would only add a second way to
   report the same facts).
+
+## ADR-066 — Profile theming goes through the deck-local `theme.json`; `toc` joins the storyboard (V7.2 B2)
+
+- **Date:** 2026-09-24
+- **Measured fact.** pptwise writes standard pages with **explicit** colours and font
+  families (`srgbClr`, `<a:latin>`), never theme references, so editing the OOXML theme
+  part cannot restyle a rendered deck. However, pptwise resolves themes from the deck
+  directory first (`theme.json`, named theme files), then a workspace `themes/`, then the
+  factory presets. Experiment: a copy of the `brief` theme with a modified palette under
+  the deck directory kept the IR's `theme.id: "brief"` and rendered with the modified
+  colours and fonts. The deck-local file with the preset's id is therefore the sanctioned
+  custom-theme path, and it does not rebind menus (the menu is copied unchanged, ADR-052).
+- **Decision.** `dsh-ppt theme apply-profile <profile> --from <preset> [-o <file>]` writes
+  `<deck>/theme.json` by default: it materialises the preset only when the file is absent,
+  refuses an existing file whose id is not `--from`, and keeps the preset's id. The mapping
+  replaces `bg`/`surface`/`panel`/`primary`/`accent`/`text`/`muted`/`border`/`chartPalette`/
+  `cardStroke` and prefixes the font stacks with the profile's families. `emphasisInk` is
+  **omitted**: mapping it to the profile's white produced a 1:1 white-on-white
+  marked-run and pptwise's own validate rejected it, so the engine falls back to `accent`
+  (the profile gate now also requires accent/bg ≥ 3). `defaultBackgrounds` for
+  cover/chapter/content/ending become the profile's `bg`. `init --profile` materialises the
+  theme, patches it in place, re-derives `tokens.json`/`master-design.json` from the patched
+  palette, switches chrome to `{pageNumber: {show: false}}` when the profile has no page
+  numbers, and writes the storyboard from the patched menu. `toc` joins the **storyboard**
+  role vocabulary (not the chrome roles): a toc page is a content slide in the IR, the
+  storyboard may promote it, and it uses the content menu slots; page-number participation
+  stays with the coarse chrome role.
+- **Measured limitation (font fidelity).** pptwise only renders families it can measure, so
+  a declared family that is not installed falls down the stack (MiSans is absent on this
+  machine: the theme lists MiSans first, the rendered deck shows Georgia plus Microsoft YaHei
+  for the EA slot). B4 compares the theme's declared fonts and reports a rendered mismatch
+  as a warning, and the plan's manual rubric owns the visual call; installing the reference
+  font is the fidelity fix.
+- **Evidence.** S25 end-to-end on `tmp/profile-deck`: `init --profile` → `validate` OK 4
+  gates → `render` (sha256 `a30b0d3693b9a96d…`) → rendered slide XML carries
+  `#FFFFFF/#0D0D0D/#595959/#577FD2` and `audit` reports 11 sources, 0 error, 0 warning.
+  Unit tests: `profile-theme.test.ts` (colour math, mapping, contrast failure),
+  `theme.test.ts` (materialise/patch/reuse/cross-menu refusal), `init.test.ts` (profile
+  theme + chrome + tokens + storyboard + validate), `storyboard.test.ts` (toc role), 415
+  tests / 53 files green.
+- **Alternatives rejected:** rewriting every `srgbClr`/`typeface` in the merged package
+  (a second colour engine with no semantic mapping for charts, gradients and images);
+  giving the generated theme a new id (breaks the IR's preset binding and validate's
+  `theme-id-mismatch`); binding `{file: theme.json}` in the manifest (the IR id would no
+  longer resolve the deck-local file); adding `toc` to the chrome vocabulary (page-number
+  semantics for a toc page are content's; keeping the change storyboard-only avoids
+  touching the released chrome contract).

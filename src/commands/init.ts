@@ -1,9 +1,11 @@
 import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
-import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
+import { parseFusionDeck, defaultChrome, type FusionChrome, type FusionDeck } from '../schema/fusion.ts'
 import { STORYBOARD_FILE, storyboardSkeleton } from '../schema/storyboard.ts'
 import { FUSION_MANIFEST, readThemeDocument, themePaths, type IrView } from '../deck.ts'
+import { parseDesignProfile, type DesignProfile } from '../schema/design-profile.ts'
 import { toJsonDocument, type BridgeResult } from '../bridge/theme.ts'
+import { themeApplyProfile } from './theme.ts'
 import { themeBridgeFor, type CommandDependencies } from './context.ts'
 
 /** Options for `dsh-ppt init`. */
@@ -11,6 +13,12 @@ export interface InitOptions {
   readonly dir: string
   /** Factory preset id bound as the deck theme. */
   readonly theme: string
+  /**
+   * Absolute path of a design profile (V7.2 B2). When present, `init` writes the
+   * deck-local `theme.json` from the profile (keeping the preset id), disables page
+   * numbers when the profile has none, and derives chrome/tokens from the result.
+   */
+  readonly profile?: string
   readonly deps: CommandDependencies
 }
 
@@ -58,7 +66,7 @@ export function skeletonIr(name: string, themeId: string): { document: Record<st
  * @param slideCount - number of slides the IR has.
  * @returns the manifest document.
  */
-export function skeletonManifest(name: string, preset: string, slideCount: number): FusionDeck {
+export function skeletonManifest(name: string, preset: string, slideCount: number, chrome: FusionChrome = defaultChrome()): FusionDeck {
   return parseFusionDeck({
     version: 1,
     name,
@@ -66,8 +74,9 @@ export function skeletonManifest(name: string, preset: string, slideCount: numbe
     theme: { preset },
     pages: Array.from({ length: slideCount }, (_, offset) => ({ index: offset + 1, route: 'pptwise' })),
     // A fresh deck starts with the plan's chrome contract: cover and ending skip
-    // page numbers, everything else carries one.
-    chrome: defaultChrome(),
+    // page numbers, everything else carries one. A profile whose reference deck has
+    // no page numbers passes `{ pageNumber: { show: false } }` instead.
+    chrome,
   })
 }
 
@@ -88,15 +97,29 @@ export function initDeck(options: InitOptions): InitResult {
   }
   const name = basename(dir)
   deps.fs.mkdirp(dir)
+  const profile = options.profile === undefined ? null : readDesignProfile(options.profile, deps.fs)
 
   const irPath = join(dir, 'deck.ir.json')
   const ir = skeletonIr(name, options.theme)
-  const deck = skeletonManifest(name, options.theme, ir.slideCount)
+  // A reference deck without page numbers keeps chrome switched off entirely, which
+  // is the profile's `chrome.pageNumber === false` measured on the reference pages.
+  const chrome = profile !== null && !profile.chrome.pageNumber ? { pageNumber: { show: false } } : defaultChrome()
+  const deck = skeletonManifest(name, options.theme, ir.slideCount, chrome)
   deps.fs.writeText(irPath, toJsonDocument(ir.document))
   deps.fs.writeText(manifestPath, toJsonDocument(deck))
   // Materialise the theme first: its menu decides which layout each skeleton page
   // gets, so `init` leaves a deck whose storyboard already validates (V6 WP2).
-  const theme = themeBridgeFor(dir, deps).ensure(deck)
+  const firstTheme = themeBridgeFor(dir, deps).ensure(deck)
+  const created = [irPath, manifestPath, ...firstTheme.changed]
+  let theme = firstTheme
+  if (profile !== null) {
+    // Patch the deck-local theme in place (it keeps the preset id, so both pptwise
+    // rendering and the fusion tokens read it), then re-derive tokens/master from
+    // the patched palette: the first ensure ran against the untouched preset.
+    const applied = themeApplyProfile({ dir, profile: options.profile ?? '', from: options.theme, output: 'theme.json', deps })
+    created.push(applied.outputFile)
+    theme = themeBridgeFor(dir, deps).ensure(deck)
+  }
   const themeDocument = readThemeDocument(themePaths(dir, deck).themePath, deps.fs)
   // A deck is not planned until it has a storyboard (plan §4.1); `init` writes the
   // skeleton so `validate` and `render` can require it from the first command.
@@ -111,5 +134,19 @@ export function initDeck(options: InitOptions): InitResult {
       ),
     ),
   )
-  return { dir, created: [irPath, manifestPath, storyboardPath, ...theme.changed], theme }
+  return { dir, created: [...created, storyboardPath, ...theme.changed], theme }
+}
+
+/**
+ * @param path - absolute profile path.
+ * @param fs - filesystem port.
+ * @returns the validated design profile.
+ * @throws DshPptFailure `OutputMissing` when the file is absent, `ContractViolation` when it is invalid.
+ */
+function readDesignProfile(path: string, fs: CommandDependencies['fs']): DesignProfile {
+  const text = fs.readText(path)
+  if (text === null) {
+    throw new DshPptFailure('OutputMissing', `the design profile is absent: ${path}`, { detail: { path } })
+  }
+  return parseDesignProfile(JSON.parse(text) as unknown)
 }

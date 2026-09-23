@@ -16,6 +16,14 @@
 - **deck 纪律防护**：`.gitignore`（`fixtures/reference/*` 仅放行 `profile.json`）、`scripts/check-pack.mjs`
   （tarball 禁 deck/media/profile）与 `tests/repo-discipline.test.ts`（CI 断言 tracked 文件与 `files` 白名单），
   保证任何真实 deck 及其媒体不以任何形式进入 git 或 npm。
+- **`theme apply-profile`（B2，ADR-066）**：`dsh-ppt theme apply-profile <profile> [--from <preset>] [-o <file>]`
+  生成 deck 本地 `theme.json`（保持预设 id 与菜单，pptwise 会优先解析它），映射色板/字体/背景；WCAG 硬门
+  （`body|muted|title` 对 `bg`/`surface` ≥4.5，`onAccent` 对 `accent`、`accent` 对 `bg` ≥3.0），不通过显式报错
+  并给出实测比值；`emphasisInk` 不映射（否则白底白字会被 pptwise 拒绝），跨菜单 id 直接拒绝（ADR-052）。
+- **`init --profile`（B2）**：物化预设后就地改写 `theme.json`、按新调色板重导 `tokens.json`/`master-design.json`，
+  档案无页码时写 `chrome = { pageNumber: { show: false } }`，storyboard 按改写后的菜单生成。
+- **storyboard `toc` role（B2）**：storyboard 可为 content 页声明 `role: "toc"`（目录页用 content 菜单槽位；
+  chrome 角色保持不变）。
 
 ## v0.2.0 — 2026-09-23
 

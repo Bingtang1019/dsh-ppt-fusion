@@ -1,11 +1,12 @@
-# Acceptance report (S1–S23)
+# Acceptance report (S1–S27)
 
-Plan chapter 6 maps the leader-facing questions to twenty-three scenarios. This page records
-the automated evidence behind each one on the development machine, and names the checks that
-need a machine this host does not have (a WPS 2019+ box, a Linux runner with LibreOffice).
-"Verified" means the listed command or test was executed and passed; the evidence file or ADR
-is named in the row. S18–S23 were added by V6; the v0.2 model run behind S21/S22 is recorded
-in `docs/v02-model-eval.md`.
+Plan chapter 6 maps the leader-facing questions to scenarios; V6 added S18–S23 and V7.2 adds
+S24–S27 for the v0.3 design-alignment work. This page records the automated evidence behind
+each one on the development machine, and names the checks that need a machine this host does
+not have (a WPS 2019+ box, a Linux runner with LibreOffice, or the local reference deck).
+"Verified" means the listed command or test was executed and passed; the evidence file or ADR is
+named in the row. S26/S27 land with B4/B5 (compliance audit and the reference-quality
+scenario).
 
 | # | scenario | evidence | status |
 |---|---|---|---|
@@ -32,6 +33,8 @@ in `docs/v02-model-eval.md`.
 | S21 | role→layout 匹配 | `validate` rejects a foreign theme pin, an unregistered face and a menu slot the role may not use (ADR-059); `pnpm eval:run` v0.2 rubric `role-layout` green in 3/3 scenarios (`docs/v02-model-eval.md`); `schema/storyboard.test.ts` covers the three rejection paths | verified |
 | S22 | 内容预算守门 | `validate` measures words/items/charts/tables/images and reports `budget-exceeded` with page/role/measured/limit; `schema/budget.test.ts` covers the counters and the violation shape; v0.2 rubric `budget` green in 3/3 scenarios | verified |
 | S23 | 旁白自动翻页 | `fixtures:verify` (fixtureVersion 7) prints `narration auto-advance ok (2 narrated slide(s), useTimings=1)`; `post.test.ts`/`audio.test.ts` cover the byte-driven recompute, the preserve-on-unreadable fallback and the `useTimings` restore (ADR-060); playing a narrated deck and watching it advance is a human check | automated verified; **playback pending user check** |
+| S24 | 档案提取忠于参考 | `pnpm design:verify` re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares it field by field with `fixtures/reference/profile.json` (5 roles / 5 type rows on this machine); the schema is strict; palette, fonts and the type scale match plan Appendix A (geometry anchors differ, ADR-061) | verified on this machine; CI skips without the deck |
+| S25 | 档案可套用 | `theme apply-profile` writes a ThemeFile whose palette/fonts match; `init --profile` leaves chrome/storyboard correct. Measured on `tmp/profile-deck`: validate OK 4 gates; render sha256 `a30b0d3693b9a96d…`; rendered XML carries `#577FD2/#0D0D0D/#595959/#FFFFFF`; audit 11 sources, 0 error, 0 warning (ADR-066). MiSans is not installed here, so rendered fonts fall back (recorded in ADR-066) | verified (automated); font fidelity needs the reference font installed |
 
 ## What is deliberately not claimed
 

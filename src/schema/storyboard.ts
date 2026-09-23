@@ -16,8 +16,11 @@ import type { IrView } from '../deck.ts'
 /** File name of the storyboard. */
 export const STORYBOARD_FILE = 'deck.storyboard.json'
 
-/** Roles a page may declare; the chrome contract's vocabulary, reused. */
-export const STORYBOARD_ROLES = CHROME_ROLES
+/** Roles a page may declare; the chrome role vocabulary plus the v0.3 `toc` page. */
+export const STORYBOARD_ROLES = [...CHROME_ROLES, 'toc'] as const
+
+/** One storyboard role: a chrome role, or `toc` for a table-of-contents page. */
+export type StoryboardRole = (typeof STORYBOARD_ROLES)[number]
 
 /** Routes a page may declare; must agree with `deck.fusion.json`. */
 export const STORYBOARD_ROUTES = ['pptwise', 'ppt-master'] as const
@@ -47,7 +50,7 @@ export interface StoryboardBudget {
 /** One planned page. */
 export interface StoryboardPage {
   readonly index: number
-  readonly role: ChromeRole
+  readonly role: StoryboardRole
   readonly layout: string
   readonly route: (typeof STORYBOARD_ROUTES)[number]
   /** Whether the page takes the deck's page number, when the manifest declares chrome. */
@@ -68,8 +71,9 @@ export interface Storyboard {
  * budget omits the field. Q4 re-measures them against the eval scenarios and
  * records the calibrated numbers in an ADR.
  */
-export const DEFAULT_BUDGETS: Record<ChromeRole, Required<StoryboardBudget>> = {
+export const DEFAULT_BUDGETS: Record<StoryboardRole, Required<StoryboardBudget>> = {
   cover: { maxWords: 24, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
+  toc: { maxWords: 40, maxItems: 8, maxCharts: 0, maxTables: 0, maxImages: 1 },
   section: { maxWords: 24, maxItems: 2, maxCharts: 0, maxTables: 0, maxImages: 1 },
   content: { maxWords: 90, maxItems: 6, maxCharts: 1, maxTables: 1, maxImages: 2 },
   data: { maxWords: 40, maxItems: 4, maxCharts: 1, maxTables: 1, maxImages: 1 },
@@ -92,8 +96,9 @@ export function effectiveBudget(page: StoryboardPage): Required<StoryboardBudget
  * `ending`); a role matches a slot when the slot equals the entry or extends it
  * with `.`, so `content` accepts every `content.<kind>`.
  */
-export const ROLE_LAYOUT_MENU: Record<ChromeRole, readonly string[]> = {
+export const ROLE_LAYOUT_MENU: Record<StoryboardRole, readonly string[]> = {
   cover: ['cover'],
+  toc: ['content'],
   section: ['chapter'],
   content: ['content'],
   data: ['content.data', 'content.fact', 'content.evidence'],
@@ -159,7 +164,7 @@ export function parseLayoutId(layout: string): { theme?: string; face: string } 
  * @param menu - the bound theme's `menu`.
  * @returns the first menu face that can host the role, as `<themeId>:<face>`, or null when the menu has none.
  */
-export function defaultLayoutFor(role: ChromeRole, themeId: string, menu: unknown): string | null {
+export function defaultLayoutFor(role: StoryboardRole, themeId: string, menu: unknown): string | null {
   const allowed = ROLE_LAYOUT_MENU[role]
   for (const [face, paths] of layoutMenuPaths(menu)) {
     if (paths.some((path) => allowed.some((entry) => path === entry || path.startsWith(`${entry}.`)))) {
@@ -328,7 +333,10 @@ export function checkStoryboardAgainstManifest(storyboard: Storyboard, deck: Fus
     }
     const slide = ir.slides[page.index - 1]
     const irRole = storyboardRoleFor(slide === undefined ? undefined : { type: slide.type, kind: typeof slide.kind === 'string' ? slide.kind : undefined })
-    if (slide?.type !== undefined && slide.type !== '' && irRole !== page.role) {
+    // A toc page is a content page in the IR: pptwise has no toc slide type, so the
+    // storyboard may promote a content page to `toc` for the v0.3 role templates.
+    const roleAgrees = irRole === page.role || (page.role === 'toc' && irRole === 'content')
+    if (slide?.type !== undefined && slide.type !== '' && !roleAgrees) {
       problems.push(`storyboard page ${String(page.index)} says role ${page.role} but the IR slide type ${slide.type} maps to ${irRole}`)
     }
     if (deck.chrome !== undefined && page.chrome !== undefined) {

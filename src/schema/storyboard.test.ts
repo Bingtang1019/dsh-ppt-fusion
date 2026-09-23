@@ -55,6 +55,7 @@ describe('parseStoryboard', () => {
     expect(failureOf({ version: 1, pages: [{ ...page, role: 'title' }] }).message).toContain('pages.0.role')
     expect(failureOf({ version: 1, pages: [{ ...page, budget: { maxWords: 0 } }] }).message).toContain('pages.0.budget.maxWords')
     expect(parseStoryboard({ version: 1, pages: [page] }).version).toBe(1)
+    expect(parseStoryboard({ version: 1, pages: [{ ...page, role: 'toc' }] }).pages[0]?.role).toBe('toc')
   })
 
   it('names the file in its failure message', () => {
@@ -127,6 +128,7 @@ describe('layout menu', () => {
     expect(defaultLayoutFor('section', 'brief', menu)).toBe('brief:gauge-section')
     expect(defaultLayoutFor('content', 'brief', menu)).toBe('brief:narrow-column')
     expect(defaultLayoutFor('ending', 'brief', menu)).toBe('brief:gauge-next')
+    expect(defaultLayoutFor('toc', 'brief', menu)).toBe('brief:narrow-column')
     expect(defaultLayoutFor('quote', 'brief', {})).toBeNull()
   })
 })
@@ -188,6 +190,27 @@ describe('checkStoryboardCoverage', () => {
 })
 
 describe('checkStoryboardAgainstManifest', () => {
+  it('accepts a toc page on a content IR slide, and keeps the other roles exact', () => {
+    const toc = {
+      version: 1 as const,
+      pages: [{ index: 2, role: 'toc' as const, layout: 'brief:narrow-column', route: 'pptwise' as const }],
+    }
+    const deckWithToc = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [
+        { index: 1, route: 'pptwise' },
+        { index: 2, route: 'pptwise' },
+      ],
+    })
+    const irWithContent = { slides: [{ type: 'cover' }, { type: 'content' }] }
+    expect(checkStoryboardAgainstManifest(toc, deckWithToc, irWithContent)).toEqual([])
+    const drifted = { version: 1 as const, pages: [{ ...toc.pages[0]!, role: 'ending' as const }] }
+    expect(checkStoryboardAgainstManifest(drifted, deckWithToc, irWithContent).join(' ')).toContain('role ending')
+  })
+
   it('accepts the skeleton and reports route, role and chrome disagreements', () => {
     const skeleton = storyboardSkeleton(deck, ir)
     expect(checkStoryboardAgainstManifest(skeleton, deck, ir)).toEqual([])

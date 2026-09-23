@@ -650,3 +650,29 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   `tests/repo-discipline.test.ts` keep decks, media and local profiles out of git and the package.
 - **Gate.** `pnpm design:verify` re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares
   it field by field with the fixture (S24); without that variable it reports `skipped` and exits 0.
+
+## 20. Profile application contract (V7.2 B2, ADR-066)
+
+- **Deck-local theme.** `theme apply-profile <profile> --from <preset> [-o <file>]` writes
+  `<deck>/theme.json` (default). It materialises the preset only when the file is absent and
+  refuses an existing file whose id is not `--from`; the written theme keeps the preset's id, so
+  the IR's `theme.id` resolves the deck-local file for both pptwise rendering and the fusion's
+  tokens. The menu, shape language and story are copied unchanged (ADR-052: a profile never
+  rebinds a deck to another menu).
+- **Mapping.** The profile replaces `bg`/`surface`/`panel`/`primary`/`accent`/`text`/`muted`/
+  `border`/`chartPalette`/`cardStroke`; font stacks are prefixed with the profile's heading/body
+  families; `defaultBackgrounds` for cover/chapter/content/ending become the profile's `bg`.
+  `emphasisInk` is omitted so pptwise's marked-run fallback uses `accent`. The palette must clear
+  the WCAG floor (`body|muted|title` on `bg` and on `surface` ≥ 4.5; `onAccent` on `accent` and
+  `accent` on `bg` ≥ 3.0); a failing palette is reported with its ratios and never adjusted.
+- **`init --profile <file>`.** Materialises the preset theme, patches `theme.json` in place,
+  re-derives `tokens.json`/`master-design.json` from the patched palette, writes
+  `chrome = {pageNumber: {show: false}}` when the profile's reference deck has no page numbers,
+  and writes the storyboard from the patched menu.
+- **`toc` role.** `deck.storyboard.json` may declare `role: "toc"` on a content IR slide (the
+  storyboard-only role); it uses the content menu slots and takes page-number participation from
+  its coarse chrome role.
+- **Font availability.** The theme declares the profile's families first; pptwise renders only
+  families it can measure, so an uninstalled family falls down the stack and the rendered
+  typeface may differ. The theme file is the declared authority; B4 reports the rendered
+  mismatch as a warning and the manual rubric owns the visual call.

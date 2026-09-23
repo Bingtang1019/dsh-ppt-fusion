@@ -1,5 +1,4 @@
-import type { ChromeRole } from './fusion.ts'
-import { effectiveBudget, type Storyboard, type StoryboardBudget } from './storyboard.ts'
+import { effectiveBudget, type Storyboard, type StoryboardBudget, type StoryboardRole } from './storyboard.ts'
 
 /**
  * Content budgets (plan §4.3).
@@ -149,7 +148,7 @@ function decodeXml(text: string): string {
 /** One page whose measured content exceeds its budget. */
 export interface BudgetViolation {
   readonly page: number
-  readonly role: ChromeRole
+  readonly role: StoryboardRole
   readonly dimension: BudgetDimension
   readonly measured: number
   readonly limit: number

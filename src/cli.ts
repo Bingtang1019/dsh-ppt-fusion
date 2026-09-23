@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { Command, Option } from 'commander'
 import { formatDoctorReport, runDoctor } from './commands/doctor.ts'
 import { defaultDependencies, resolveDeckDir, type CommandDependencies } from './commands/context.ts'
@@ -7,7 +8,7 @@ import { confirmPlan, planDeck } from './commands/plan.ts'
 import { formatResumeReport, runResume } from './commands/resume.ts'
 import { validateDeck } from './commands/validate.ts'
 import { formatPreviewResult, previewDeck } from './commands/preview.ts'
-import { themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
+import { themeApplyProfile, themeEnsure, themeFork, themeList, themeNew, themeTry } from './commands/theme.ts'
 import { tokensExport } from './commands/tokens.ts'
 import { deepRender } from './commands/deep.ts'
 import { renderDeck } from './commands/render.ts'
@@ -99,9 +100,15 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .description('create a deck workspace that already validates')
     .argument('<dir>', 'deck directory to create')
     .option('--theme <preset>', 'factory preset to bind', 'brief')
+    .option('--profile <file>', 'design profile JSON: the deck-local theme and chrome follow it')
     .option('--json', 'print the result as JSON')
-    .action((dir: string, options: { theme: string; json?: boolean }) => {
-      const result = initDeck({ dir: resolveDeckDir(deps, dir), theme: options.theme, deps })
+    .action((dir: string, options: { theme: string; profile?: string; json?: boolean }) => {
+      const result = initDeck({
+        dir: resolveDeckDir(deps, dir),
+        theme: options.theme,
+        deps,
+        ...(options.profile === undefined ? {} : { profile: resolve(deps.cwd, options.profile) }),
+      })
       if (options.json === true) {
         printJson(result)
         return
@@ -253,6 +260,25 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (options.json === true) printJson({ outputFile: written.outputFile })
       else process.stdout.write(`wrote ${written.outputFile}\n`)
+    })
+  theme
+    .command('apply-profile')
+    .description('generate a deck-local theme.json from a design profile, keeping a preset menu')
+    .argument('<profile>', 'design profile JSON, resolved against --dir')
+    .option('-o, --output <file>', 'theme file to write, resolved against --dir', 'theme.json')
+    .option('--from <id>', 'preset whose menu and shape the theme keeps', 'brief')
+    .option('--json', 'print the result as JSON')
+    .option('--dir <dir>', 'deck workspace the paths resolve against', '.')
+    .action((profile: string, options: { output: string; from: string; dir: string; json?: boolean }) => {
+      const result = themeApplyProfile({
+        dir: options.dir,
+        profile,
+        from: options.from,
+        output: options.output,
+        deps,
+      })
+      if (options.json === true) printJson({ outputFile: result.outputFile, id: result.id, theme: result.theme })
+      else process.stdout.write(`wrote ${result.outputFile} (theme "${result.id}")\n`)
     })
   theme
     .command('fork')

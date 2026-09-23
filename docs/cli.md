@@ -74,12 +74,16 @@ row stays visible on purpose.
 
 ## Implemented (M2)
 
-### `dsh-ppt init <dir> [--theme <preset>]`
+### `dsh-ppt init <dir> [--theme <preset>] [--profile <file>]`
 
 Creates a deck workspace that already validates: `deck.ir.json` (cover + ending),
 `deck.fusion.json`, `deck.storyboard.json`, then `theme ensure` for the bound preset. Refuses
 to overwrite an existing manifest. The storyboard is written after the theme is materialised,
 so each skeleton page gets the first layout its role may use in that theme's menu (V6 WP2).
+With `--profile`, the deck-local `theme.json` is rewritten from the design profile (keeping the
+preset id and menu), tokens/master-design are re-derived, chrome follows the profile (a reference
+deck without page numbers writes `{pageNumber: {show: false}}`), and the storyboard uses the
+patched menu (ADR-066).
 
 ### `dsh-ppt plan <dir> [--from <file...>] [--confirm]`
 
@@ -104,6 +108,16 @@ a literal outside the deck palette), `chrome` (a declared `section` without `chr
 missing `chrome.logo.file`, and — as a warning — a contract that skips every page). Exit 1 when
 any error is present. Layout and budget problems report as `storyboard-layout` and
 `budget-exceeded`.
+
+### `dsh-ppt theme apply-profile <profile> [-o <file>] [--from <preset>] [--dir <dir>] [--json]`
+
+Writes a ThemeFile v2 that combines one factory preset's menu/shape/story with a design
+profile's palette, fonts and backgrounds. The output defaults to `<deck>/theme.json`, and the
+theme keeps the preset's id so the deck's IR still resolves it (pptwise reads a deck-local
+theme first); an existing file with a different id is refused rather than rebound to another
+menu (ADR-052). The palette must clear the WCAG floor (`body|muted|title` on `bg`/`surface`
+≥ 4.5, `onAccent` on `accent` and `accent` on `bg` ≥ 3.0); a failing palette is reported with
+its ratios and never silently adjusted (ADR-066).
 
 ### `dsh-ppt theme ensure <dir> [--json]`
 
