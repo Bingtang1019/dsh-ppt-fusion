@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "index": 1,
+      "role": "cover",
+      "layout": "brief:gauge-verdict",
+      "route": "pptwise",
+      "chrome": { "pageNumber": "skip" },
+      "budget": { "maxWords": 20 },
+      "source": "fixtures/hello"
+    },
+    {
+      "index": 2,
+      "role": "content",
+      "layout": "brief:narrow-column",
+      "route": "pptwise",
+      "chrome": { "pageNumber": "show" },
+      "budget": { "maxWords": 60, "maxItems": 6 },
+      "source": "fixtures/hello"
+    },
+    {
+      "index": 3,
+      "role": "content",
+      "layout": "brief:gauge-stats",
+      "route": "ppt-master",
+      "chrome": { "pageNumber": "show" },
+      "budget": { "maxCharts": 1, "maxWords": 30 },
+      "source": "deep/p03-native-chart"
+    },
+    {
+      "index": 4,
+      "role": "content",
+      "layout": "brief:one-evidence",
+      "route": "ppt-master",
+      "chrome": { "pageNumber": "show" },
+      "budget": { "maxTables": 1, "maxWords": 30 },
+      "source": "deep/p04-native-table"
+    },
+    {
+      "index": 5,
+      "role": "ending",
+      "layout": "brief:gauge-next",
+      "route": "pptwise",
+      "chrome": { "pageNumber": "skip" },
+      "budget": { "maxWords": 20 },
+      "source": "fixtures/hello"
+    }
+  ]
+}

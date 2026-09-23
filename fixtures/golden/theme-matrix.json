@@ -12,6 +12,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -58,6 +59,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -68,7 +70,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "2ee5adb35826eef8d63dcc5083dc8eefb3889a9089392747e67273303ad02f83"
+      "fingerprint": "c6ed1b5c182b4cb5a08e838f2a619bf9d73efaadfefea4e83b0fc798080f0288"
     },
     "thesis": {
       "validate": {
@@ -76,6 +78,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -122,6 +125,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -132,7 +136,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "dc2d7fe48baf54bfe2ea482eb74809de31ba7faf02a8a03f0ac83d2a006278ad"
+      "fingerprint": "4702f47b37d229b28c7a1dcaaf3bbae4cc3376d0ecc70c690a9fb6f80b8e4316"
     },
     "terminal": {
       "validate": {
@@ -140,6 +144,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -186,6 +191,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -196,7 +202,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "d7747cb4180476e1ab5be6ccb501f1ff3309d335139bacd008ad65dd24bc9f5f"
+      "fingerprint": "20f22640bb1e193782a4a4469be85679e25b33b0797f2363a26aeb6752a020c3"
     },
     "runway": {
       "validate": {
@@ -204,6 +210,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -250,6 +257,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -260,7 +268,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "01e88e4b425b28cde8e4c7bbcbb2ea020c30d4672f4802beb008d04a9dd6e8eb"
+      "fingerprint": "556f6ab86942583211cec7aedd47e8158abbdff2c9c33390eb2962687c09134e"
     },
     "heritage": {
       "validate": {
@@ -268,6 +276,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -314,6 +323,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -324,7 +334,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "97d5bdff01294f8084ca2b1d405ece9e6a715760a761500ec5af9c649b8e8a0e"
+      "fingerprint": "1494e9c683375aa318f0d3ff30256d2ab471d2ce4518d4c10df09b28faa098b3"
     },
     "ledger": {
       "validate": {
@@ -332,6 +342,7 @@
         "sources": [
           "ir",
           "manifest",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -378,6 +389,7 @@
           "pptx",
           "pptx-delivery-check",
           "prompt-audit",
+          "storyboard",
           "theme"
         ],
         "findings": [
@@ -388,7 +400,7 @@
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "3d6d4f519ce1446f5629c724c8ec2517bf291094be2fff7a321544029742f329"
+      "fingerprint": "bf6ed873652812bffe96f7b465e33e82803f124d8f0e40b2101a06c786308c36"
     }
   }
 }

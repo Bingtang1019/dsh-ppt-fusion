@@ -60,8 +60,10 @@ describe('confirmPlan', () => {
     const deps = depsWith(fs)
     planDeck({ dir: workspace, deps })
     const written = confirmPlan({ dir: workspace, deps })
-    expect(written).toBe(join(workspace, 'deck.fusion.json'))
-    expect(parseFusionDeck(JSON.parse(fs.readText(written) ?? '{}')).name).toBe('deck')
+    expect(written.manifestPath).toBe(join(workspace, 'deck.fusion.json'))
+    expect(written.storyboardPath).toBe(join(workspace, 'deck.storyboard.json'))
+    expect(parseFusionDeck(JSON.parse(fs.readText(written.manifestPath) ?? '{}')).name).toBe('deck')
+    expect(JSON.parse(fs.readText(written.storyboardPath) ?? '{}')).toMatchObject({ version: 1 })
   })
 
   it('refuses when there is no draft', () => {

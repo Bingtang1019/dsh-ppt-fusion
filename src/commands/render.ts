@@ -24,6 +24,11 @@ export interface RenderOptions {
   readonly output?: string
   /** `--compat` level; overrides the manifest's field, which overrides `standard`. */
   readonly compat?: CompatLevel
+  /**
+   * Require the deck's `deck.storyboard.json` (the default). `false` drops the
+   * storyboard findings and exists for debugging only (plan §4.1).
+   */
+  readonly storyboard?: boolean
   readonly deps: CommandDependencies
 }
 
@@ -88,7 +93,11 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   const context = loadDeck(dir, fs)
 
   const validation = validateDeck({ dir, deps: options.deps })
-  const errors = validation.findings.filter((finding) => finding.level === 'error')
+  // The storyboard is mandatory from v0.2 on; `--no-storyboard` (debug only) drops
+  // those findings instead of pretending the plan exists.
+  const errors = validation.findings.filter(
+    (finding) => finding.level === 'error' && (options.storyboard !== false || finding.source !== 'storyboard'),
+  )
   if (errors.length > 0) {
     throw new DshPptFailure('ContractViolation', `deck workspace is not valid: ${errors.map((finding) => finding.message).join('; ')}`, {
       detail: { findings: errors },

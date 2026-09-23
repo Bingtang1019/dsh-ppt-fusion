@@ -1,7 +1,8 @@
 import { basename, join } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
 import { parseFusionDeck, defaultChrome, type FusionDeck } from '../schema/fusion.ts'
-import { FUSION_MANIFEST, readManifest } from '../deck.ts'
+import { STORYBOARD_FILE, parseStoryboard, storyboardSkeleton, type Storyboard } from '../schema/storyboard.ts'
+import { FUSION_MANIFEST, readManifest, type IrView } from '../deck.ts'
 import { toJsonDocument } from '../bridge/theme.ts'
 import type { CommandDependencies } from './context.ts'
 
@@ -14,6 +15,8 @@ export interface PlanResult {
   /** Field paths the model still has to decide before copying the draft into place. */
   readonly needsConfirmation: readonly string[]
   readonly pageCount: number
+  /** Per-page skeleton the draft carries; the model fills layout/budget/source. */
+  readonly storyboard: Storyboard
 }
 
 /**
@@ -82,8 +85,23 @@ export function planDeck(options: { dir: string; deps: CommandDependencies; sour
   }
 
   const draftPath = join(dir, PLAN_DRAFT)
-  deps.fs.writeText(draftPath, toJsonDocument({ needsConfirmation, manifest: deck }))
-  return { draftPath, needsConfirmation, pageCount: deck.pages.length }
+  const irText = deps.fs.readText(join(dir, deck.pptwiseIr))
+  let ir: IrView = { slides: [] }
+  if (irText !== null) {
+    try {
+      const parsed = JSON.parse(irText) as { slides?: unknown }
+      if (Array.isArray(parsed.slides)) {
+        ir = { slides: parsed.slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? '') })) }
+      }
+    } catch {
+      // An unreadable IR leaves roles at their `content` default; validate reports the IR.
+      ir = { slides: [] }
+    }
+  }
+  const storyboard = storyboardSkeleton(deck, ir)
+  needsConfirmation.push('storyboard: fill role/layout/budget/source per page (`layout` must be an id from the bound theme menu)')
+  deps.fs.writeText(draftPath, toJsonDocument({ needsConfirmation, manifest: deck, storyboard }))
+  return { draftPath, needsConfirmation, pageCount: deck.pages.length, storyboard }
 }
 
 /**
@@ -91,10 +109,11 @@ export function planDeck(options: { dir: string; deps: CommandDependencies; sour
  *
  * @param options.dir - deck workspace.
  * @param options.deps - command dependencies.
- * @returns the manifest path written.
- * @throws DshPptFailure `OutputMissing` when there is no draft to confirm.
+ * @returns the manifest and storyboard paths written.
+ * @throws DshPptFailure `OutputMissing` when there is no draft to confirm,
+ *   `ContractViolation` when the draft predates the storyboard or is invalid.
  */
-export function confirmPlan(options: { dir: string; deps: CommandDependencies }): string {
+export function confirmPlan(options: { dir: string; deps: CommandDependencies }): { manifestPath: string; storyboardPath: string } {
   const draftPath = join(options.dir, PLAN_DRAFT)
   const text = options.deps.fs.readText(draftPath)
   if (text === null) {
@@ -102,9 +121,17 @@ export function confirmPlan(options: { dir: string; deps: CommandDependencies })
       detail: { draftPath },
     })
   }
-  const draft = JSON.parse(text) as { manifest?: unknown }
+  const draft = JSON.parse(text) as { manifest?: unknown; storyboard?: unknown }
   const deck = parseFusionDeck(draft.manifest)
+  if (draft.storyboard === undefined) {
+    throw new DshPptFailure('ContractViolation', `the draft at ${draftPath} predates the storyboard; run \`dsh-ppt plan\` again`, {
+      detail: { draftPath },
+    })
+  }
+  const storyboard = parseStoryboard(draft.storyboard)
   const manifestPath = join(options.dir, FUSION_MANIFEST)
+  const storyboardPath = join(options.dir, STORYBOARD_FILE)
   options.deps.fs.writeText(manifestPath, toJsonDocument(deck))
-  return manifestPath
+  options.deps.fs.writeText(storyboardPath, toJsonDocument(storyboard))
+  return { manifestPath, storyboardPath }
 }

@@ -5,6 +5,7 @@ import { defaultDependencies } from './context.ts'
 import { createThemeBridge } from '../bridge/theme.ts'
 import { createFrontend } from '../frontend.ts'
 import { parseFusionDeck, type FusionDeck } from '../schema/fusion.ts'
+import { storyboardSkeleton } from '../schema/storyboard.ts'
 import { createFakeFileSystem, createFakeRunner, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
 import { fakeThemeDocument, installFakePptwise, themeHandler } from '../../tests/support/fake-pptwise.ts'
 
@@ -33,6 +34,10 @@ function buildDeck(options: {
   })
   createThemeBridge({ workspace, frontend, fs, upstream: '0.35.0' }).ensure(options.deck)
   fs.writeText(join(workspace, 'deck.fusion.json'), JSON.stringify(options.deck))
+  // Every deck carries a storyboard from v0.2 on; tests that need it absent or
+  // broken overwrite this file afterwards.
+  const slides = options.slides.map((slide) => ({ type: String((slide as { type?: unknown }).type ?? '') }))
+  fs.writeText(join(workspace, 'deck.storyboard.json'), JSON.stringify(storyboardSkeleton(options.deck, { slides })))
   return { fs, dir: workspace }
 }
 
@@ -218,5 +223,60 @@ describe('validateDeck', () => {
     })
     const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
     expect(validate(fs).findings.filter((entry) => entry.rule.startsWith('chrome-'))).toEqual([])
+  })
+
+  it('reports a missing storyboard', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    fs.files.delete(join(workspace, 'deck.storyboard.json'))
+    const finding = validate(fs).findings.find((entry) => entry.rule === 'storyboard-missing')
+    expect(finding?.level).toBe('error')
+    expect(finding?.message).toContain('deck.storyboard.json')
+  })
+
+  it('reports an invalid storyboard and a coverage gap', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [
+        { index: 1, route: 'pptwise' },
+        { index: 2, route: 'pptwise' },
+      ],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }, { type: 'content' }] })
+    fs.writeText(join(workspace, 'deck.storyboard.json'), JSON.stringify({ version: 2, pages: [] }))
+    expect(validate(fs).findings.some((entry) => entry.rule === 'storyboard-invalid')).toBe(true)
+    fs.writeText(
+      join(workspace, 'deck.storyboard.json'),
+      JSON.stringify({ version: 1, pages: [{ index: 1, role: 'cover', layout: 'x', route: 'pptwise' }] }),
+    )
+    const coverage = validate(fs).findings.find((entry) => entry.rule === 'storyboard-coverage')
+    expect(coverage?.message).toContain('missing page 2')
+  })
+
+  it('reports a storyboard that disagrees with the manifest', () => {
+    const deck = parseFusionDeck({
+      version: 1,
+      name: 'hello',
+      pptwiseIr: 'deck.ir.json',
+      theme: { preset: 'brief' },
+      pages: [{ index: 1, route: 'pptwise' }],
+    })
+    const { fs } = buildDeck({ deck, slides: [{ type: 'cover' }] })
+    fs.writeText(
+      join(workspace, 'deck.storyboard.json'),
+      JSON.stringify({ version: 1, pages: [{ index: 1, role: 'content', layout: 'x', route: 'ppt-master' }] }),
+    )
+    const problems = validate(fs).findings.filter((entry) => entry.rule === 'storyboard-manifest')
+    expect(problems.some((entry) => entry.message.includes('routes ppt-master'))).toBe(true)
+    expect(problems.some((entry) => entry.message.includes('role content'))).toBe(true)
   })
 })

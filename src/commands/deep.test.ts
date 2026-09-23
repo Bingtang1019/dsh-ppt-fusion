@@ -5,6 +5,7 @@ import { defaultDependencies } from './context.ts'
 import { createThemeBridge } from '../bridge/theme.ts'
 import { createFrontend } from '../frontend.ts'
 import { parseFusionDeck } from '../schema/fusion.ts'
+import { storyboardSkeleton } from '../schema/storyboard.ts'
 import { DshPptFailure } from '../engine/errors.ts'
 import { createFakeFileSystem, createFakeRunner, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
 import { fakeThemeDocument, installFakePptwise, themeHandler } from '../../tests/support/fake-pptwise.ts'
@@ -32,6 +33,8 @@ function buildDeck(options: { manifest: unknown; slides: unknown[]; svg?: string
   const deck = parseFusionDeck(options.manifest)
   createThemeBridge({ workspace, frontend, fs, upstream: '0.35.0' }).ensure(deck)
   fs.writeText(join(workspace, 'deck.fusion.json'), JSON.stringify(deck))
+  const slides = (options.slides as readonly { type?: unknown }[]).map((slide) => ({ type: String(slide.type ?? '') }))
+  fs.writeText(join(workspace, 'deck.storyboard.json'), JSON.stringify(storyboardSkeleton(deck, { slides })))
   return fs
 }
 

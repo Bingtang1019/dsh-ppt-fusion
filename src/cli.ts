@@ -120,7 +120,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       if (options.confirm === true) {
         const confirmed = confirmPlan({ dir: workspace, deps })
         if (options.json === true) printJson({ confirmed })
-        else process.stdout.write(`wrote ${confirmed}\n`)
+        else process.stdout.write(`wrote ${confirmed.manifestPath}\nwrote ${confirmed.storyboardPath}\n`)
         return
       }
       const result = planDeck({ dir: workspace, deps, ...(options.from === undefined ? {} : { sources: options.from }) })
@@ -513,7 +513,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('-o, --out <file>', 'output pptx path, resolved against the deck')
     .addOption(new Option('--compat <level>', 'compatibility target; overrides the manifest field').choices([...COMPAT_LEVELS]))
     .option('--json', 'print the result as JSON')
-    .action(async (dir: string, options: { out?: string; compat?: string; json?: boolean }) => {
+    .option('--no-storyboard', 'skip the storyboard gate (debug only)')
+    .action(async (dir: string, options: { out?: string; compat?: string; json?: boolean; storyboard?: boolean }) => {
       const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
       if (options.compat !== undefined && compat === null) {
         throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
@@ -523,6 +524,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         deps,
         ...(options.out === undefined ? {} : { output: options.out }),
         ...(compat === null ? {} : { compat }),
+        storyboard: options.storyboard !== false,
       })
       if (options.json === true) {
         printJson(result)

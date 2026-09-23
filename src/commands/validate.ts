@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { isDshPptFailure } from '../engine/errors.ts'
 import { loadDeck } from '../deck.ts'
 import { checkPageCoverage, chromeRoleFor, isPageNumberSkipped, type FusionDeck } from '../schema/fusion.ts'
+import { STORYBOARD_FILE, checkStoryboardAgainstManifest, checkStoryboardCoverage, parseStoryboard } from '../schema/storyboard.ts'
 import { missingDeepFiles } from '../schema/deep-page.ts'
 import { collectPaletteFindings, buildReport, type FusionFinding, type FusionReport } from '../audit.ts'
 import { exportTokens, parseThemeFile, tokensEqual, type TokensFile } from '../schema/tokens.ts'
@@ -46,6 +47,36 @@ export function validateDeck(options: { dir: string; deps: CommandDependencies }
   }
 
   sources.push('ir')
+
+  // The storyboard is the deck's plan (V6 WP2); without it a deck has no per-page
+  // contract for role, layout or budget, so its absence is an error.
+  sources.push('storyboard')
+  const storyboardText = deps.fs.readText(join(dir, STORYBOARD_FILE))
+  if (storyboardText === null) {
+    findings.push({
+      level: 'error',
+      source: 'storyboard',
+      rule: 'storyboard-missing',
+      message: `${STORYBOARD_FILE} is absent; run \`dsh-ppt init\` for a skeleton or \`dsh-ppt plan\` and fill role/layout/budget/source`,
+    })
+  } else {
+    try {
+      const storyboard = parseStoryboard(JSON.parse(storyboardText) as unknown)
+      for (const problem of checkStoryboardCoverage(storyboard, context.ir.slides.length)) {
+        findings.push({ level: 'error', source: 'storyboard', rule: 'storyboard-coverage', message: problem })
+      }
+      for (const problem of checkStoryboardAgainstManifest(storyboard, context.deck, context.ir)) {
+        findings.push({ level: 'error', source: 'storyboard', rule: 'storyboard-manifest', message: problem })
+      }
+    } catch (error) {
+      findings.push({
+        level: 'error',
+        source: 'storyboard',
+        rule: 'storyboard-invalid',
+        message: isDshPptFailure(error) ? error.message : `${STORYBOARD_FILE} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }
 
   findings.push(...chromeFindings(context.deck, context.ir.slides, dir, deps.fs))
 

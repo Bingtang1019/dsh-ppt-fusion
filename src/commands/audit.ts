@@ -32,6 +32,7 @@ export interface AuditOptions {
 const SOURCE_ORDER = [
   'manifest',
   'ir',
+  'storyboard',
   'deep',
   'theme',
   'palette',
