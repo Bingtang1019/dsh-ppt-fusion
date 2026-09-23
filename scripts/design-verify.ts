@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { extractDesignProfile } from '../src/commands/design.ts'
 import { defaultDependencies } from '../src/commands/context.ts'
+import { auditDeck } from '../src/commands/audit.ts'
 import { parseDesignProfile } from '../src/schema/design-profile.ts'
 
 /** @returns the value with object keys sorted, so two profiles compare structurally. */
@@ -62,3 +63,21 @@ if (canonical(result.profile) !== canonical(fixture)) {
   process.exit(1)
 }
 console.log(`design:verify: profile matches fixtures/reference/profile.json (${String(Object.keys(result.profile.roles).length)} role(s), ${String(Object.keys(result.profile.typeScale).length)} type row(s))`)
+
+// S26: the profile must also describe the deck it came from — re-run the
+// compliance audit against the reference package itself and require 0 error.
+const referenceAudit = await auditDeck({
+  dir: join(root, 'tmp', 'design'),
+  strict: false,
+  pixels: false,
+  profile: fixturePath,
+  file: reference,
+  deps: defaultDependencies({ cwd: root }),
+})
+const referenceErrors = referenceAudit.findings.filter((finding) => finding.level === 'error')
+if (referenceErrors.length > 0) {
+  console.error(`design:verify: the reference deck fails its own profile audit with ${String(referenceErrors.length)} error(s):`)
+  for (const finding of referenceErrors) console.error(`  [${finding.rule}] ${finding.message}`)
+  process.exit(1)
+}
+console.log(`design:verify: the reference deck passes its own profile audit (${String(referenceAudit.sources.length)} source(s), 0 error)`)

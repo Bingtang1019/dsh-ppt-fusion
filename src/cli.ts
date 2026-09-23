@@ -191,8 +191,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--strict', 'fail on warnings as well as errors')
     .option('--pixels', 'also sample the deep SVGs and compare their colours with the palette')
     .option('--file <pptx>', 'audit this package instead of the last published render')
+    .option('--profile <file>', 'also check the package against a design profile (design-* rules)')
+    .option('--roles <spec>', 'role overrides for --profile, e.g. "cover=1;content=2,3"')
     .addOption(new Option('--compat <level>', 'compatibility level for the package lint').choices([...COMPAT_LEVELS]))
-    .action(async (dir: string, options: { json?: boolean; strict?: boolean; pixels?: boolean; file?: string; compat?: string }) => {
+    .action(async (dir: string, options: { json?: boolean; strict?: boolean; pixels?: boolean; file?: string; profile?: string; roles?: string; compat?: string }) => {
       const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
       if (options.compat !== undefined && compat === null) {
         throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
@@ -203,6 +205,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         pixels: options.pixels === true,
         deps,
         ...(options.file === undefined ? {} : { file: options.file }),
+        ...(options.profile === undefined ? {} : { profile: options.profile }),
+        ...(options.roles === undefined ? {} : { roles: options.roles }),
         ...(compat === null ? {} : { compat }),
       })
       if (options.json === true) {
