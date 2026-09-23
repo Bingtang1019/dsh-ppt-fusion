@@ -28,6 +28,12 @@ const good: DeckObservation = {
   checkpointPhase: '6',
   themeFile: 'brand.theme.json',
   themeFileExists: true,
+  storyboardPresent: true,
+  storyboardProblems: [],
+  layoutProblems: [],
+  budgetProblems: [],
+  chromeDeclared: true,
+  chromeProblems: [],
 }
 
 /** @returns the check with `id`, or undefined. */
@@ -88,5 +94,31 @@ describe('evaluateRubric', () => {
     expect(checkpoint?.passed).toBe(false)
     expect(attemptPassed(checks)).toBe(true)
     expect(attemptPassed(evaluateRubric(strict, { ...good, slides: 99 }))).toBe(false)
+  })
+
+  it('fails the storyboard row when the plan is absent or inconsistent', () => {
+    const missing = check({ ...good, storyboardPresent: false }, strict, 'storyboard')
+    expect(missing?.passed).toBe(false)
+    expect(missing?.message).toContain('no deck.storyboard.json')
+    const inconsistent = check({ ...good, storyboardProblems: ['storyboard-coverage: missing page 2'] }, strict, 'storyboard')
+    expect(inconsistent?.passed).toBe(false)
+    expect(inconsistent?.message).toContain('missing page 2')
+  })
+
+  it('fails role-layout and budget on their own findings', () => {
+    const layout = check({ ...good, layoutProblems: ['storyboard page 2: role "data" cannot use layout "brief:gauge-next"'] }, strict, 'role-layout')
+    expect(layout?.passed).toBe(false)
+    expect(layout?.message).toContain('cannot use layout')
+    const budget = check({ ...good, budgetProblems: ['page 2 (content): words measured 19, maxWords limit 5'] }, strict, 'budget')
+    expect(budget?.passed).toBe(false)
+    expect(budget?.message).toContain('measured 19')
+  })
+
+  it('fails chrome when the manifest declares none or the audit reports one', () => {
+    expect(check({ ...good, chromeDeclared: false }, strict, 'chrome')?.passed).toBe(false)
+    expect(check({ ...good, chromeDeclared: false }, strict, 'chrome')?.message).toContain('no chrome block')
+    const bad = check({ ...good, chromeProblems: ['chrome-coverage: page 2 has no slidenum field'] }, strict, 'chrome')
+    expect(bad?.passed).toBe(false)
+    expect(bad?.message).toContain('chrome-coverage')
   })
 })

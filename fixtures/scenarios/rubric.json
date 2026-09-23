@@ -45,6 +45,26 @@
       "id": "brand-theme",
       "description": "the deck manifest binds a theme file that exists",
       "severity": "error"
+    },
+    {
+      "id": "storyboard",
+      "description": "`deck.storyboard.json` exists, covers every page and agrees with the manifest",
+      "severity": "error"
+    },
+    {
+      "id": "role-layout",
+      "description": "every storyboard layout is a legal face for its role in the bound theme menu",
+      "severity": "error"
+    },
+    {
+      "id": "budget",
+      "description": "every page stays inside its measured content budget",
+      "severity": "error"
+    },
+    {
+      "id": "chrome",
+      "description": "the deck declares chrome and the audit reports no chrome error (coverage, geometry, skip)",
+      "severity": "error"
     }
   ],
   "metrics": [

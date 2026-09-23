@@ -62,6 +62,18 @@ export interface DeckObservation {
   readonly themeFile: string | null
   /** Whether that theme file exists under the deck. */
   readonly themeFileExists: boolean
+  /** Whether `deck.storyboard.json` exists (V6 WP2). */
+  readonly storyboardPresent: boolean
+  /** Error findings other than layout/budget, as `rule: message` (coverage, manifest agreement, …). */
+  readonly storyboardProblems: readonly string[]
+  /** `storyboard-layout` error findings, as `rule: message` (role↔layout, theme menu). */
+  readonly layoutProblems: readonly string[]
+  /** `budget-exceeded` error findings, as `rule: message`. */
+  readonly budgetProblems: readonly string[]
+  /** Whether the manifest declares a `chrome` block (V6 WP1). */
+  readonly chromeDeclared: boolean
+  /** Error-level `chrome-*` findings, as `rule: message`. */
+  readonly chromeProblems: readonly string[]
 }
 
 /** One evaluated check, before the catalog supplies its severity. */
@@ -84,6 +96,10 @@ export const CHECK_IDS = [
   'attribution',
   'checkpoint',
   'brand-theme',
+  'storyboard',
+  'role-layout',
+  'budget',
+  'chrome',
 ] as const
 
 export type CheckId = (typeof CHECK_IDS)[number]
@@ -100,6 +116,11 @@ export const CHECK_SEVERITY: Readonly<Record<CheckId, 'error' | 'warning'>> = {
   // Checkpoint use is a process metric (plan M6.4), not a delivery gate.
   checkpoint: 'warning',
   'brand-theme': 'error',
+  // V6 R2/R4 and V7 A1: the storyboard plan and the deck chrome are delivery gates from v0.2 on.
+  storyboard: 'error',
+  'role-layout': 'error',
+  budget: 'error',
+  chrome: 'error',
 }
 
 /**
@@ -114,7 +135,7 @@ export function attemptPassed(checks: readonly RubricCheckResult[]): boolean {
  * Evaluate every check for one observation.
  *
  * A check that was not requested by the rubric passes with a `not required`
- * message, so a report always carries the same nine rows and differences stay
+ * message, so a report always carries the same thirteen rows and differences stay
  * visible without reading the scenario.
  *
  * @param rubric - the scenario's expectations.
@@ -174,6 +195,35 @@ export function evaluateRubric(rubric: ScenarioRubric, observation: DeckObservat
       rubric.requireBrandTheme,
       observation.themeFile !== null && observation.themeFileExists,
       observation.themeFile === null ? 'the manifest binds no theme file' : `theme file ${observation.themeFile}${observation.themeFileExists ? '' : ' is missing'}`,
+    ),
+    // V6 R2/R3/R4 and V7 A1: the plan is part of the delivery, not a suggestion.
+    storyboard: pass(
+      'storyboard',
+      observation.storyboardPresent && observation.storyboardProblems.length === 0,
+      observation.storyboardPresent
+        ? observation.storyboardProblems.length === 0
+          ? 'deck.storyboard.json covers every page and agrees with the manifest'
+          : observation.storyboardProblems.join('; ')
+        : 'no deck.storyboard.json found',
+    ),
+    'role-layout': pass(
+      'role-layout',
+      observation.layoutProblems.length === 0,
+      observation.layoutProblems.length === 0 ? 'every layout is a legal face for its role in the bound theme menu' : observation.layoutProblems.join('; '),
+    ),
+    budget: pass(
+      'budget',
+      observation.budgetProblems.length === 0,
+      observation.budgetProblems.length === 0 ? 'every page fits its measured content budget' : observation.budgetProblems.join('; '),
+    ),
+    chrome: pass(
+      'chrome',
+      observation.chromeDeclared && observation.chromeProblems.length === 0,
+      observation.chromeDeclared
+        ? observation.chromeProblems.length === 0
+          ? 'the deck declares chrome and the audit reports no chrome error'
+          : observation.chromeProblems.join('; ')
+        : 'the manifest declares no chrome block',
     ),
   }
   return CHECK_IDS.map((id) => results[id])

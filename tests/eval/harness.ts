@@ -506,7 +506,7 @@ function emptyMetrics(sessionFile: string | null): SessionMetrics {
  */
 export async function observeDeck(workspace: string, deckDir: string): Promise<DeckObservation> {
   const manifest = readJson(join(deckDir, 'out', 'manifest.json')) as { slides?: unknown; file?: unknown } | null
-  const deckManifest = readJson(join(deckDir, 'deck.fusion.json')) as { theme?: { file?: unknown } } | null
+  const deckManifest = readJson(join(deckDir, 'deck.fusion.json')) as { theme?: { file?: unknown }; chrome?: unknown } | null
   const themeFile = typeof deckManifest?.theme?.file === 'string' ? deckManifest.theme.file : null
   const themeFileExists = themeFile !== null && existsSync(join(deckDir, themeFile))
   const checkpoint = readJson(join(deckDir, '.dsh-ppt', 'checkpoint.json')) as { phase?: unknown } | null
@@ -521,16 +521,24 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
   let auditOk: boolean | null = null
   let auditErrorCount = 0
   let auditSkipped: string[] = []
+  let auditFindings: readonly { level: string; source: string; rule: string; message: string }[] = []
   if (existsSync(deckDir)) {
     try {
       const report = await auditDeck({ dir: deckDir, strict: false, pixels: false, deps: defaultDependencies({ cwd: workspace }) })
       auditOk = report.ok
       auditErrorCount = report.findings.filter((finding) => finding.level === 'error').length
       auditSkipped = [...report.skipped]
+      auditFindings = report.findings
     } catch (error) {
       writeFileSync(join(deckDir, '.dsh-ppt', 'eval-audit-error.txt'), String(error), 'utf8')
     }
   }
+  // The audit merges the validate gate's findings, so the storyboard and chrome
+  // rows can be derived from one report (V6 WP2 / V7 A1).
+  const errors = auditFindings.filter((finding) => finding.level === 'error')
+  const describe = (finding: { rule: string; message: string }): string => `${finding.rule}: ${finding.message}`
+  const storyboardErrors = errors.filter((finding) => finding.source === 'storyboard')
+  const chromeDeclared = deckManifest?.chrome !== undefined
   return {
     auditOk,
     auditErrorCount,
@@ -545,6 +553,12 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
     checkpointPhase,
     themeFile,
     themeFileExists,
+    storyboardPresent: existsSync(join(deckDir, 'deck.storyboard.json')),
+    storyboardProblems: storyboardErrors.filter((finding) => finding.rule !== 'storyboard-layout' && finding.rule !== 'budget-exceeded').map(describe),
+    layoutProblems: storyboardErrors.filter((finding) => finding.rule === 'storyboard-layout').map(describe),
+    budgetProblems: storyboardErrors.filter((finding) => finding.rule === 'budget-exceeded').map(describe),
+    chromeProblems: errors.filter((finding) => finding.rule.startsWith('chrome-')).map(describe),
+    chromeDeclared,
   }
 }
 
