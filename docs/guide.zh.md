@@ -75,6 +75,28 @@ dsh-ppt preview hello --html        # 标准页走 pptwise，deep 页用作者 S
 # 或对模型说：用 dsh_ppt_preview 预览 hello
 ```
 
+> 交付物始终是 `out/<name>.pptx`（原生可编辑）；`preview --html` 与卡片里的 HTML 只是**评审查看器**。
+
+## 3.5 deck 级 chrome（页码 / 页脚 / section）
+
+整份 deck 的一致装饰写在 `deck.fusion.json` 的 `chrome` 块里，由 render 后处理统一施加；
+`dsh-ppt init` / `plan` 从 v0.1.2 起默认写入"封面与结束页跳过"的页码契约：
+
+```jsonc
+"chrome": {
+  "pageNumber": { "show": true, "skipRoles": ["cover", "ending"], "position": "footer-right", "style": "tokens" },
+  "footer": { "text": "Acme 2026 Q3", "position": "footer-left", "style": "tokens" },
+  "section": { "position": "header-left", "style": "tokens" }
+}
+```
+
+- 页码是**原生域**（`<a:fld type="slidenum">`），删页/重排后 PowerPoint/WPS 会自动重排；引擎自带的
+  页码徽标按签名剥离，正文里的数字不会被动。
+- `skipRoles` 页（默认封面/结束页）完全不施加 chrome；其余页（含 deep 页）一致。
+- 每页可加 `"section": "结果"`，配合 `chrome.section` 在页眉显示章节文本。
+- 门禁：`dsh-ppt validate` 查契约完备（section 未声明、logo 文件缺失、全跳过），
+  `dsh-ppt audit` 查覆盖/几何/文案/logo/剥离（error）与重叠（warning；`--strict` 时 warning 也红）。
+
 ## 4. 旁白与动画
 
 旁白文本写在每页 `deep/<page>/notes.md`；`narrate` 会按导出 stem 组成 notes roster：

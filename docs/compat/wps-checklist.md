@@ -21,6 +21,7 @@ Record every row (pass / fail / note) in `docs/compat/wps-report.md`.
 | 8 | CJK fonts | the two Chinese decks | no missing-glyph boxes; heading/body fonts render |
 | 9 | SVG fallback | zoom the deep pages to 200% | vector fallback renders; no blank page |
 | 10 | save and reopen | save as a copy, close, reopen | WPS does not rewrite or degrade the deck |
+| 11 | page numbers (V6 WP1) | a deck with the default chrome (cover/ending skipped) | non-skipped pages show a page number; delete one middle page, save, and the remaining numbers renumber themselves (native field, not literal digits) |
 
 Notes for the tester:
 

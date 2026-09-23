@@ -1,6 +1,6 @@
 {
   "name": "dsh-ppt-flashmade",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "DeepSeek Harness plugin that fuses pptwise's DSH-native front end with ppt-master's native DrawingML engine",
   "license": "MIT",

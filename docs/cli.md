@@ -93,7 +93,9 @@ Gates, in order: `manifest` (schema, with per-field messages), `ir` (page covera
 `placeholder: true` on every deep page), `deep` (each deep page directory holds
 `page.svg`), `post` (`post.animations` exists), `theme` (theme file matches the binding
 and `tokens.json` is in sync), `palette` (warning: a deep page paints a literal outside
-the deck palette). Exit 1 when any error is present.
+the deck palette), `chrome` (a declared `section` without `chrome.section`, a missing
+`chrome.logo.file`, and — as a warning — a contract that skips every page). Exit 1 when any
+error is present.
 
 ### `dsh-ppt theme ensure <dir> [--json]`
 
@@ -180,10 +182,12 @@ prints the occurrences and findings.
 
 Runs the unified audit gate (plan §3.8) over a workspace: the `validate` pass, pptwise's own IR
 validation and geometry audit, the deep SVGs' quality gate, the published package's OPC
-integrity plus the single-master invariant, the engine's delivery check, the compat lint, and
-optionally the CIELAB colour comparison of the deep SVGs (`--pixels`). Errors fail the
-command; `--strict` also fails on warnings. Without an artifact the command reports
-`artifact-missing` and names the package sources it skipped instead of passing silently.
+integrity plus the single-master invariant, the chrome contract (V6 WP1: coverage, skip,
+geometry, footer/section text, logo reference, baked page-number strip, and an overlap warning),
+the engine's delivery check, the compat lint, and optionally the CIELAB colour comparison of the
+deep SVGs (`--pixels`). Errors fail the command; `--strict` also fails on warnings. Without an
+artifact the command reports `artifact-missing` and names the package sources it skipped instead
+of passing silently.
 
 ## Implemented (M5)
 

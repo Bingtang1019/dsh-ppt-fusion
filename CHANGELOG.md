@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## v0.1.2 — 2026-09-23
+
+V6 WP1：deck 级 chrome 契约。页码不再"哪个版式自带就有"，而是由 `deck.fusion.json` 声明、由 render
+后处理统一施加，并由 audit 硬门检查（ADR-058）。
+
+### 新增
+
+- **`chrome` 契约**（`deck.fusion.json`）：`pageNumber`（开关、`skipRoles`、四个预设位置、主题 tokens
+  样式）、可选 `footer` 文本、可选 `logo`、可选 `section`；`pages[]` 可声明 `section`。`dsh-ppt init` /
+  `plan` 从本版起默认写入带页码的契约（封面/结束页跳过）。
+- **原生页码域**：非跳过页注入 `<a:fld type="slidenum">`（`‹#›`），删页/重排后自动更新；字段 id
+  确定性生成（SHA-1 → UUID v5 形状），形状名固定，因此重复施加幂等且字节稳定（T2）。
+- **内置页码剥离**：按签名（底部区域 + 横条/右下徽标 + 单个 1–3 位数字 + 右对齐 + 半透明填充）移除
+  引擎自带的页码形状，正文数字不受影响。
+- **audit 新规则**：`chrome-coverage`、`chrome-skip`、`chrome-geometry`、`chrome-footer-text`、
+  `chrome-section`、`chrome-logo-part`、`chrome-baked-strip`（error）与 `chrome-overlap`（warning，
+  背景形状不计）。
+- **夹具**：`fixtures/hello` 声明 chrome（页脚 + p3 section），黄金重录为 **fixtureVersion 6**；
+  `theme-matrix.json` 与 `docs/compat/matrix.md` 同步重录；WPS 清单新增"删页后页码自动重排"一项。
+
+### 变更
+
+- 文案澄清（O1）：README/guide 明确 **HTML 是评审查看器，交付物是原生 PPTX**。
+
 ## v0.1.1 — 2026-09-23
 
 修复 `dsh_ppt_preview` 预览卡片的渲染路径（v0.1.0 里卡片无法生成：插件把预览输出目录指到

@@ -216,6 +216,14 @@ describe('auditChrome', () => {
     expect(findings.find((finding) => finding.rule === 'chrome-overlap')?.level).toBe('warning')
   })
 
+  it('writes an East-Asian font slot on CJK chrome text', () => {
+    const pkg = miniPackage(1)
+    applyChrome(pkg, { chrome: contract, pages: plan(['content'], { 1: '深度引擎' }), tokens: TOKENS })
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    expect(xml).toContain('深度引擎')
+    expect(xml).toContain('<a:ea typeface="')
+  })
+
   it('does not warn when the only overlap is the page background', () => {
     const background = `<p:sp><p:nvSpPr><p:cNvPr id="6" name="bg"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/></a:xfrm></p:spPr><p:txBody><a:p/></p:txBody></p:sp>`
     const pkg = miniPackage(1, background)

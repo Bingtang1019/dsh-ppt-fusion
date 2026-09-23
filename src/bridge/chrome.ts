@@ -123,11 +123,26 @@ function escapeAttribute(text: string): string {
   return escapeText(text).replace(/"/g, '&quot;')
 }
 
+/**
+ * East-Asian family the deep engine itself writes when an authored SVG names no
+ * CJK family (seen in ppt-master's output), used when the theme declares none.
+ */
+const DEFAULT_EA_FONT = 'Microsoft YaHei'
+
+/** @returns a CJK-capable family from the theme stacks, when one is declared. */
+function eaFamily(tokens: TokensFile): string {
+  const declared = (tokens.fonts as { ea?: unknown }).ea
+  if (typeof declared === 'string' && declared !== '') return declared
+  const candidates = [...tokens.fonts.heading, ...tokens.fonts.body]
+  return candidates.find((family) => /YaHei|Song|Hei|Kai|Ming|PingFang|Hiragino|Noto Sans (SC|CJK)|Source Han/i.test(family)) ?? DEFAULT_EA_FONT
+}
+
 /** @returns the run properties every chrome shape uses (theme muted colour, body font). */
 function runProperties(tokens: TokensFile): string {
   const color = escapeAttribute(tokens.colors.muted)
   const typeface = escapeAttribute(tokens.fonts.body[0] ?? 'Calibri')
-  return `<a:rPr lang="en-US" sz="${String(FONT_SIZE)}" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${typeface}"/></a:rPr>`
+  const ea = escapeAttribute(eaFamily(tokens))
+  return `<a:rPr lang="en-US" sz="${String(FONT_SIZE)}" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${typeface}"/><a:ea typeface="${ea}"/><a:cs typeface="${typeface}"/></a:rPr>`
 }
 
 /**

@@ -14,7 +14,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -47,6 +49,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -57,13 +60,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "6bb1566a700a05036b19450732e9b96f2d647eb9246566dc1b8ce61acec8873c"
+      "fingerprint": "2ee5adb35826eef8d63dcc5083dc8eefb3889a9089392747e67273303ad02f83"
     },
     "thesis": {
       "validate": {
@@ -73,7 +78,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -106,6 +113,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -116,13 +124,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "2b79c3c18bbb3f1e96f18e6a3f339988ee44fc3c2d576b70cd7a5bd747a32e6b"
+      "fingerprint": "dc2d7fe48baf54bfe2ea482eb74809de31ba7faf02a8a03f0ac83d2a006278ad"
     },
     "terminal": {
       "validate": {
@@ -132,7 +142,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -165,6 +177,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -175,13 +188,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "9e2c7c6cc3ebb8ec574da16e9509abb58f9caeb0be08c0cdd36abb73d95c812d"
+      "fingerprint": "d7747cb4180476e1ab5be6ccb501f1ff3309d335139bacd008ad65dd24bc9f5f"
     },
     "runway": {
       "validate": {
@@ -191,7 +206,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -224,6 +241,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -234,13 +252,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "a70119fef6f858a869345ba5c01052a7ad1e4d2458a4e91567548f39a2861f62"
+      "fingerprint": "01e88e4b425b28cde8e4c7bbcbb2ea020c30d4672f4802beb008d04a9dd6e8eb"
     },
     "heritage": {
       "validate": {
@@ -250,7 +270,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -283,6 +305,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -293,13 +316,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "326c8f6682201b4b80054a32f4d3afffdf2b7a1217b7eb3f756f5460e762b2cc"
+      "fingerprint": "97d5bdff01294f8084ca2b1d405ece9e6a715760a761500ec5af9c649b8e8a0e"
     },
     "ledger": {
       "validate": {
@@ -309,7 +334,9 @@
           "manifest",
           "theme"
         ],
-        "findings": []
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ]
       },
       "render": {
         "slides": 2,
@@ -342,6 +369,7 @@
       "audit": {
         "ok": true,
         "sources": [
+          "chrome",
           "compat-lint",
           "ir",
           "manifest",
@@ -352,13 +380,15 @@
           "prompt-audit",
           "theme"
         ],
-        "findings": [],
+        "findings": [
+          "warning|manifest|chrome-skip-all"
+        ],
         "skipped": [
           "pixels: no deep page with an in-sync tokens file to sample"
         ]
       },
       "paletteFindings": 0,
-      "fingerprint": "54d09db8f12360e24b79c6e98a60090c6b16e64623b24fc52bf8f317ff0bd9fc"
+      "fingerprint": "3d6d4f519ce1446f5629c724c8ec2517bf291094be2fff7a321544029742f329"
     }
   }
 }

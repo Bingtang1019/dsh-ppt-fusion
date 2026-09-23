@@ -222,7 +222,7 @@ export function chromeFindings(
     const roles = deck.pages.map((_page, offset) => chromeRoleFor(slides[offset]?.type === undefined ? undefined : String(slides[offset]?.type)))
     if (roles.every((role) => isPageNumberSkipped(chrome, role))) {
       findings.push({
-        level: 'error',
+        level: 'warning',
         source: 'manifest',
         rule: 'chrome-skip-all',
         message: 'chrome.pageNumber skips every page of this deck; show page numbers somewhere or drop the contract',

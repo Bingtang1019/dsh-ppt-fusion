@@ -552,3 +552,34 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   runtime files on disk and in the tarball (ADR-050).
 - **Cache.** The plugin keeps previews under `$DSH_PPT_PREVIEW_HOME` (default `~/.dsh-ppt`),
   never inside the deck or the user's git checkout.
+
+## 17. Deck chrome contract (V6 WP1, ADR-058)
+
+- **Declaration.** `deck.fusion.json` may carry `chrome`:
+  `pageNumber { show?, skipRoles?, position?, style? }`, `footer { text, position?, style? }`,
+  `logo { file, position?, widthEmu? }`, `section { position?, style? }`; `pages[]` may carry
+  `section`. Positions are the four anchors `footer-left`/`footer-right`/`header-left`/
+  `header-right`; `style` is `tokens` (theme colour `muted`, body font, engine-default East-Asian
+  family). Unknown fields are rejected. A manifest without `chrome` keeps the legacy behaviour:
+  nothing is injected and the audit reports no chrome findings.
+- **Default.** `dsh-ppt init` and `dsh-ppt plan` write
+  `pageNumber { show: true, skipRoles: ["cover","ending"], position: "footer-right", style: "tokens" }`.
+- **Roles.** The IR slide's `type` maps onto the role vocabulary (`cover`, `section`, `content`,
+  `data`, `quote`, `ending`); deep pages default to `content`. `skipRoles` pages receive **no**
+  chrome at all — a cover with a footer but no page number would be the inconsistency this
+  contract removes.
+- **Application.** `applyChrome` (`src/bridge/chrome.ts`) runs in `render.ts` after motion and
+  before the compat pass; `render` publishes only afterwards. It first removes its own shapes by
+  stable name (`chrome-page-number`, `chrome-footer`, `chrome-section`, `chrome-logo`) and then any
+  **baked page number** matched by signature (bottom band, wide bar or right-half badge, a single
+  1–3 digit run, right-aligned, translucent fill ≤ 60000 alpha). Page numbers are written as
+  `<a:fld type="slidenum">` with a deterministic id (SHA-1 seed → UUID-v5 shape) and text `‹#›`, so
+  deleting or reordering slides renumbers them in PowerPoint/WPS and two runs produce identical
+  bytes.
+- **Gate.** `validate` rejects an undeclared `section`, a missing `logo.file`, and warns when the
+  contract skips every page (`chrome-skip-all`). `audit` adds the `chrome` source with
+  `chrome-coverage`, `chrome-skip`, `chrome-geometry`, `chrome-footer-text`, `chrome-section`,
+  `chrome-logo-part`, `chrome-baked-strip` (all error) and `chrome-overlap` (warning; full-canvas
+  background shapes are excluded). `--strict` reds the warning.
+- **Fixture.** `fixtures/hello` declares a footer and a section on page 3; the golden package is
+  `fixtureVersion 6` and the theme matrix snapshots carry the chrome source.
