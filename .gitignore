@@ -18,6 +18,15 @@ fixtures/**/backup/
 fixtures/hello/theme.json
 fixtures/hello/tokens.json
 fixtures/hello/master-design.json
+
+# Reference-deck material (V7.2 B1): only the numeric profile fixture is tracked.
+# The deck itself, its media and any extracted assets never enter the repository.
+fixtures/reference/*
+!fixtures/reference/profile.json
+*.potx
+*.ppsx
+*.thmx
+*.key
 fixtures/**/live_preview/
 
 # Local environment

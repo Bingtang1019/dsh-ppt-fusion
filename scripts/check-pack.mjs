@@ -69,6 +69,18 @@ if (problems.length === 0) {
   for (const path of required) {
     if (!names.has(path)) problems.push(`not in the tarball: ${path}`)
   }
+  // Deck discipline (V7.2): no deck, media file or local design profile may ship,
+  // whatever the files whitelist happens to say next.
+  const forbidden = [
+    { rule: /(^|\/)fixtures\//i, reason: 'deck fixtures never ship' },
+    { rule: /\.(pptx|ppt|potx|ppsx|thmx|pdf|mp3|mp4|mov|webm|m4a|wav)$/i, reason: 'deck/media artifacts never ship' },
+    { rule: /design-profile|ref-profile/i, reason: 'local design profiles never ship' },
+  ]
+  for (const path of names) {
+    for (const { rule, reason } of forbidden) {
+      if (rule.test(path)) problems.push(`forbidden in the tarball (${reason}): ${path}`)
+    }
+  }
 }
 
 if (problems.length > 0) {
