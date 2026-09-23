@@ -14,18 +14,18 @@ preview card, and `cordis.patch.yml` is the bundle layer DSH composes.
 
 ## Install
 
-From npm (v0.1.2):
+From npm (v0.2.0):
 
 ```sh
-dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.1.2
+dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.2.0
 ```
 
 From the GitHub Release (the attached tarball is byte-identical to the npm package, shasum
-`e5545fbbbd1bf3d2299702983e481ac541047c16`): download `dsh-ppt-flashmade-0.1.2.tgz` from
-`https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.1.2`, then
+`a92eda11e73e3531333455f8296d3d435eaa957a`): download `dsh-ppt-flashmade-0.2.0.tgz` from
+`https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.2.0`, then
 
 ```sh
-dsh plugin --profile <profile> add -w <downloads>/dsh-ppt-flashmade-0.1.2.tgz
+dsh plugin --profile <profile> add -w <downloads>/dsh-ppt-flashmade-0.2.0.tgz
 ```
 
 From a checkout, build first so the linked package has `dist/cli.js`:

@@ -4,11 +4,11 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
 - 本包：`dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
-- 下载：npm [`dsh-ppt-flashmade@0.1.2`](https://www.npmjs.com/package/dsh-ppt-flashmade) · GitHub Release [v0.1.1](https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.1.2)（附件 `dsh-ppt-flashmade-0.1.2.tgz` 与 npm 包字节一致，sha1 `e5545fbb…`）
+- 下载：npm [`dsh-ppt-flashmade@0.2.0`](https://www.npmjs.com/package/dsh-ppt-flashmade) · GitHub Release [v0.2.0](https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.2.0)（附件 `dsh-ppt-flashmade-0.2.0.tgz` 与 npm 包字节一致）
 - **交付物**：`out/<name>.pptx` —— 原生可编辑 PPTX（原生形状/图表/表格）。`preview --html` 与卡片里的
   HTML **只是评审查看器**，不代表交付物形态。
 
-> 状态：**CI 双平台全绿（ADR-055）；v0.1.1 已按 §8 双渠道发布（npm + GitHub Release，ADR-056），并修掉了预览卡片的渲染路径（ADR-057，0.1.1）。
+> 状态：**CI 双平台全绿（ADR-055）；v0.2.0 已按 §8 双渠道发布（npm + GitHub Release，ADR-056）：storyboard/role→layout/内容预算（ADR-059）、旁白自动翻页（ADR-060）、Q4 模型评估 3/3（`docs/v02-model-eval.md`）。
 
 ---
 
