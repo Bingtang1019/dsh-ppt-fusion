@@ -1625,6 +1625,9 @@ the ADR wins.**
   survives (`chrome.test.ts`); identical geometry across pages, idempotent re-apply and two-run
   byte equality are unit-tested; `pnpm test` is 340 tests / 44 files green, `typecheck`/`lint` 0.
   `fixtures/golden` re-records as fixtureVersion 6 in WP1-P4.
+- **Scope note (logo deferred):** `chrome.logo` is parsed, validated (`chrome-logo-missing`) and gated
+  (`chrome-logo-part`), but the pass does not inject the picture yet; a deck that declares a logo
+  fails the audit until the injection lands in v0.2. Everything else in plan §3.1 ships.
 - **Alternatives rejected:** literal page numbers (wrong after any edit); stripping by shape name
   (the engines use generic names); leaving layout chrome in place and adding nothing (the reported
   defect); teaching each engine to emit chrome (deep pages are SVG-authored and would need the same
