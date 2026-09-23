@@ -3,6 +3,7 @@ import {
   applyTemplate,
   deliveryCheck,
   imageSearch,
+  imageGenerate,
   mirrorTemplateMaterialize,
   registerTemplate,
   pptxTemplateImport,
@@ -22,6 +23,7 @@ import {
   type RegisterTemplateParams,
   type DeliveryCheckParams,
   type ImageSearchParams,
+  type ImageGenerateParams,
   type MirrorTemplateParams,
   type PptxTemplateImportParams,
   type SourceDispatchParams,
@@ -203,6 +205,16 @@ export function createMasterEngine(options: MasterEngineOptions) {
      */
     imageSearch(params: ImageSearchParams, options: { credentials?: readonly string[] } = {}): MasterCall {
       return execute(imageSearch(params), options.credentials)
+    },
+
+    /**
+     * @see imageGenerate
+     * @param params - prompt, provider, output directory and file name.
+     * @param options.credentials - parent environment variables this provider may
+     *   read; the command layer passes exactly the enabled provider's knobs.
+     */
+    imageGenerate(params: ImageGenerateParams, options: { credentials?: readonly string[] } = {}): MasterCall {
+      return execute(imageGenerate(params), options.credentials)
     },
 
     /** @see sourceToMarkdown */

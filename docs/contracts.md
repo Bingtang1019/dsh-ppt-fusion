@@ -38,6 +38,7 @@ Paths: `MASTER` = `%DSH_HOME%\ppt-fusion\venvs\ppt-master-0.1.128\Scripts\ppt-ma
 | `apply-template <project> --root <ws> [--root …] [--dry-run]` | repeatable `--root`, one per kind | installs a template root into `templates/`; writes `template_install.json` and prints an `[OK] installed N file(s)` receipt (M5 ✓) |
 | `register-template [id] [--kind K] [--rebuild-all] [--dry-run]` | `--kind {brand,style,layout,deck}` | refreshes the template index under `templates/<kind>/` (M5 ✓) |
 | `image-search <query> [--provider …] [--strict-no-attribution] [--manifest F] [--save-candidates] [--from-url U]` | `--provider {openverse,wikimedia,pexels,pixabay}`, `--orientation`, `--filename`, `--min-width`, `--promise …` | downloads into `-o`, writes the attribution manifest (M5) |
+| `image-gen "<prompt>" --backend {gemini,openai} [-o dir] [--filename F] [--aspect_ratio R] [--image_size S]` | `--backend`, `-o`, `--filename`, `--aspect_ratio`, `--image_size` | writes the image into `-o`; the fusion records `image_sources.json`. Reachable only with `DSH_PPT_ENABLE_IMAGE_GEN=1` and the provider key present (V7.2 B5.5, ADR-064) |
 | `source-to-md <input…> [-t type] [-o output] [--json]` (and the five `*-to-md` converters) | `-t {auto,pdf,doc,excel,pptx,web,markdown,text}`, `--images {all,filtered,none}`, `--no-images`, `--json` | Markdown into the chosen output; `web-to-md` accepts http(s) URLs only (M5) |
 | `notes-to-audio <project> [--provider P] [--voice V] [--rate R] [--list-common-voices]` | `--provider {edge,elevenlabs,minimax,qwen,cosyvoice}` (default `edge`, no key) | per-slide audio into the project; `--list-common-voices` is offline (M5 ✓) |
 | `narration-sync {fingerprint,animations,subtitles} [flags] <project>` | `--pptx` (subtitles), `--audio-dir`, `--animation-config`, `--plan`, `-o`, `--force` | timing plan / merged SRT (M5) |
@@ -53,8 +54,9 @@ subtitles}` (`subtitles` requires `--pptx`), `image-search` (`--provider
 {both,layered,flat}`). `REGISTERED_ENGINE_COMMANDS` in `src/engine/contracts.ts` is the
 authority; a command absent from it is unreachable.
 
-Explicitly **not** registered: `image-gen`, `powerpoint-video`, `video-motion-plan`,
-`video-sound-mix`, `video-subtitles`, `gemini-watermark-remove` (ADR-013).
+Explicitly **not** registered: `powerpoint-video`, `video-motion-plan`,
+`video-sound-mix`, `video-subtitles`, `gemini-watermark-remove` (ADR-013). `image-gen` is
+registered but the command layer gates it behind `DSH_PPT_ENABLE_IMAGE_GEN=1` (ADR-064).
 
 ### 1.3 Deep page authoring contract (measured, ADR-007)
 
@@ -769,3 +771,27 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   tests cover wrong size, colour, accent, anchor, columns, watermark and chrome, plus SVG
   fallback and picture-contrast failures; the 3-page design-pass probe (cover/chapter/ending)
   audits 0 error / 0 warning after the pass.
+
+## 23. Optional image generation (V7.2 B5.5, ADR-064)
+
+- **Gate.** `dsh-ppt images generate "<prompt>" --provider {gemini|openai-compatible}` is
+  disabled unless `DSH_PPT_ENABLE_IMAGE_GEN=1`; while disabled it fails
+  `ContractViolation` and prints the asset fallback order `svg → user → office (when
+  discovered) → flat → photo (images search)`. Enabled but missing the provider key
+  (`GEMINI_API_KEY`, or `OPENAI_API_KEY` for the OpenAI-compatible backend) fails
+  `UsageError` with the same order; the render path never calls this module.
+- **Engine call.** The command passes `--backend {gemini|openai}` plus `-o`, `--filename`,
+  optional `--aspect_ratio`/`--image_size`, and allows only `IMAGE_BACKEND` and that
+  provider's key/base/model/output knobs into the child environment (ADR-013 is narrowed
+  only for this enabled extension). Defaults: `assets/`, `ai-<prompt slug>.png`.
+- **Provenance.** Every generated file is recorded in `<output>/image_sources.json` with
+  `provider: ai-image-<provider>`, the prompt summary, width/height, the note
+  `AI-generated content (review required)` and attribution text asking for human review;
+  an existing item for the same file name is replaced, a different file appends. A
+  generated image without that record is never returned (`OutputMissing`), and an
+  unreadable manifest is a `ContractViolation` instead of being overwritten.
+- **Evidence.** Unit tests cover the disabled refusal and fallback chain, the missing-key
+  refusal, the engine argv/credential whitelist and the manifest replace/append rules; the
+  real CLI refusals are measured on this machine. A live provider call is not run here
+  because no `GEMINI_API_KEY`/`OPENAI_API_KEY` is configured (S29 records that half as
+  skipped).

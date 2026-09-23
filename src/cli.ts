@@ -22,7 +22,7 @@ import { ASSET_FORMATS, OFFICE_CATEGORIES } from './schema/assets.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
-import { formatImagesSearch, imagesSearch } from './commands/images.ts'
+import { formatImagesGenerate, formatImagesSearch, imagesGenerate, imagesSearch } from './commands/images.ts'
 import { postAnimate } from './commands/post.ts'
 import { narrate, narrationVoices } from './commands/narrate.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
@@ -30,7 +30,7 @@ import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
 import { spawnRunner } from './engine/runner.ts'
 import { nodeFileSystem } from './engine/venv.ts'
-import { IMAGE_ORIENTATIONS, IMAGE_PROVIDERS, INHERITANCE_MODES, NARRATION_PROVIDERS, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
+import { IMAGE_GEN_PROVIDERS, IMAGE_ORIENTATIONS, IMAGE_PROVIDERS, INHERITANCE_MODES, NARRATION_PROVIDERS, TEMPLATE_KINDS, TEMPLATE_REGISTRY_KINDS } from './engine/contracts.ts'
 
 /**
  * Read the package version from the manifest next to this file.
@@ -486,6 +486,40 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       if (options.json === true) printJson(result)
       else process.stdout.write(`${formatImagesSearch(result)}\n`)
     })
+  images
+    .command('generate')
+    .description('generate one image through the optional extension (needs DSH_PPT_ENABLE_IMAGE_GEN=1)')
+    .argument('<prompt>', 'generation prompt')
+    .addOption(new Option('--provider <provider>', 'image backend').choices([...IMAGE_GEN_PROVIDERS]).default('openai-compatible'))
+    .option('--dir <dir>', 'workspace the paths resolve against', '.')
+    .option('-o, --output <dir>', 'output directory (default assets)')
+    .option('--filename <name>', 'file name (default ai-<slug>.png)')
+    .option('--aspect-ratio <ratio>', 'engine aspect ratio, e.g. 16:9')
+    .option('--image-size <size>', 'engine size preset, e.g. 1K')
+    .option('--purpose <text>', 'purpose recorded in image_sources.json')
+    .option('--slide <n>', 'slide number recorded in the manifest', (value: string) => Number.parseInt(value, 10))
+    .option('--json', 'print the result as JSON')
+    .action(
+      async (
+        prompt: string,
+        options: { provider: string; dir: string; output?: string; filename?: string; aspectRatio?: string; imageSize?: string; purpose?: string; slide?: number; json?: boolean },
+      ) => {
+        const result = await imagesGenerate({
+          dir: options.dir,
+          prompt,
+          provider: options.provider as (typeof IMAGE_GEN_PROVIDERS)[number],
+          deps,
+          ...(options.output === undefined ? {} : { output: options.output }),
+          ...(options.filename === undefined ? {} : { filename: options.filename }),
+          ...(options.aspectRatio === undefined ? {} : { aspectRatio: options.aspectRatio }),
+          ...(options.imageSize === undefined ? {} : { imageSize: options.imageSize }),
+          ...(options.purpose === undefined ? {} : { purpose: options.purpose }),
+          ...(options.slide === undefined ? {} : { slide: options.slide }),
+        })
+        if (options.json === true) printJson(result)
+        else process.stdout.write(`${formatImagesGenerate(result)}\n`)
+      },
+    )
 
   const assets = program.command('assets').description('discover and copy the local asset libraries (office built-in, user supplied)')
   assets

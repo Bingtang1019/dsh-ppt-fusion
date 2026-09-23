@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { DshPptFailure } from './errors.ts'
 
 /**
@@ -297,8 +297,9 @@ export function promptAudit(params: PromptAuditParams): EngineInvocation {
 
 /**
  * Registry ids the engine layer will run. Anything absent is unreachable by
- * design: the v1 non-goals (`image-gen`, the `video-*` commands, the Gemini
- * watermark helper) are not here, so no code path can invoke them.
+ * design: the v1 non-goals (the `video-*` commands and the Gemini watermark
+ * helper) are not here. `image-gen` is registered but the CLI gates it behind
+ * `DSH_PPT_ENABLE_IMAGE_GEN` (V7.2 B5.5, ADR-064).
  */
 export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
   'project-init',
@@ -310,6 +311,7 @@ export const REGISTERED_ENGINE_COMMANDS: readonly string[] = [
   'notes-to-audio',
   'narration-sync',
   'image-search',
+  'image-gen',
   'pdf-to-md',
   'doc-to-md',
   'excel-to-md',
@@ -507,6 +509,81 @@ export function imageSearch(params: ImageSearchParams): EngineInvocation {
   if (params.purpose !== undefined) argv.push('--purpose', params.purpose)
   if (params.slide !== undefined) argv.push('--slide', String(params.slide))
   return { id: 'image-search', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: params.manifest === undefined ? [] : [params.manifest] }
+}
+
+/** Image-generation providers the optional extension exposes (V7.2 B5.5, ADR-064). */
+export const IMAGE_GEN_PROVIDERS = ['gemini', 'openai-compatible'] as const
+export type ImageGenProvider = (typeof IMAGE_GEN_PROVIDERS)[number]
+
+/** Engine backend name per exposed provider. */
+const IMAGE_GEN_BACKENDS: Readonly<Record<ImageGenProvider, string>> = {
+  gemini: 'gemini',
+  'openai-compatible': 'openai',
+}
+
+/** Parameters for one `ppt-master image-gen` request. */
+export interface ImageGenerateParams {
+  /** Generation prompt; passed as a single argument, never a path. */
+  readonly prompt: string
+  readonly provider: ImageGenProvider
+  /** Directory the image lands in, workspace-relative. */
+  readonly output: string
+  /** File name inside `output`; a slug, never a path. */
+  readonly filename: string
+  /** Engine aspect ratio such as `16:9`; the engine validates the backend subset. */
+  readonly aspectRatio?: string
+  /** Engine size preset such as `1K` or `512px`. */
+  readonly imageSize?: string
+}
+
+/**
+ * @param provider - exposed provider name.
+ * @returns the environment names the engine child may read: `IMAGE_BACKEND` plus that
+ *   provider's key/base/model knobs. The default runner still denies every other
+ *   credential; ADR-013's exclusion is narrowed here only for the explicitly enabled
+ *   extension (ADR-064).
+ */
+export function imageGenCredentials(provider: ImageGenProvider): readonly string[] {
+  return provider === 'gemini'
+    ? ['IMAGE_BACKEND', 'GEMINI_API_KEY', 'GEMINI_BASE_URL', 'GEMINI_MODEL']
+    : [
+        'IMAGE_BACKEND',
+        'OPENAI_API_KEY',
+        'OPENAI_BASE_URL',
+        'OPENAI_MODEL',
+        'OPENAI_SIZE_PRESET',
+        'OPENAI_RESPONSE_FORMAT',
+        'OPENAI_QUALITY',
+        'OPENAI_OUTPUT_FORMAT',
+      ]
+}
+
+/**
+ * Build the argv for one `ppt-master image-gen` request.
+ *
+ * The engine needs `IMAGE_BACKEND` set explicitly; the command layer passes it
+ * through {@link imageGenCredentials} and also names the backend on the command line.
+ *
+ * @param params - prompt, provider, output directory and file name.
+ * @returns the validated invocation.
+ * @throws DshPptFailure `ContractViolation` for an empty prompt, a file name that is
+ *   not a slug, or a flag-shaped ratio/size.
+ */
+export function imageGenerate(params: ImageGenerateParams): EngineInvocation {
+  if (params.prompt.trim() === '') throw new DshPptFailure('ContractViolation', 'image generation needs a non-empty prompt', { detail: { prompt: params.prompt } })
+  if (!PROJECT_NAME_PATTERN.test(params.filename)) {
+    throw new DshPptFailure('ContractViolation', `image filename must be a slug: ${params.filename}`, { detail: { filename: params.filename } })
+  }
+  if (params.aspectRatio !== undefined && !/^\d{1,2}:\d{1,2}$/.test(params.aspectRatio)) {
+    throw new DshPptFailure('ContractViolation', `aspect ratio must look like 16:9: ${params.aspectRatio}`, { detail: { aspectRatio: params.aspectRatio } })
+  }
+  if (params.imageSize !== undefined && !/^[A-Za-z0-9]+$/.test(params.imageSize)) {
+    throw new DshPptFailure('ContractViolation', `image size must be alphanumeric like 1K or 512px: ${params.imageSize}`, { detail: { imageSize: params.imageSize } })
+  }
+  const argv = ['image-gen', params.prompt, '--backend', IMAGE_GEN_BACKENDS[params.provider], '-o', params.output, '--filename', params.filename]
+  if (params.aspectRatio !== undefined) argv.push('--aspect_ratio', params.aspectRatio)
+  if (params.imageSize !== undefined) argv.push('--image_size', params.imageSize)
+  return { id: 'image-gen', argv, timeoutMs: POST_TIMEOUTS.images, outputFiles: [join(params.output, params.filename).split(sep).join('/')] }
 }
 
 /** Types the unified `source-to-md` dispatcher accepts via `-t`. */

@@ -1,7 +1,8 @@
 import { join, resolve } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
 import { toWorkspaceRelative } from '../engine/contracts.ts'
-import type { ImageOrientation, ImageProvider } from '../engine/contracts.ts'
+import { imageGenCredentials } from '../engine/contracts.ts'
+import type { ImageGenProvider, ImageOrientation, ImageProvider } from '../engine/contracts.ts'
 import { assertPublicHttpUrl } from '../policy/url-policy.ts'
 import { engineFor, resolveDeckDir, type CommandDependencies } from './context.ts'
 
@@ -86,6 +87,182 @@ function readItem(raw: Record<string, unknown>, index: number): ImageSourceItem 
     attributionText: attributionText ?? '',
     ...(text('title') === null ? {} : { title: text('title') as string }),
   }
+}
+
+/** Environment switch that enables the optional image-generation extension (V7.2 B5.5). */
+export const IMAGE_GEN_FLAG = 'DSH_PPT_ENABLE_IMAGE_GEN'
+
+/** Asset fallback order printed when generation is disabled or unavailable. */
+export const IMAGE_GEN_FALLBACK = ['svg', 'user', 'office (when discovered)', 'flat', 'photo (dsh-ppt images search)'] as const
+
+/** Options for `dsh-ppt images generate` (V7.2 B5.5). */
+export interface ImagesGenerateOptions {
+  /** Deck workspace. */
+  readonly dir: string
+  readonly prompt: string
+  readonly provider: ImageGenProvider
+  /** Output directory, deck-relative; defaults to `assets`. */
+  readonly output?: string
+  /** File name inside the output directory; defaults to `ai-<slug>.png`. */
+  readonly filename?: string
+  readonly aspectRatio?: string
+  readonly imageSize?: string
+  /** Free-text purpose recorded in the manifest. */
+  readonly purpose?: string
+  readonly slide?: number
+  readonly deps: CommandDependencies
+}
+
+/** What one generation produced and recorded. */
+export interface ImagesGenerateResult {
+  /** Actual file written, deck-relative. */
+  readonly outputFile: string
+  readonly provider: string
+  readonly bytes: number
+  readonly width: number | null
+  readonly height: number | null
+  /** Provenance manifest, deck-relative. */
+  readonly manifestPath: string
+  /** Summary of the prompt recorded in the manifest. */
+  readonly promptSummary: string
+}
+
+/** @param prompt - generation prompt. @returns a lowercase slug for the default file name. */
+function promptSlug(prompt: string): string {
+  const slug = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '')
+  return slug === '' ? 'image' : slug
+}
+
+/** @param dir - absolute output directory. @param stem - file stem. @param fs - filesystem port. @returns the produced file name, or null. */
+function findGeneratedFile(dir: string, stem: string, fs: CommandDependencies['fs']): string | null {
+  if (!fs.isDirectory(dir)) return null
+  const candidates = fs.listDir(dir).filter((name) => name.startsWith(`${stem}.`)).sort()
+  return candidates.find((name) => /\.(?:png|jpe?g|webp)$/i.test(name)) ?? candidates[0] ?? null
+}
+
+/**
+ * Generate one image through the optional engine extension and record its provenance.
+ *
+ * Disabled by default: without `DSH_PPT_ENABLE_IMAGE_GEN=1` the command refuses and
+ * prints the asset fallback order instead of reaching the engine. When enabled it
+ * requires the provider's key and passes only that provider's environment knobs to
+ * the child (ADR-064; ADR-013's exclusion is narrowed only here). Every successful
+ * image is recorded in `<output>/image_sources.json` with `provider: ai-image-*`,
+ * the prompt summary, size and the review note; a generated file without that record
+ * is never returned.
+ *
+ * @param options - workspace, prompt, provider, output paths and dependencies.
+ * @returns the written image and its provenance record.
+ * @throws DshPptFailure `ContractViolation` when the extension is disabled or the
+ *   manifest cannot be written, `UsageError` when the provider key is absent,
+ *   `OutputMissing` when the engine exits without a readable image.
+ */
+export async function imagesGenerate(options: ImagesGenerateOptions): Promise<ImagesGenerateResult> {
+  const { deps } = options
+  if (deps.env[IMAGE_GEN_FLAG] !== '1') {
+    throw new DshPptFailure('ContractViolation', `image generation is disabled; set ${IMAGE_GEN_FLAG}=1 to use this optional extension. Asset fallback order: ${IMAGE_GEN_FALLBACK.join(' → ')}`, {
+      detail: { flag: IMAGE_GEN_FLAG, enabled: false, fallback: [...IMAGE_GEN_FALLBACK] },
+    })
+  }
+  const keyName = options.provider === 'gemini' ? 'GEMINI_API_KEY' : 'OPENAI_API_KEY'
+  if ((deps.env[keyName] ?? '').trim() === '') {
+    throw new DshPptFailure('UsageError', `${keyName} is not set, so the ${options.provider} image backend cannot run; export the key or fall back to ${IMAGE_GEN_FALLBACK.join(' → ')}`, {
+      detail: { env: keyName, provider: options.provider, fallback: [...IMAGE_GEN_FALLBACK] },
+    })
+  }
+  const dir = resolveDeckDir(deps, options.dir)
+  const outputRel = toWorkspaceRelative(dir, resolve(dir, options.output ?? 'assets'))
+  const outputDir = resolve(dir, outputRel)
+  const filename = options.filename ?? `ai-${promptSlug(options.prompt)}.png`
+  if (!/\.(?:png|jpe?g|webp)$/i.test(filename)) {
+    throw new DshPptFailure('ContractViolation', `image filename must end in .png, .jpg, .jpeg or .webp: ${filename}`, { detail: { filename } })
+  }
+  deps.fs.mkdirp(outputDir)
+  engineFor(dir, deps).imageGenerate(
+    {
+      prompt: options.prompt,
+      provider: options.provider,
+      output: outputRel,
+      filename,
+      ...(options.aspectRatio === undefined ? {} : { aspectRatio: options.aspectRatio }),
+      ...(options.imageSize === undefined ? {} : { imageSize: options.imageSize }),
+    },
+    { credentials: imageGenCredentials(options.provider) },
+  )
+  const stem = filename.replace(/\.[^.]+$/, '')
+  const produced = findGeneratedFile(outputDir, stem, deps.fs)
+  if (produced === null) {
+    throw new DshPptFailure('OutputMissing', `image generation reported success but wrote no ${stem}.* under ${outputRel}`, { detail: { output: outputRel, filename } })
+  }
+  const bytes = deps.fs.readBytes(join(outputDir, produced))
+  if (bytes === null || bytes.length === 0) {
+    throw new DshPptFailure('OutputMissing', `the generated image is unreadable: ${outputRel}/${produced}`, { detail: { output: outputRel, filename: produced } })
+  }
+  let width: number | null = null
+  let height: number | null = null
+  try {
+    const { default: sharp } = await import('sharp')
+    const metadata = await sharp(bytes).metadata()
+    width = metadata.width ?? null
+    height = metadata.height ?? null
+  } catch {
+    // Metadata is optional provenance; a format sharp cannot read still ships.
+  }
+  const manifestPath = join(outputRel, 'image_sources.json').replace(/\\/g, '/')
+  const manifestFile = resolve(dir, manifestPath)
+  const promptSummary = options.prompt.trim().slice(0, 200)
+  const provider = `ai-image-${options.provider}`
+  const item = {
+    filename: produced,
+    slide: options.slide === undefined ? '' : String(options.slide),
+    purpose: options.purpose ?? '',
+    prompt: promptSummary,
+    provider,
+    stage: 'generate',
+    title: promptSummary,
+    author: provider,
+    source_page_url: '',
+    download_url: '',
+    license_name: 'AI-generated content (review required)',
+    license_url: '',
+    license_tier: 'generated',
+    attribution_required: true,
+    width,
+    height,
+    attribution_text: `${produced} — ${provider} 生成内容，需人工复核后使用`,
+    selection_method: 'generated',
+    status: 'generated',
+  }
+  const existing = deps.fs.readText(manifestFile)
+  let document: { items: unknown[] } = { items: [] }
+  if (existing !== null) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(existing)
+    } catch (error) {
+      throw new DshPptFailure('ContractViolation', `${manifestPath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`, { detail: { manifest: manifestPath }, cause: error })
+    }
+    const items = (parsed as { items?: unknown }).items
+    if (!Array.isArray(items)) throw new DshPptFailure('ContractViolation', `${manifestPath} has no items array; refusing to overwrite it`, { detail: { manifest: manifestPath } })
+    document = { items }
+  }
+  const kept = document.items.filter((entry) => (entry as { filename?: unknown }).filename !== produced)
+  deps.fs.writeText(manifestFile, `${JSON.stringify({ items: [...kept, item], generated_at: new Date().toISOString() }, null, 2)}\n`)
+  return { outputFile: join(outputRel, produced).replace(/\\/g, '/'), provider, bytes: bytes.length, width, height, manifestPath, promptSummary }
+}
+
+/**
+ * @param result - one generation.
+ * @returns the human-readable line the CLI prints without `--json`.
+ */
+export function formatImagesGenerate(result: ImagesGenerateResult): string {
+  const size = result.width === null || result.height === null ? 'unknown size' : `${String(result.width)}x${String(result.height)}`
+  return `${result.outputFile}: ${result.provider} ${size}, provenance in ${result.manifestPath} (review before publishing)`
 }
 
 /**

@@ -75,6 +75,7 @@ the ADR wins.**
 | 061 | Design profile: numeric extraction of a reference deck, deck-discipline guard (V7 B1) |
 | 062 | Profile compliance audit (`audit --profile`), picture-contrast coverage and bare `srgbClr` literals (V7 B4) |
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
+| 064 | Optional image generation behind `DSH_PPT_ENABLE_IMAGE_GEN`, with mandatory provenance (V7 B5.5) |
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 | 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
 | 067 | Three asset channels (svg/office/user) and the post background layer (V7 B2.5) |
@@ -2064,3 +2065,40 @@ the ADR wins.**
   warning against the fixture profile; `design-pass.test.ts` covers title/body/accent/gap/
   marker/footer and leaves deep pages untouched; the full suite is 460 tests / 58 files and the
   fixtures/matrix gates stay green.
+
+## ADR-064 — Optional image generation behind `DSH_PPT_ENABLE_IMAGE_GEN`, with mandatory provenance (V7.2 B5.5)
+
+- **Date:** 2026-09-24
+- **Measured fact.** The engine ships `image-gen` (`ppt-master image-gen "<prompt>" --backend
+  {gemini|openai|…} [-o dir] [--filename F] [--aspect_ratio R] [--image_size S]`), reads its
+  backend from `IMAGE_BACKEND` plus provider-specific `{PROVIDER}_API_KEY`/`_BASE_URL`/`_MODEL`
+  knobs, and deliberately ignores the generic `IMAGE_API_KEY`. ADR-013 had excluded the command
+  entirely; this machine has no `GEMINI_API_KEY`/`OPENAI_API_KEY`, so a live generation cannot
+  be run here.
+- **Decision.** `image-gen` joins `REGISTERED_ENGINE_COMMANDS`, but the command layer gates it:
+  `dsh-ppt images generate` fails `ContractViolation` unless `DSH_PPT_ENABLE_IMAGE_GEN=1`, and
+  prints the asset fallback order `svg → user → office (when discovered) → flat → photo (images
+  search)`. The two exposed providers map to engine backends `gemini` and `openai` (the
+  `openai-compatible` name covers proxies via `OPENAI_BASE_URL`); with the flag on, a missing
+  `GEMINI_API_KEY`/`OPENAI_API_KEY` is a `UsageError` with the same order. Only `IMAGE_BACKEND`
+  and that provider's key/base/model/output knobs enter the child environment; ADR-013's
+  exclusion is narrowed exactly for this enabled extension, and the render path never calls it.
+- **Provenance.** Every generated file is recorded by the fusion in `<output>/image_sources.json`
+  with `provider: ai-image-<provider>`, the prompt summary, width/height, `license_name:
+  "AI-generated content (review required)"` and attribution text asking for human review; the
+  same file name replaces its record, a different name appends, and an unreadable manifest is a
+  `ContractViolation` instead of being overwritten. A generated image is never returned without
+  that record. The eval harness's attribution reader was also corrected to the engine's
+  snake_case fields (`license_name`, `attribution_required`, `attribution_text`), which the
+  camelCase check would have mis-judged for any deck with images.
+- **Evidence.** `imageGenerate`/`imageGenCredentials` unit tests cover the argv, provider
+  mapping, validation and the per-provider environment lists (contracts suite 19 tests);
+  `images.test.ts` covers the disabled refusal and fallback chain, the missing-key refusal, the
+  engine call and credential env, the manifest replace/append rules and the no-image/unusable
+  manifest failures (12 tests). The real CLI refuses both ways on this machine; the live-call
+  half of S29 is recorded as skipped for lack of a provider key.
+- **Alternatives rejected:** enabling the extension by default (cost, keys and network would
+  become part of the render path); auto-selecting a backend (the engine requires an explicit
+  selection and provider keys differ); letting the engine write provenance (it does not know the
+  fusion's manifest contract); passing the whole environment to the child (credential leak);
+  keeping the harness's camelCase attribution check (false failures on every sourced image).

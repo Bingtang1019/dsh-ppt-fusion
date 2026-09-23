@@ -632,9 +632,13 @@ function readAttribution(file: string): { present: boolean; problems: string[] }
   if (!Array.isArray(items)) return { present: true, problems: ['image_sources.json has no items list'] }
   const problems: string[] = []
   items.forEach((item, index) => {
-    const entry = item as { filename?: unknown; licenseName?: unknown; author?: unknown }
-    if (typeof entry.licenseName !== 'string' || entry.licenseName.trim() === '') problems.push(`item ${String(index)} has no licenseName`)
+    const entry = item as { filename?: unknown; license_name?: unknown; licenseName?: unknown; author?: unknown; attribution_required?: unknown; attribution_text?: unknown }
+    const licence = typeof entry.license_name === 'string' ? entry.license_name : entry.licenseName
+    if (typeof licence !== 'string' || licence.trim() === '') problems.push(`item ${String(index)} has no licence`)
     if (typeof entry.author !== 'string' || entry.author.trim() === '') problems.push(`item ${String(index)} has no author`)
+    if (entry.attribution_required === true && (typeof entry.attribution_text !== 'string' || entry.attribution_text.trim() === '')) {
+      problems.push(`item ${String(index)} requires attribution but records none`)
+    }
   })
   return { present: true, problems }
 }

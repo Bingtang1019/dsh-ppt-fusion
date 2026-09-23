@@ -83,7 +83,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 - 上游 references/workflows 未随 wheel 分发：需要时从上游仓库取（见 vendor manifest）。
 
 ## 命令面（本 SKILL 只教这些）
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search|generate · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## 失败时
 - 错误格式 `dsh-ppt: <code> <message>`；先看 code，再读 `.dsh-ppt/logs/` 的最后一份日志。

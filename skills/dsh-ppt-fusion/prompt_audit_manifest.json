@@ -117,7 +117,7 @@
     "accepted": [
       {
         "kind": "exact",
-        "fingerprint": "83666a2133c3",
+        "fingerprint": "437e8a6e1399",
         "paths": ["skills/dsh-ppt-fusion/SKILL.en.md", "skills/dsh-ppt-fusion/SKILL.md"],
         "reason": "The CLI subcommand roster is language-neutral and intentionally identical in both SKILL editions."
       }

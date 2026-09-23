@@ -4,6 +4,8 @@ import {
   applyTemplate,
   assertEnum,
   assertInsideWorkspace,
+  imageGenerate,
+  imageGenCredentials,
   parseCreatedProjectDir,
   projectInit,
   pptxTemplateImport,
@@ -150,5 +152,32 @@ describe('stampFallbacks', () => {
   it('only passes --write when asked', () => {
     expect(stampFallbacks({ target: 'deep/svg_output' }).argv).toEqual(['stamp-native-fallbacks', 'deep/svg_output'])
     expect(stampFallbacks({ target: 'deep/svg_output', write: true }).argv).toContain('--write')
+  })
+})
+
+describe('imageGenerate', () => {
+  it('maps the exposed provider onto the engine backend and names the output file', () => {
+    const openai = imageGenerate({ prompt: 'a cat', provider: 'openai-compatible', output: 'assets', filename: 'ai-cat.png' })
+    expect(openai.id).toBe('image-gen')
+    expect(openai.argv).toEqual(['image-gen', 'a cat', '--backend', 'openai', '-o', 'assets', '--filename', 'ai-cat.png'])
+    expect(openai.outputFiles).toEqual(['assets/ai-cat.png'])
+    const gemini = imageGenerate({ prompt: 'a cat', provider: 'gemini', output: 'assets', filename: 'ai-cat.png', aspectRatio: '16:9', imageSize: '1K' })
+    expect(gemini.argv).toEqual(expect.arrayContaining(['--backend', 'gemini', '--aspect_ratio', '16:9', '--image_size', '1K']))
+  })
+
+  it('rejects a malformed prompt, filename, ratio or size', () => {
+    expect(() => imageGenerate({ prompt: '  ', provider: 'gemini', output: 'assets', filename: 'ai.png' })).toThrowError(/prompt/)
+    expect(() => imageGenerate({ prompt: 'x', provider: 'gemini', output: 'assets', filename: '../ai.png' })).toThrowError(/slug/)
+    expect(() => imageGenerate({ prompt: 'x', provider: 'gemini', output: 'assets', filename: 'ai.png', aspectRatio: '--flag' })).toThrowError(/aspect ratio/)
+    expect(() => imageGenerate({ prompt: 'x', provider: 'gemini', output: 'assets', filename: 'ai.png', imageSize: '1 K' })).toThrowError(/image size/)
+  })
+
+  it('passes only the provider knobs the child may read', () => {
+    expect(imageGenCredentials('gemini')).toEqual(['IMAGE_BACKEND', 'GEMINI_API_KEY', 'GEMINI_BASE_URL', 'GEMINI_MODEL'])
+    expect(imageGenCredentials('openai-compatible')).toEqual(
+      expect.arrayContaining(['IMAGE_BACKEND', 'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'OPENAI_SIZE_PRESET', 'OPENAI_RESPONSE_FORMAT', 'OPENAI_QUALITY', 'OPENAI_OUTPUT_FORMAT']),
+    )
+    expect(imageGenCredentials('openai-compatible')).not.toContain('GEMINI_API_KEY')
+    expect([...imageGenCredentials('gemini'), ...imageGenCredentials('openai-compatible')]).not.toContain('IMAGE_API_KEY')
   })
 })

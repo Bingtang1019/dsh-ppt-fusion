@@ -41,6 +41,8 @@ Codes: `PptwiseMissing`, `PptwiseFailed`, `VenvMissing`, `EngineVersionMismatch`
 | `DSH_PPT_PYPI_INDEX` | package index used by `doctor --repair`; defaults to the Tsinghua mirror |
 | `DSH_PPT_ASSET_DIRS` | path list of user asset libraries; each directory needs `asset-manifest.json` with a licence per item |
 | `DSH_PPT_OFFICE_ROOTS` | `<category>=<dir>` entries (or bare `<dir>` for clip-art) the office discovery probes in addition to the install defaults |
+| `DSH_PPT_ENABLE_IMAGE_GEN` | `1` enables the optional `images generate` extension; unset or `0` refuses with the asset fallback order |
+| `GEMINI_API_KEY` / `OPENAI_API_KEY` | read only by an enabled `images generate` call, through that provider's explicit credential allowlist; no other child inherits them |
 | `DEEPSEEK_API_KEY` and friends | **not** inherited by any child process; a credential reaches an engine only through an explicit allow list |
 
 ## Implemented (M1)
@@ -282,6 +284,18 @@ is validated: a missing licence or a required attribution without text fails the
 `--strict-no-attribution` refuses attribution-requiring licences outright. `--from-url`
 downloads one directly selected image (licence recorded as `manual`) and passes the same
 public-http policy as `source`.
+
+### `dsh-ppt images generate "<prompt>" [--provider gemini|openai-compatible] [--dir <dir>] [-o <dir>] [--filename <name>] [--aspect-ratio <ratio>] [--image-size <size>] [--purpose <text>] [--slide <n>] [--json]`
+
+The optional image-generation extension (V7.2 B5.5, ADR-064). Disabled by default: without
+`DSH_PPT_ENABLE_IMAGE_GEN=1` it fails `ContractViolation` and prints the asset fallback order
+(`svg → user → office (when discovered) → flat → photo (images search)`). Enabled, it requires
+the provider key (`GEMINI_API_KEY`, or `OPENAI_API_KEY` for `openai-compatible`), calls the
+engine's `image-gen` with only that provider's environment knobs, writes the image into
+`assets/` (default `ai-<prompt slug>.png`) and records `provider: ai-image-*`, the prompt
+summary, size, the review note and attribution text in `assets/image_sources.json`; the same
+file name replaces its record and a new name appends. A generated image is never returned
+without that record, and the default render path never touches this module.
 
 
 ### `dsh-ppt source <input...> [-o <dir>] [--dir <dir>] [--type <type>] [--no-images]`

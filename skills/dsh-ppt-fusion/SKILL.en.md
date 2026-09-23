@@ -83,7 +83,7 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 - The upstream `references/`/`workflows/` trees are not shipped in the wheel; fetch them from upstream when needed (see the vendor manifest note).
 
 ## Command surface (this SKILL teaches only these)
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search|generate · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## When something fails
 - Every error is `dsh-ppt: <code> <message>`; read the code, then the newest `.dsh-ppt/logs/` entry.
