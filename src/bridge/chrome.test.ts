@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { applyChrome, chromePagesFrom, deterministicFieldId, isBakedPageNumber, slideSize } from './chrome.ts'
+import { applyChrome, auditChrome, chromePagesFrom, deterministicFieldId, isBakedPageNumber, slideSize } from './chrome.ts'
 import { OpcPackage } from './opc.ts'
 import { defaultChrome } from '../schema/fusion.ts'
+import type { FusionFinding } from '../audit.ts'
 import type { TokensFile } from '../schema/tokens.ts'
 import { DshPptFailure } from '../engine/errors.ts'
 
@@ -157,5 +158,68 @@ describe('chromePagesFrom', () => {
       { index: 1, role: 'cover' },
       { index: 2, role: 'content', section: 'Intro' },
     ])
+  })
+})
+
+describe('auditChrome', () => {
+  const contract = {
+    ...defaultChrome(),
+    footer: { text: 'Acme 2026 Q3', position: 'footer-left' as const },
+    section: { position: 'header-left' as const },
+  }
+  const plan = (roles: readonly ('cover' | 'content' | 'ending')[], sections: Record<number, string> = {}) => pages(roles, sections)
+  const rulesOf = (findings: FusionFinding[]) => findings.map((finding) => finding.rule)
+
+  it('reports nothing for a package that satisfies the contract', () => {
+    const pkg = miniPackage(3)
+    applyChrome(pkg, { chrome: contract, pages: plan(['cover', 'content', 'ending'], { 2: 'Intro' }), tokens: TOKENS })
+    expect(auditChrome(pkg, { chrome: contract, pages: plan(['cover', 'content', 'ending'], { 2: 'Intro' }) })).toEqual([])
+  })
+
+  it('reports a missing page-number field and a chrome shape on a skipped page', () => {
+    const pkg = miniPackage(2)
+    applyChrome(pkg, { chrome: contract, pages: plan(['content', 'content']), tokens: TOKENS })
+    // Audited as if the first page were a cover: it carries chrome it must not.
+    const findings = auditChrome(pkg, { chrome: contract, pages: plan(['cover', 'content']) })
+    expect(rulesOf(findings)).toContain('chrome-skip')
+    const withoutField = miniPackage(1)
+    const report = auditChrome(withoutField, { chrome: contract, pages: plan(['content']) })
+    expect(rulesOf(report)).toContain('chrome-coverage')
+    expect(rulesOf(report)).toContain('chrome-footer-text')
+  })
+
+  it('reports geometry drift, footer text drift and section mismatch', () => {
+    const pkg = miniPackage(2)
+    applyChrome(pkg, { chrome: contract, pages: plan(['content', 'content'], { 1: 'Intro', 2: 'Intro' }), tokens: TOKENS })
+    pkg.setPart('ppt/slides/slide2.xml', pkg.text('ppt/slides/slide2.xml').replace('<a:off x="457200"', '<a:off x="914400"').replace('Acme 2026 Q3', 'Other'))
+    const findings = auditChrome(pkg, {
+      chrome: contract,
+      pages: plan(['content', 'content'], { 1: 'Intro', 2: 'Results' }),
+    })
+    expect(rulesOf(findings)).toContain('chrome-geometry')
+    expect(rulesOf(findings)).toContain('chrome-footer-text')
+    expect(rulesOf(findings)).toContain('chrome-section')
+  })
+
+  it('reports a baked page number that survived the pass', () => {
+    const pkg = miniPackage(1, BAKED_BAR)
+    const findings = auditChrome(pkg, { chrome: contract, pages: plan(['content']) })
+    expect(rulesOf(findings)).toContain('chrome-baked-strip')
+  })
+
+  it('warns when chrome overlaps an existing shape', () => {
+    const overlap = `<p:sp><p:nvSpPr><p:cNvPr id="7" name="hero"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="5943600"/><a:ext cx="1828800" cy="457200"/></a:xfrm></p:spPr><p:txBody><a:p><a:r><a:t>x</a:t></a:r></a:p></p:txBody></p:sp>`
+    const pkg = miniPackage(1, overlap)
+    applyChrome(pkg, { chrome: contract, pages: plan(['content']), tokens: TOKENS })
+    const findings = auditChrome(pkg, { chrome: contract, pages: plan(['content']) })
+    expect(rulesOf(findings)).toContain('chrome-overlap')
+    expect(findings.find((finding) => finding.rule === 'chrome-overlap')?.level).toBe('warning')
+  })
+
+  it('does not warn when the only overlap is the page background', () => {
+    const background = `<p:sp><p:nvSpPr><p:cNvPr id="6" name="bg"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/></a:xfrm></p:spPr><p:txBody><a:p/></p:txBody></p:sp>`
+    const pkg = miniPackage(1, background)
+    applyChrome(pkg, { chrome: contract, pages: plan(['content']), tokens: TOKENS })
+    expect(rulesOf(auditChrome(pkg, { chrome: contract, pages: plan(['content']) }))).not.toContain('chrome-overlap')
   })
 })

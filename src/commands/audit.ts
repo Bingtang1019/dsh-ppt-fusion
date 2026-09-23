@@ -6,6 +6,8 @@ import { validateDeck } from './validate.ts'
 import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from './context.ts'
 import { resolveCompatLevel } from './render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
+import { auditChrome, chromePagesFrom } from '../bridge/chrome.ts'
+import { chromeRoleFor } from '../schema/fusion.ts'
 import { inspectCompat } from '../bridge/compat.ts'
 import { collectPixelFindings } from '../bridge/pixels.ts'
 import { runSkillAudit } from './skill.ts'
@@ -36,6 +38,7 @@ const SOURCE_ORDER = [
   'pptwise-validate',
   'pptwise-audit',
   'pptx',
+  'chrome',
   'svg-quality-check',
   'pptx-delivery-check',
   'prompt-audit',
@@ -92,6 +95,7 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
           : `${options.file} is not a readable package inside the deck`,
     })
     skipped.push('opc, pptx-delivery-check, compat-lint: no package to audit')
+    if (context !== null && context.deck.chrome !== undefined) skipped.push('chrome: no package to audit')
   } else {
     const bytes = fs.readBytes(artifact.path)
     if (bytes === null || bytes.length === 0) {
@@ -102,6 +106,11 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
       ran.add('pptx')
       for (const finding of auditPackage(pkg, { requireSingleMaster: true })) {
         findings.push({ level: finding.level, source: 'pptx', rule: finding.rule, message: finding.message })
+      }
+      if (context !== null && context.deck.chrome !== undefined) {
+        ran.add('chrome')
+        const pages = chromePagesFrom(context.deck.pages, (index) => chromeRoleFor(context.ir.slides[index - 1]?.type))
+        findings.push(...auditChrome(pkg, { chrome: context.deck.chrome, pages }))
       }
       const level = resolveCompatLevel(options.compat, context?.deck.compat).level
       compatLevel = level

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { DshPptFailure } from '../engine/errors.ts'
 import { isPageNumberSkipped, type ChromePosition, type ChromeRole, type FusionChrome } from '../schema/fusion.ts'
 import type { TokensFile } from '../schema/tokens.ts'
+import type { FusionFinding } from '../audit.ts'
 import { listSlides, type OpcPackage } from './opc.ts'
 
 /**
@@ -226,21 +227,26 @@ export function applyChrome(pkg: OpcPackage, options: ChromeOptions): ChromeRepo
     })
 
     const shapes: string[] = []
-    let shapeId = nextShapeId(xml)
-    const pageNumber = options.chrome.pageNumber
-    if (pageNumber !== undefined && pageNumber.show !== false && !isPageNumberSkipped(options.chrome, page.role)) {
-      const box = boxFor(pageNumber.position ?? 'footer-right', PAGE_NUMBER_WIDTH, size)
-      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-page-number', box, tokens: options.tokens, runs: slideNumberField(options.tokens, `page-number:${String(index)}`) }))
-    }
-    const footer = options.chrome.footer
-    if (footer !== undefined) {
-      const box = boxFor(footer.position ?? 'footer-left', FOOTER_WIDTH, size)
-      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-footer', box, tokens: options.tokens, runs: textRun(options.tokens, footer.text) }))
-    }
-    const section = options.chrome.section
-    if (section !== undefined && page.section !== undefined) {
-      const box = boxFor(section.position ?? 'header-left', SECTION_WIDTH, size)
-      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-section', box, tokens: options.tokens, runs: textRun(options.tokens, page.section) }))
+    // Skipped pages carry no chrome at all (plan §3.3 item 5): a cover or ending
+    // with a footer but no page number would be exactly the inconsistency this pass
+    // exists to remove.
+    if (!isPageNumberSkipped(options.chrome, page.role)) {
+      let shapeId = nextShapeId(xml)
+      const pageNumber = options.chrome.pageNumber
+      if (pageNumber !== undefined && pageNumber.show !== false) {
+        const box = boxFor(pageNumber.position ?? 'footer-right', PAGE_NUMBER_WIDTH, size)
+        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-page-number', box, tokens: options.tokens, runs: slideNumberField(options.tokens, `page-number:${String(index)}`) }))
+      }
+      const footer = options.chrome.footer
+      if (footer !== undefined) {
+        const box = boxFor(footer.position ?? 'footer-left', FOOTER_WIDTH, size)
+        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-footer', box, tokens: options.tokens, runs: textRun(options.tokens, footer.text) }))
+      }
+      const section = options.chrome.section
+      if (section !== undefined && page.section !== undefined) {
+        const box = boxFor(section.position ?? 'header-left', SECTION_WIDTH, size)
+        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-section', box, tokens: options.tokens, runs: textRun(options.tokens, page.section) }))
+      }
     }
 
     if (shapes.length > 0) xml = xml.replace('</p:spTree>', `${shapes.join('')}</p:spTree>`)
@@ -268,4 +274,197 @@ export function chromePagesFrom(
   roleFor: (index: number) => ChromeRole,
 ): ChromePage[] {
   return pages.map((page) => ({ index: page.index, role: roleFor(page.index), ...(page.section === undefined ? {} : { section: page.section }) }))
+}
+
+/** @returns the text of every run in one shape, concatenated in document order. */
+function shapeText(shape: string): string {
+  return [...shape.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((match) => match[1] ?? '').join('')
+}
+
+/** @returns the shape's `a:off`/`a:ext` pair as a comparable string, or null. */
+function shapeGeometry(shape: string): string | null {
+  const off = /<a:off x="(-?\d+)" y="(-?\d+)"\/>/.exec(shape)
+  const ext = /<a:ext cx="(-?\d+)" cy="(-?\d+)"\/>/.exec(shape)
+  if (off === null || ext === null) return null
+  return `${off[1]},${off[2]},${ext[1]},${ext[2]}`
+}
+
+interface Bounds {
+  readonly x: number
+  readonly y: number
+  readonly cx: number
+  readonly cy: number
+}
+
+/** @returns the shape's bounds, or null when it has no transform. */
+function shapeBounds(shape: string): Bounds | null {
+  const geometry = shapeGeometry(shape)
+  if (geometry === null) return null
+  const [x, y, cx, cy] = geometry.split(',').map(Number)
+  return { x: x ?? 0, y: y ?? 0, cx: cx ?? 0, cy: cy ?? 0 }
+}
+
+/** @returns whether two axis-aligned boxes overlap. */
+function overlaps(left: Bounds, right: Bounds): boolean {
+  return left.x < right.x + right.cx && right.x < left.x + left.cx && left.y < right.y + right.cy && right.y < left.y + left.cy
+}
+
+/** @returns the `p:cNvPr` name of one shape block. */
+function shapeName(shape: string): string {
+  return /<p:cNvPr id="\d+" name="([^"]*)"/.exec(shape)?.[1] ?? ''
+}
+
+/** One top-level shape of a slide, for the overlap warning. */
+interface SlideShape {
+  readonly xml: string
+  readonly name: string
+  readonly chrome: boolean
+  readonly bounds: Bounds | null
+}
+
+/** @returns every top-level shape block of a slide, in document order. */
+function slideShapes(xml: string): SlideShape[] {
+  const blocks = [...xml.matchAll(/<p:(?:sp|pic|graphicFrame)>[\s\S]*?<\/p:(?:sp|pic|graphicFrame)>/g)].map((match) => match[0])
+  return blocks.map((block) => ({
+    xml: block,
+    name: shapeName(block),
+    chrome: shapeName(block).startsWith('chrome-'),
+    bounds: shapeBounds(block),
+  }))
+}
+
+/**
+ * Audit a package against its declared chrome contract (plan V6 §3.4).
+ *
+ * @param pkg - the published package.
+ * @param options.chrome - the deck's chrome block.
+ * @param options.pages - one entry per slide, with the role and section the manifest declares.
+ * @returns findings for the audit gate; empty means every page satisfies the contract.
+ */
+export function auditChrome(pkg: OpcPackage, options: { chrome: FusionChrome; pages: readonly ChromePage[] }): FusionFinding[] {
+  const findings: FusionFinding[] = []
+  const size = slideSize(pkg)
+  const geometryByType = new Map<string, { geometry: string; index: number }>()
+
+  for (const [offset, slidePart] of listSlides(pkg).entries()) {
+    const index = offset + 1
+    const page = options.pages.find((entry) => entry.index === index) ?? { index, role: 'content' as ChromeRole }
+    const xml = pkg.text(slidePart)
+    const shapes = slideShapes(xml)
+    const chrome = shapes.filter((shape) => shape.chrome)
+    const named = (name: string) => chrome.filter((shape) => shape.name === name)
+    const skipped = isPageNumberSkipped(options.chrome, page.role)
+    const fields = [...xml.matchAll(/type="slidenum"/g)].length
+
+    if (!skipped && fields !== 1) {
+      findings.push({
+        level: 'error',
+        source: 'chrome',
+        page: index,
+        rule: 'chrome-coverage',
+        message: `page ${String(index)} (${page.role}) must carry exactly one native page-number field; found ${String(fields)}`,
+      })
+    }
+    if (skipped && chrome.length > 0) {
+      findings.push({
+        level: 'error',
+        source: 'chrome',
+        page: index,
+        rule: 'chrome-skip',
+        message: `page ${String(index)} (${page.role}) is skipped by the contract but carries ${String(chrome.length)} chrome shape(s): ${chrome.map((shape) => shape.name).join(', ')}`,
+      })
+    }
+    for (const shape of shapes) {
+      if (shape.chrome) continue
+      if (isBakedPageNumber(shape.xml, size)) {
+        findings.push({
+          level: 'error',
+          source: 'chrome',
+          page: index,
+          rule: 'chrome-baked-strip',
+          message: `page ${String(index)} still carries a baked page number ("${shapeText(shape.xml)}"); the chrome pass should have removed it`,
+        })
+      }
+    }
+    const footer = options.chrome.footer
+    if (footer !== undefined && !skipped) {
+      const footers = named('chrome-footer')
+      const text = footers.length === 1 ? shapeText(footers[0]!.xml) : ''
+      if (footers.length !== 1 || text !== footer.text) {
+        findings.push({
+          level: 'error',
+          source: 'chrome',
+          page: index,
+          rule: 'chrome-footer-text',
+          message: `page ${String(index)} footer must be "${footer.text}"; found ${footers.length === 0 ? 'no footer shape' : `${String(footers.length)} shape(s) reading "${text}"`}`,
+        })
+      }
+    }
+    const sections = named('chrome-section')
+    if (skipped) {
+      // Skipped pages are covered by `chrome-skip` above; nothing else is expected.
+    } else if (page.section === undefined) {
+      if (sections.length > 0) {
+        findings.push({
+          level: 'error',
+          source: 'chrome',
+          page: index,
+          rule: 'chrome-section',
+          message: `page ${String(index)} carries a section shape but the manifest declares no section for it`,
+        })
+      }
+    } else if (sections.length !== 1 || shapeText(sections[0]!.xml) !== page.section) {
+      findings.push({
+        level: 'error',
+        source: 'chrome',
+        page: index,
+        rule: 'chrome-section',
+        message: `page ${String(index)} section must read "${page.section}"; found ${sections.length === 0 ? 'no section shape' : `${String(sections.length)} shape(s)`}`,
+      })
+    }
+    for (const shape of chrome) {
+      const geometry = shapeGeometry(shape.xml)
+      if (geometry === null) continue
+      const seen = geometryByType.get(shape.name)
+      if (seen === undefined) geometryByType.set(shape.name, { geometry, index })
+      else if (seen.geometry !== geometry) {
+        findings.push({
+          level: 'error',
+          source: 'chrome',
+          page: index,
+          rule: 'chrome-geometry',
+          message: `${shape.name} geometry ${geometry} differs from page ${String(seen.index)} (${seen.geometry})`,
+        })
+      }
+    }
+    if (options.chrome.logo !== undefined && named('chrome-logo').length !== 1) {
+      findings.push({
+        level: 'error',
+        source: 'chrome',
+        page: index,
+        rule: 'chrome-logo-part',
+        message: `page ${String(index)} must carry exactly one logo shape; found ${String(named('chrome-logo').length)}`,
+      })
+    }
+    for (const shape of chrome) {
+      if (shape.bounds === null) continue
+      for (const other of shapes) {
+        if (other.chrome || other.bounds === null) continue
+        // A full-canvas shape is the page background, not content; every chrome box
+        // sits on it by design.
+        if (other.bounds.cx >= size.cx * 0.9 && other.bounds.cy >= size.cy * 0.9) continue
+        if (overlaps(shape.bounds, other.bounds)) {
+          findings.push({
+            level: 'warning',
+            source: 'chrome',
+            page: index,
+            rule: 'chrome-overlap',
+            message: `${shape.name} overlaps shape "${other.name}" on page ${String(index)}`,
+          })
+        }
+      }
+    }
+  }
+
+  return findings
 }
