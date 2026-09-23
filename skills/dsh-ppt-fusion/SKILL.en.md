@@ -24,12 +24,12 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 ## 2. Phase 2 · Theme
 - `dsh-ppt theme list` shows 24 presets; shortlist 2–4 with `theme try <ids>`.
 - Customer brand: `dsh-ppt brand extract <file> --bind <deck>` (ThemeFile v2 → `{file: ...}` → `theme ensure`).
-- **Brand fidelity:** the `brand.theme.json` written by `--bind` is the customer's colours and fonts; never restyle it for looks, and ask the user before any adjustment.
-- Always `theme ensure` after binding: deep pages derive `spec_lock.md` from tokens and `validate` fails on stale tokens.
+- **Brand fidelity:** never restyle the `brand.theme.json` written by `--bind`; ask the user before any adjustment.
+- Always `theme ensure` after binding: deep pages derive `spec_lock.md` from tokens.
 
 ## 3. Phase 3 · Outline → storyboard → planning confirmation (BLOCKING)
 - `dsh-ppt init <dir> --theme <preset>`; `dsh-ppt plan <dir>` drafts `deck.fusion.draft.json` (manifest + storyboard skeleton).
-- **Storyboard:** `deck.storyboard.json` gives every page its `role`/`layout` (`<theme>:<face>` from the bound theme menu)/`route`/`chrome.pageNumber`/`budget`/`source`. `init`/`plan` already pick the first legal face per role; a content slide's IR `kind` splits it into `data`/`quote`.
+- **Storyboard:** `deck.storyboard.json` gives **every page a `role`** (including the storyboard-only `toc`)/`layout` (`<theme>:<face>` from the bound theme menu)/`route`/`chrome.pageNumber`/`budget`/`source`; take the type scale, palette roles and role geometry (title anchor, column width, card gap) from `references/design-language.md`. `init`/`plan` already pick the first legal face per role; a content slide's IR `kind` splits it into `data`/`quote`.
 - **Declare chrome once:** the manifest `chrome` block sets page numbers (cover/ending skipped by default), footer and section; never draw page furniture per page. A storyboard/manifest conflict resolves in favour of the manifest, and `validate` rejects it.
 - `deck.fusion.json` routes every page (`pptwise`/`ppt-master`); a deep page carries `deep: { dir, kind, format }` and its IR slide stays `placeholder: true`.
 - Routing table:
@@ -41,19 +41,19 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 | Image collages, complex vectors | `ppt-master` (PNG fallback matters, B7) |
 | A text page that needs motion | `pptwise` (post targets `blk<slide>-<block>`) |
 
-- **BLOCKING:** before `plan --confirm`, put the storyboard in front of the user page by page (role/layout/budget/source) and get an explicit yes; the confirm writes manifest and storyboard together.
+- **BLOCKING:** before `plan --confirm`, put the storyboard in front of the user page by page (role/layout/budget/source) and get an explicit yes.
 
 ## 4. Phase 4 · Author by role
 - Follow the storyboard role: `cover`/`ending`/`section` = headline + 1–2 support points; `content` = one claim per page, the title states the conclusion; `data` = a deep page with one main chart/table; `quote` = the quotation and its source.
-- Standard pages: write pptwise IR (component vocabulary from `tokens export --master`).
-- Deep pages: follow the seven authoring rules (ADR-007): numeric anchors in `spec_lock.md`, `data-pptx-page-role`, `data-pptx-role` ids, disjoint `<g data-pptx-bounds>` with ≤5 % text overflow, font-size banding, `stamp-native-fallbacks` hashes, and the visible fallback fully projected into native markers. Paint only `tokens.json` colours; `audit --pixels` samples ΔE.
+- Standard pages: write pptwise IR (component vocabulary from `tokens export --master`) and lay it out with the `references/design-language.md` type scale and role geometry; content pages use 2–3 column cards, one point per column.
+- Deep pages: follow the seven authoring rules (ADR-007) and `svg-contract`; paint only `tokens.json` colours, and let `audit --pixels` sample ΔE.
 - Content must fit the page `budget`: `validate` measures words/items/charts/tables/images and fails over-limit pages; cut content or change the layout, never raise the budget yourself.
 - Narration: `deep/<page>/notes.md`; audio in `<deck>/narration/*.mp3` (matched by SVG stem).
 
 ## 5. Phase 5 · Gates (BLOCKING: any red stops the run)
 1. `dsh-ppt validate <dir>`: manifest / IR / **storyboard (existence, coverage, role↔layout, budgets)** / deep files / theme.
 2. `dsh-ppt deep render <dir>` runs the fixed four steps: `stamp-native-fallbacks --write` → `svg-quality-check --stage final --canonical-authoring` → `svg-to-pptx --quick-generate --native-charts-and-tables --with-notes` → read `validation/<stem>.report.json` (never stdout, ADR-009).
-3. `dsh-ppt audit <dir>`: the eight-source gate (validate, pptwise validate/audit, svg-quality, OPC+P1, delivery, compat, optional pixels).
+3. `dsh-ppt audit <dir>`: the eight-source gate (optional `--pixels`).
 4. Never degrade quality to pass a gate: no hand-edited binaries, no skipping `--stage final`, no silently demoting a deep page to a standard page.
 
 ## 6. Phase 6 · Render and post
@@ -74,16 +74,16 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 - A missing claimed artifact makes `resume` exit non-zero: fix the work or the checkpoint first; when the checkpoint and `out/manifest.json` disagree, the manifest sha256 wins.
 
 ## Image rules
-- Only `dsh-ppt images search` (openverse/wikimedia need no key; pexels/pixabay need one); a missing licence or attribution fails the command.
-- Generated art is **not supported** (`image-gen` is not whitelisted). Offer a stock search or the user's own asset, and never fabricate provenance.
+- Asset priority: `svg` → `user` → `office` (local resources; `dsh-ppt assets list|copy --source office`) → `flat` → `photo` (only via `dsh-ppt images search`); licences come from `asset-manifest.json`/`assets/image_sources.json`, and a missing one fails the command.
+- Generated art is a default-off optional extension (B5.5); never depend on it or fabricate provenance — fall back to the previous source.
 
 ## Reference budget (guarded by prompt-audit)
-- Load 8–12 phase-relevant files from `python-assets/vendor/ppt-master/docs/` by default (svg-pipeline, svg-contract, native-data, narration, conversion, template-tools, troubleshooting, …); read the rest on demand, never all at once (the budget gate fails).
-- `dsh-ppt skill audit` is the budget gate: the corpus ceiling is 120000 tokens; when it fails, read less, do not raise the budget.
+- Load 8–12 phase-relevant vendor docs plus `references/design-language.md` by default; read the rest on demand, never all at once (the budget gate fails).
+- `dsh-ppt skill audit` is the budget gate: the corpus ceiling is 120000 tokens (this file 2250); when it fails, read less or trim, do not raise the budget.
 - The upstream `references/`/`workflows/` trees are not shipped in the wheel; fetch them from upstream when needed (see the vendor manifest note).
 
 ## Command surface (this SKILL teaches only these)
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## When something fails
 - Every error is `dsh-ppt: <code> <message>`; read the code, then the newest `.dsh-ppt/logs/` entry.

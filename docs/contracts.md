@@ -506,10 +506,12 @@ breaking change bumps it.
 SKILL documents and their vendored references, using
 `skills/dsh-ppt-fusion/prompt_audit_manifest.json` as the single source of budgets.
 
-- **Corpus and budgets.** 24 files / 109 510 tokens measured against a fixed 120 000-token
+- **Corpus and budgets.** 25 files / 111 616 tokens measured against a fixed 120 000-token
   ceiling; per-file and per-load-set budgets live in the manifest and are enforced by the
-  engine. The gate reports `files`, `tokens`, `maxTokens`, `errors`, `warnings` and the
-  normalized findings `{level, code, message, path, line}` (ADR-044).
+  engine, including `generate.design` for
+  `skills/dsh-ppt-fusion/references/design-language.md`. The gate reports `files`, `tokens`,
+  `maxTokens`, `errors`, `warnings` and the normalized findings `{level, code, message, path,
+  line}` (ADR-044).
 - **Exit codes.** Errors fail; `--strict` makes warnings fail too. Thresholds are the engine's
   own (over-budget is an error), so the fusion adds no second policy layer.
 - **Engine dependency.** `python-assets/requirements.in` pins `tiktoken`, which the engine

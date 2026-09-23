@@ -23,6 +23,7 @@ const required = [
   'skills/dsh-ppt-fusion/SKILL.md',
   'skills/dsh-ppt-fusion/SKILL.en.md',
   'skills/dsh-ppt-fusion/prompt_audit_manifest.json',
+  'skills/dsh-ppt-fusion/references/design-language.md',
   'python-assets/requirements.in',
   'python-assets/requirements.lock',
   'python-assets/probe-png-renderer.py',

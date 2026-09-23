@@ -77,6 +77,7 @@ the ADR wins.**
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 | 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
 | 067 | Three asset channels (svg/office/user) and the post background layer (V7 B2.5) |
+| 068 | Design language reference and the Phase 3/4 authoring rules (V7 B3) |
 
 ---
 
@@ -1930,3 +1931,37 @@ the ADR wins.**
   (those are application chrome, not deck artwork, and would ship brand marks into
   user decks); guessing a `photo`/`office`/`user` background file (would fake provenance
   and make the audit's mode check meaningless).
+
+## ADR-068 — Design language reference and the Phase 3/4 authoring rules (V7.2 B3)
+
+- **Date:** 2026-09-24
+- **Measured fact.** Before B3 the prompt-audit corpus was 109 752 / 120 000 tokens, but the
+  two session entries sat against their own ceilings: `SKILL.md` 2492 / 2500 and
+  `SKILL.en.md` 2250 / 2250. Phase 3/4 had no shared statement of the reference deck's type
+  scale, palette roles, role geometry or background priority; the new rules would have to be
+  added inside those entries, and raising their budgets would ratchet every session's context.
+- **Decision.** Add `skills/dsh-ppt-fusion/references/design-language.md` (1869 tokens) as its
+  own corpus file with a 2000-token `file_budgets` entry and a dedicated `generate.design`
+  load set (2000 tokens, incremental): type scale table, palette roles, role geometry
+  (cover/toc/section/content/ending title anchors, 2–3 content columns, card gap), the
+  background/asset priority `svg` → `user` → `office` → `flat` → `photo` → optional
+  `image-gen` with the overlay floor, licence rules (`asset-manifest.json`,
+  `image_sources.json`, office discovery record), and the chrome rules (declare once in the
+  manifest; no per-page furniture). Phase 3 of both session entries now requires a declared
+  `role` on every page (including `toc`) and points at the reference; Phase 4 lays standard
+  pages out with the same type scale and role geometry, and content pages use 2–3 column
+  cards. Both entries were trimmed to stay inside their existing budgets (final
+  `SKILL.md` 2492, `SKILL.en.md` 2245) rather than raising them; the roster duplicate
+  fingerprint in `duplicates.accepted` is re-measured for the new command list, and
+  `scripts/check-pack.mjs` now requires the reference in the tarball.
+- **Evidence.** `dsh-ppt skill audit`: 25 files, 111 616 / 120 000 tokens, 0 error, 0 warning;
+  `pnpm prepack` 20/20 required files; `pnpm test` 443 tests / 56 files, lint and typecheck
+  green. The reference names the same commands the roster teaches (`design profile extract`,
+  `assets discover|list|copy`) and does not advertise the B5.5 `image-gen` surface before it
+  exists.
+- **Alternatives rejected:** raising the SKILL budgets (a durable ratchet that every session
+  pays); folding the design language into `SKILL.md`/`SKILL.en.md` (no headroom, and it is
+  reference material every phase does not need); exempting the new file from the corpus
+  (`coverage.exempt` would hide it from the budget and duplicate gates); duplicating the
+  tables into both language editions (the prompt-audit corpus already penalises cross-file
+  duplication).

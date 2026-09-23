@@ -15,6 +15,7 @@
   "file_budgets": {
     "skills/dsh-ppt-fusion/SKILL.md": 2500,
     "skills/dsh-ppt-fusion/SKILL.en.md": 2250,
+    "skills/dsh-ppt-fusion/references/design-language.md": 2000,
     "python-assets/vendor/ppt-master/docs/advanced-image-motion-smoke.md": 3750,
     "python-assets/vendor/ppt-master/docs/chart-recall.md": 500,
     "python-assets/vendor/ppt-master/docs/confirm_ui.md": 14000,
@@ -67,6 +68,14 @@
       ],
       "max_tokens": 54000
     },
+    "generate.design": {
+      "description": "Design language: type scale, palette roles, role geometry, background and chrome rules.",
+      "scope": "incremental",
+      "files": [
+        "skills/dsh-ppt-fusion/references/design-language.md"
+      ],
+      "max_tokens": 2000
+    },
     "generate.narration": {
       "description": "Narration roster, audio embedding and animation timing.",
       "scope": "incremental",
@@ -108,7 +117,7 @@
     "accepted": [
       {
         "kind": "exact",
-        "fingerprint": "c52f552e23a2",
+        "fingerprint": "83666a2133c3",
         "paths": ["skills/dsh-ppt-fusion/SKILL.en.md", "skills/dsh-ppt-fusion/SKILL.md"],
         "reason": "The CLI subcommand roster is language-neutral and intentionally identical in both SKILL editions."
       }

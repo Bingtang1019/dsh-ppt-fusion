@@ -7,7 +7,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 
 本 SKILL 是"怎么做"的权威流程；机器契约在 `docs/contracts.md`，裁决记录在 `docs/decisions.md`（ADR 比本文新）。模型无关，不写死模型名。
 
-## 0. 相位路由（先选，再动手）
+## 0. 相位路由
 
 | 模式 | 何时选 | 入口 |
 |---|---|---|
@@ -18,18 +18,18 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 
 ## 1. 相位 1 · 意图与叙事
 - 问清：受众、场合、页数、原生图表/表格/公式、旁白/动画、品牌来源。
-- 叙事词汇用 pptwise narrative presets；一页一个主张，标题写结论不写名词。
+- 叙事用 pptwise presets；一页一个主张，标题写结论。
 - **BLOCKING**：受众或用途不明 → 先问，不要猜。
 
 ## 2. 相位 2 · 主题
 - `dsh-ppt theme list` 看 24 个预设；2–4 个候选用 `theme try <ids>` 出选型接触片。
 - 客户品牌：`dsh-ppt brand extract <file> --bind <deck>`（ThemeFile v2 → `{file:...}` → 自动 `theme ensure`）。
 - **品牌忠实**：`--bind` 写出的 `brand.theme.json` 就是客户色/字体，不得为了好看改写；确需调整先问用户。
-- 绑定后 **必须** `theme ensure`（deep 页 spec_lock 依赖 tokens）；`validate` 查 tokens 过期。
+- 绑定后 **必须** `theme ensure`（deep 页 spec_lock 依赖 tokens）。
 
 ## 3. 相位 3 · 大纲 → 分镜 → 规划确认（BLOCKING）
 - `dsh-ppt init <dir> --theme <preset>`；`dsh-ppt plan <dir>` 起草 `deck.fusion.draft.json`（含 manifest + storyboard 骨架）。
-- **分镜** `deck.storyboard.json`：每页 `role`/`layout`（`<主题>:<版式脸>`，取自绑定主题菜单）/`route`/`chrome.pageNumber`/`budget`/`source`。`init`、`plan` 已按菜单填好首个合法版式，只改有理由的页；`content` 页按 IR `kind` 细分 `data` 与 `quote`。
+- **分镜** `deck.storyboard.json`：**每页必须声明 `role`**（含 storyboard 专有的 `toc`）/`layout`（`<主题>:<版式脸>`，取自绑定主题菜单）/`route`/`chrome.pageNumber`/`budget`/`source`；字号阶梯、色板角色和 role 几何（标题锚点/列宽/卡间距）按 `references/design-language.md`。`init`、`plan` 已按菜单填首个合法版式，只改有理由的页；`content` 页按 IR `kind` 细分 `data`/`quote`。
 - **chrome 一次声明**：`chrome` 写页码（默认封面/结束页跳过）、footer、section；正文不要手画页脚/页码。冲突以 manifest 为准，`validate` 会拦。
 - `deck.fusion.json` 逐页声明 `route: pptwise | ppt-master`；deep 页必须写 `deep: { dir, kind, format }` 且 IR 对应页 `placeholder: true`。
 - 页级路由决策表：
@@ -45,16 +45,16 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 
 ## 4. 相位 4 · 按 role 作者
 - 按 storyboard 的 role 写页：`cover`/`ending`/`section` 标题句 + 1–2 条支撑；`content` 一页一主张、标题写结论；`data` 走 deep 且一页一个主图形/表格；`quote` 引用 + 出处。
-- 标准页：写 pptwise IR（组件词汇见 `tokens export --master` 的角色表）。
-- deep 页：按 **七条契约**（ADR-007）：`spec_lock.md` 数字锚点、`data-pptx-page-role`、`data-pptx-role` id、`<g data-pptx-bounds>` 分区不重叠/文本溢出 ≤5%、字号分档、`stamp-native-fallbacks` 哈希、回退完整投影到 native marker。颜色只用 `tokens.json`，`audit --pixels` 抽查 ΔE。
-- 内容必须在 `budget` 内：`validate` 实测文本/条目/图表/表格/图片数，超限即 error；先删内容或换版式，不要擅自抬预算。
+- 标准页：写 pptwise IR（组件词汇见 `tokens export --master` 的角色表）；排版按 `references/design-language.md` 的字号阶梯与 role 几何，内容页用 2–3 列卡片、一列一个要点。
+- deep 页：按七条契约（ADR-007）与 `svg-contract`；颜色只用 `tokens.json`，`audit --pixels` 抽查 ΔE。
+- 内容必须在 `budget` 内：`validate` 实测文本/条目/图表/表格/图片数，超限即 error；先删内容或换版式，不要抬预算。
 - 旁白：每页写 `deep/<page>/notes.md`；音频放 `<deck>/narration/*.mp3`（按 SVG stem 匹配）。
 
 ## 5. 相位 5 · Gates（BLOCKING，任一红即停）
 1. `dsh-ppt validate <dir>`：manifest/IR/**storyboard（存在、覆盖、role↔版式、预算）**/deep 文件/theme 同步。
 2. `dsh-ppt deep render <dir>` 内部固定四步：`stamp-native-fallbacks --write` → `svg-quality-check --stage final --canonical-authoring` → `svg-to-pptx --quick-generate --native-charts-and-tables --with-notes` → 读 `validation/<stem>.report.json`（读报告，不读 stdout，ADR-009）。
-3. `dsh-ppt audit <dir>`：八源统一门（validate、pptwise validate/audit、svg-quality、OPC+P1、delivery、compat、可选 pixels）。
-4. **禁止**为了过门而降低质量：不许手改二进制、不许跳过 `--stage final`、不许把 deep 页降级成标准页。
+3. `dsh-ppt audit <dir>`：八源统一门（`--pixels` 可选）。
+4. **禁止**为过门降低质量：不许手改二进制、跳过 `--stage final` 或把 deep 页降级成标准页。
 
 ## 6. 相位 6 · 渲染与后处理
 - `dsh-ppt render <dir> [-o out.pptx] [--compat safe|standard|max]`：base → deep → merge（单一母版）→ post（动画唯一 owner）→ compat → 结构/交付门 → 原子发布 + `out/manifest.json`/`compat-report.json`。
@@ -74,16 +74,16 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 - 产物缺失时 `resume` 非零退出：先补齐再继续；与 `out/manifest.json` 冲突时以 manifest 的 sha256 为准。
 
 ## 配图禁则
-- 只用 `dsh-ppt images search`（openverse/wikimedia 无 key；pexels/pixabay 需 key）；`assets/image_sources.json` 缺许可/署名即失败。
-- AI 生成图：**不支持**（`image-gen` 不在白名单），改图库检索或用户自带图；不得伪造。
+- 配图/背景优先级：`svg` → `user` → `office`（本机有资源时，`dsh-ppt assets copy --source office`）→ `flat` → `photo`（仅 `dsh-ppt images search`）；许可以 `asset-manifest.json` / `assets/image_sources.json` 为准，缺失即失败。
+- AI 生成图是默认关闭的可选扩展（B5.5）；未开启时降级，不得依赖或伪造来源。
 
 ## 参考装载（预算受 prompt-audit 守门）
-- 默认装载与本相位相关的 8–12 篇 vendored 文档（svg-pipeline、svg-contract、native-data、narration、conversion、template-tools、troubleshooting 等）；其余按需，不要一次性全读（预算门会红）。
-- `dsh-ppt skill audit` 是预算门（语料上限 120000 tokens）；红了先少读，不要改预算。
+- 默认装载本相位相关的 8–12 篇 vendor 文档与 `references/design-language.md`；其余按需，不要一次性全读（预算门会红）。
+- `dsh-ppt skill audit` 是预算门（语料上限 120000 tokens；本文件 2500）；红了先少读或先精简，不要改预算。
 - 上游 references/workflows 未随 wheel 分发：需要时从上游仓库取（见 vendor manifest）。
 
 ## 命令面（本 SKILL 只教这些）
-`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
+`version · doctor · init · plan · resume · validate · theme ensure|list|new|fork|try · tokens export · brand extract · design profile extract · assets discover|list|copy · source · images search · deep render · deep native roundtrip · deep template create|apply|register · post animate · narrate · render · preview · compat lint · audit · skill audit`
 
 ## 失败时
 - 错误格式 `dsh-ppt: <code> <message>`；先看 code，再读 `.dsh-ppt/logs/` 的最后一份日志。

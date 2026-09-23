@@ -14,7 +14,7 @@ argv, files, and exit codes.
 
 ```
 DSH session (model)
-  │  follows skills/dsh-ppt-fusion/SKILL.md
+  │  follows skills/dsh-ppt-fusion/SKILL.md (+ references/design-language.md)
   ▼
 dsh-ppt CLI                        node >= 22.19
   │  src/cli.ts → src/commands/*
