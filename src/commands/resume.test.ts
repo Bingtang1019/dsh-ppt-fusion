@@ -100,10 +100,44 @@ describe('runResume', () => {
   })
 
   it('records an unreadable published manifest as a problem, not a crash', () => {
-    const fs = build(checkpoint({ phase: 6 }), { [join(workspace, 'out', 'manifest.json')]: '{ nope' })
+    const fs = build(checkpoint({ phase: 6, storyboard: 'deck.storyboard.json' }), {
+      [join(workspace, 'deck.storyboard.json')]: '{}',
+      [join(workspace, 'out', 'manifest.json')]: '{ nope',
+    })
     const report = runResume({ dir: workspace, write: false, deps: deps(fs) })
 
     expect(report.published).toBeNull()
     expect(report.problems[0]).toContain('out/manifest.json is not JSON')
+  })
+
+  it('verifies the storyboard the checkpoint references', () => {
+    const fs = build(checkpoint({ storyboard: 'deck.storyboard.json' }), {
+      [join(workspace, 'deck.fusion.json')]: '{}',
+      [join(workspace, 'tokens.json')]: '{}',
+      [join(workspace, 'deck.storyboard.json')]: '{}',
+    })
+    const report = runResume({ dir: workspace, write: false, deps: deps(fs) })
+
+    expect(report.ok).toBe(true)
+    expect(report.artifacts).toContainEqual({ path: 'deck.storyboard.json', exists: true })
+    expect(report.problems).toEqual([])
+  })
+
+  it('fails when the referenced storyboard is missing and does not duplicate it', () => {
+    const fs = build(checkpoint({ storyboard: 'deck.storyboard.json', artifacts: ['deck.fusion.json', 'deck.storyboard.json'] }), {
+      [join(workspace, 'deck.fusion.json')]: '{}',
+    })
+    const report = runResume({ dir: workspace, write: false, deps: deps(fs) })
+
+    expect(report.ok).toBe(false)
+    expect(report.missing).toEqual(['deck.storyboard.json'])
+    expect(report.artifacts.filter((artifact) => artifact.path === 'deck.storyboard.json')).toHaveLength(1)
+  })
+
+  it('flags a phase-3 checkpoint that never references the storyboard', () => {
+    const fs = build(checkpoint())
+    const report = runResume({ dir: workspace, write: false, deps: deps(fs) })
+
+    expect(report.problems.some((problem) => problem.includes('does not reference deck.storyboard.json'))).toBe(true)
   })
 })

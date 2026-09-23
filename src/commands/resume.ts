@@ -86,15 +86,25 @@ export function runResume(options: ResumeOptions): ResumeReport {
 
   const artifacts: ResumeArtifact[] = []
   const missing: string[] = []
-  for (const entry of checkpoint.artifacts) {
-    const absolute = assertInsideWorkspace(dir, entry, 'artifacts[]')
+  const problems: string[] = []
+  // The storyboard is a first-class claim from phase 3 on (V6 WP2): `resume`
+  // verifies the plan itself, not only the files listed in `artifacts`.
+  const claims: { path: string; field: string }[] = checkpoint.artifacts.map((path) => ({ path, field: 'artifacts[]' }))
+  if (checkpoint.storyboard !== undefined) claims.push({ path: checkpoint.storyboard, field: 'storyboard' })
+  else if (Number(checkpoint.phase) >= 3) {
+    problems.push(`checkpoint phase ${checkpoint.phase} does not reference deck.storyboard.json; write \`storyboard\` so resume can verify the plan`)
+  }
+  const seen = new Set<string>()
+  for (const claim of claims) {
+    const absolute = assertInsideWorkspace(dir, claim.path, claim.field)
+    const relative = claim.path.replace(/\\/g, '/').replace(/^\.\//, '')
+    if (seen.has(relative)) continue
+    seen.add(relative)
     const exists = fs.exists(absolute)
-    const relative = entry.replace(/\\/g, '/').replace(/^\.\//, '')
     artifacts.push({ path: relative, exists })
     if (!exists) missing.push(relative)
   }
 
-  const problems: string[] = []
   const published = readPublished(fs, dir, problems)
   const report: ResumeReport = {
     ok: missing.length === 0,

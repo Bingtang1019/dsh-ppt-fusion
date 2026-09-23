@@ -15,6 +15,9 @@
 - **内容预算**：各 role 首版默认 `maxWords/maxItems/maxCharts/maxTables/maxImages`，页面可逐字段覆盖；
   pptwise 页按 IR 文本/组件实测、deep 页按 SVG 文本与 `data-pptx-replace-with` marker 实测，超限报
   `budget-exceeded`（page/role/实测/上限）。
+- **SKILL 升级**：Phase 3 改为"大纲 → 分镜 → BLOCKING 规划确认"（chrome 在 Phase 3 一次声明），Phase 4 按
+  role 模板作者；checkpoint 增 `storyboard` 引用，`resume` 校验它；`skill audit` 预算不变（0 error，
+  109,751/120,000 tokens）。
 
 ### 变更
 

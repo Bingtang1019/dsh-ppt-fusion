@@ -33,6 +33,11 @@ export const CheckpointSchema = z.object({
   updatedAt: z.string().min(1).optional(),
   /** Workspace-relative paths of the products this phase finished. */
   artifacts: z.array(z.string().min(1)).default([]),
+  /**
+   * Workspace-relative path of the confirmed `deck.storyboard.json` (V6 WP2).
+   * Phase 3 and later write it so `resume` can verify the plan, not just the manifest.
+   */
+  storyboard: z.string().min(1).optional(),
   /** Gate results the model recorded; shape is free-form by design. */
   gates: z.record(z.string(), z.unknown()).default({}),
   notes: z.string().default(''),

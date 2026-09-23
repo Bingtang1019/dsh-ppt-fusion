@@ -518,13 +518,15 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
 [--json] [--write]` reads it. The checkpoint is the only progress authority, and
 `out/manifest.json` wins on any conflict about a published package.
 
-- **Schema.** `{version, phase, deck?, updatedAt?, artifacts[], gates{}, notes}` with `phase`
-  `0`–`7` (`0` is routing). Unknown keys are ignored so a model-authored file keeps working;
-  known fields fail with their path (ADR-045).
-- **Report.** The artifact list is checked against the filesystem, `out/manifest.json` is read
-  for `{file, sha256, bytes, slides}`, and `next` names the entry commands of the next phase.
-  A missing artifact makes the report `ok: false` and the command exits 1; an unreadable
-  published manifest is a `problem`, not a crash.
+- **Schema.** `{version, phase, deck?, updatedAt?, artifacts[], storyboard?, gates{}, notes}` with
+  `phase` `0`–`7` (`0` is routing). Unknown keys are ignored so a model-authored file keeps
+  working; known fields fail with their path (ADR-045). `storyboard` is the confirmed
+  `deck.storyboard.json` path from phase 3 on (V6 WP2): it is verified like an artifact, and a
+  phase-3 checkpoint without it reports a problem.
+- **Report.** The artifact list — plus the referenced storyboard — is checked against the
+  filesystem, `out/manifest.json` is read for `{file, sha256, bytes, slides}`, and `next` names
+  the entry commands of the next phase. A missing artifact makes the report `ok: false` and the
+  command exits 1; an unreadable published manifest is a `problem`, not a crash.
 - **`--write`.** Persists the same brief to `.dsh-ppt/resume.md` for a fresh session; the
   printed report stays the primary surface.
 

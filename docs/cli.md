@@ -287,12 +287,12 @@ customer deck to a deck this toolchain renders with.
 
 ### `dsh-ppt resume <dir> [--json] [--write]`
 
-Reads `.dsh-ppt/checkpoint.json`, checks every artifact the checkpoint claims against the
-filesystem, and prints the phase, the published package from `out/manifest.json`
-(`file`/`sha256`/`bytes`/`slides`) and the entry commands of the next phase. Missing artifacts
-make the report `ok: false` and the exit code 1; an unreadable checkpoint is a
-`ContractViolation` naming the field. `--write` also persists the brief to
-`.dsh-ppt/resume.md` for a fresh session.
+Reads `.dsh-ppt/checkpoint.json`, checks every artifact the checkpoint claims — including the
+`storyboard` path phase 3 and later must reference — against the filesystem, and prints the
+phase, the published package from `out/manifest.json` (`file`/`sha256`/`bytes`/`slides`) and the
+entry commands of the next phase. Missing artifacts make the report `ok: false` and the exit
+code 1; an unreadable checkpoint is a `ContractViolation` naming the field. `--write` also
+persists the brief to `.dsh-ppt/resume.md` for a fresh session.
 
 ### `dsh-ppt skill audit [--json] [--strict]`
 
