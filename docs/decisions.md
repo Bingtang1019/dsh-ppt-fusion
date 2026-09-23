@@ -1567,6 +1567,11 @@ the ADR wins.**
   one-time password (`--otp`) or a granular access token with **All packages + Read and write +
   Bypass 2FA**; two tokens without those settings failed `E403` ("Two-factor authentication … is
   required", then "You may not perform that action with these credentials").
+- **Channels:** the release ships on both channels the plan's §8 names — the npm package above and
+  the GitHub Release `v0.1.0` (`target_commitish` `1f2bfa9`), whose asset
+  `dsh-ppt-flashmade-0.1.0.tgz` is the same bytes as the registry tarball (sha1 `0282a68a…`,
+  sha256 `9c437683…`). The upload procedure, including the Windows `--ssl-no-revoke` needed for
+  `uploads.github.com` (`0x80092013` revocation service offline), is in `docs/release.md` §2b.
 - **Alternatives rejected:** creating an npm org for the scope (a second public identity for one
   package); documenting the scoped name while publishing unscoped (the docs must name what
   `dsh plugin add -w` actually resolves).

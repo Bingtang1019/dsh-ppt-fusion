@@ -51,6 +51,28 @@ the release tag must point at the release commit: `git tag -fa v0.1.0 -m ... <co
 The repository must exist first (create it on GitHub; private or public). No credentials are
 stored in this repository: use `gh auth login`, a Git credential manager, or an SSH remote.
 
+## 2b. GitHub Release (the second channel, plan §8)
+
+The release carries the same tarball the registry serves, so a GitHub-only consumer downloads a
+byte-identical copy. Fetch the published tarball (verify `shasum` against `npm view`), create the
+release on the existing tag, and upload the asset:
+
+```sh
+curl -sSL -o dsh-ppt-flashmade-0.1.0.tgz \
+  https://registry.npmjs.org/dsh-ppt-flashmade/-/dsh-ppt-flashmade-0.1.0.tgz
+sha1sum dsh-ppt-flashmade-0.1.0.tgz        # must equal `npm view ... dist.shasum`
+# create the release via the API (tag_name: v0.1.0, body: the CHANGELOG's v0.1.0 section)
+curl -sS --ssl-no-revoke -X POST \
+  -H "Authorization: token <token>" -H "Content-Type: application/gzip" \
+  --data-binary @dsh-ppt-flashmade-0.1.0.tgz \
+  "https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=dsh-ppt-flashmade-0.1.0.tgz"
+```
+
+`--ssl-no-revoke` is required on this machine: Windows schannel cannot reach the certificate
+revocation service for `uploads.github.com` (`0x80092013`). Verify the release by downloading the
+asset back and comparing SHA-1 with the npm shasum; `GET /releases/tags/v0.1.0` must list the
+asset and point `target_commitish` at the tagged commit.
+
 ## 3. Install into the real `web` profile (ops discipline)
 
 Back up first, then one change:

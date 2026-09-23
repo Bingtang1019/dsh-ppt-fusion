@@ -4,6 +4,7 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
 - 本包：`dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
+- 下载：npm [`dsh-ppt-flashmade@0.1.0`](https://www.npmjs.com/package/dsh-ppt-flashmade) · GitHub Release [v0.1.0](https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.1.0)（附件 `dsh-ppt-flashmade-0.1.0.tgz` 与 npm 包字节一致）
 - 权威计划：仓库外的 `PPT-FUSION-PLAN.md`（v5，不随仓库分发）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…056），冲突时 **ADR 比计划新**。
 
 > 状态：**M0–M8 已验收，CI 双平台全绿（ADR-055），v0.1.0 已发布（`dsh-ppt-flashmade@0.1.0`，ADR-056），并已从注册表安装验证（`ppt-eval` scratch profile 启动 + 预览路由）。** 剩余收尾：① `web` profile 的浏览器三项复核（无红条 / skill 目录 / 预览卡片）；② WPS 版本明细回填、外部资源项（完整清单见计划 §4.5 / `docs/acceptance-report.md`）。
