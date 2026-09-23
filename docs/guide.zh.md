@@ -123,6 +123,35 @@ dsh-ppt preview hello --html        # 标准页走 pptwise，deep 页用作者 S
 - 换主题必须重走一遍 storyboard：pptwise 拒绝跨菜单重绑（ADR-052），跨主题的 `layout` 会被
   `storyboard-layout` 拦下。
 
+## 3.7 参考质量对齐（v0.3）
+
+v0.3 以一份真实参考 deck 的**数值设计档案**做质量基准，流程是"提取 → 套用 → 渲染时施加 → 审计"：
+
+```sh
+# 1) 从参考 deck 提取纯数值档案（无文本/无媒体/无路径）
+dsh-ppt design profile extract ref.pptx -o design-profile.json
+
+# 2) 用它建 deck：deck-local theme + tokens + chrome + storyboard 一次写好
+dsh-ppt init my-deck --theme brief --profile design-profile.json
+
+# 3) 正常 plan / 作者 / render；render 会按档案施加设计语言：
+#    标题字号/颜色/锚点、正文众数、accent、卡片列卡间距、章节水印号、封面/结束 meta footer，
+#    以及背景模式（flat 写 p:bg；svg 生成程序化背景 + 覆盖层 + PNG 回退）
+dsh-ppt render my-deck
+
+# 4) 按档案审计（重放提取器测量后按容差比对，0 error 才算达标）
+dsh-ppt audit my-deck --profile design-profile.json
+```
+
+- 素材不依赖 AI：`dsh-ppt assets discover --source office` 登记本机 Office/WPS 素材，
+  `dsh-ppt assets list|copy --source office|user` 把许可清楚的素材复制进 deck；
+  `DSH_PPT_ASSET_DIRS`/`<deck>/assets/asset-manifest.json` 是 user 库（许可必填）。
+- 背景优先级：`svg` → `user` → `office`（本机可用时）→ `flat` → `photo`（`images search`）→
+  可选 `images generate`。生成图默认关闭：只有 `DSH_PPT_ENABLE_IMAGE_GEN=1` 且配置
+  `GEMINI_API_KEY`/`OPENAI_API_KEY` 才可用，生成后写 `image_sources.json` 并需人工复核。
+- 设计语言细则（字号阶梯/色板角色/role 几何/背景与 chrome）见
+  `skills/dsh-ppt-fusion/references/design-language.md`；质量基线见 `docs/quality.md`。
+
 ## 4. 旁白与动画
 
 旁白文本写在每页 `deep/<page>/notes.md`；`narrate` 会按导出 stem 组成 notes roster：
@@ -162,12 +191,12 @@ dsh-ppt post animate hello              # 重新施加动效 + 重跑兼容 + �
 ## 6. 命令速查
 
 ```
-version · doctor [--repair] · init · plan [--confirm] · resume [--write]
-validate · audit [--strict] [--pixels] [--file] · preview [--html]
-theme ensure|list|new|fork|try · tokens export · brand extract [--bind]
-source · images search · deep render · deep template create|apply|register
-deep native roundtrip · post animate · narrate [--sync] · render [--compat]
-compat lint · skill audit
+version · doctor [--repair] · init --profile · plan [--confirm] · resume [--write]
+validate · audit [--strict] [--pixels] [--file] [--profile] [--roles] · preview [--html]
+theme ensure|list|new|fork|try|apply-profile · tokens export · brand extract [--bind]
+design profile extract · assets discover|list|copy · source · images search|generate
+deep render · deep template create|apply|register · deep native roundtrip
+post animate · narrate [--sync] · render [--compat] · compat lint · skill audit
 ```
 
 全部命令支持 `--json`；`audit` 的报告带 `schemaVersion: 1`。

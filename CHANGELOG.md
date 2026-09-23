@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.3.0 — 未发布（V7.2 Part B）
+## v0.3.0 — 2026-09-24
 
 设计系统对齐：参考 deck → 数值化 design profile → theme/chrome/storyboard 套用 → 符合性审计。
 
@@ -29,6 +29,39 @@
   结果记入 `out/manifest.json` 的 `design`。
 - **storyboard `toc` role（B2）**：storyboard 可为 content 页声明 `role: "toc"`（目录页用 content 菜单槽位；
   chrome 角色保持不变）。
+- **素材三通道 `assets discover|list|copy`（B2.5，ADR-067）**：`--source office` 探测本机 Office/WPS 资源目录并登记
+  `<DSH_HOME>/ppt-fusion/assets/office-assets.json`（本机实测 1689 项；找不到即显式失败并给回退指引）；
+  `--source user` 读 `DSH_PPT_ASSET_DIRS`/`<deck>/assets` 的 `asset-manifest.json`（许可必填，缺许可即
+  `ContractViolation`）；copy 落 deck `assets/`，越界/同名异字节拒绝，同字节幂等。
+- **`svg`/`flat` 背景层（B2.5，ADR-067）**：render 在 motion 后、chrome 前施加档案背景模式；flat 写 `p:bg`，
+  svg 按 role 生成确定性程序化 SVG + 覆盖层（alpha=overlayOpacity），对比硬门 ≥4.5:1，compat stamp 自动补
+  PNG sibling（实测 slide `a:blip→PNG`、`asvg:svgBlip→SVG`）。
+- **设计语言参考与 Phase 3/4 规则（B3，ADR-068）**：新增
+  `skills/dsh-ppt-fusion/references/design-language.md`（字号阶梯/色板角色/role 几何/背景素材优先级/chrome），
+  单列 `generate.design` 装载集（2000 tokens）；两版 SKILL 在不抬预算的前提下补"每页必须声明 role"与
+  "按档案字号/几何作者、内容页 2–3 列卡片"（2492/2245 tokens）。
+- **`audit --profile` 符合性审计（B4，ADR-062）**：重放提取器测量后比对 `design-*` 规则（role 标题/正文字号
+  ±1pt、颜色 ΔE≤3、accent 色、标题锚点/卡间距 ±0.05in、列数、章节水印、chrome 布尔）；背景规则判
+  flat/svg/photo/mixed、SVG 必须有 PNG 回退、正文按 ≥70% 像素覆盖 4.5:1（有覆盖层 error、无覆盖层 warning）；
+  支持 `--roles` 与工作区外 `--file` 的 package-only 审计。顺带修正 chrome/background 写 `srgbClr val="#…"`
+  的非法 OOXML，golden 重录为 **fixtureVersion 8**。
+- **档案设计施加 pass（B5，ADR-069）**：标准页在字体 pass 前套用档案语言（代表标题字号/颜色/锚点、正文众数、
+  accent 重着色、toc/content 卡片列按卡间距重排、section 水印号、封面/结束 meta footer）；`chapter` IR 页归一
+  到 section，render/audit 优先 storyboard 角色。
+- **`reference-quality` 场景与质量基线（B5）**：12 页同学科 deck 场景走完整 SKILL + 双引擎，14/14 rubric 检查
+  首轮通过（1698s），交付 `tmp/quality-demo`（pptx + audit JSON + preview HTML）；三样本 1–5 基线见
+  `docs/quality.md`。
+- **可选图像生成 `images generate`（B5.5，ADR-064）**：`DSH_PPT_ENABLE_IMAGE_GEN=1` 才可用，provider 为
+  `gemini|openai-compatible`（映射 engine `gemini|openai`）；未开启/无 key 拒绝并打印
+  `svg → user → office → flat → photo`；成功后写 `image_sources.json`（`provider: ai-image-*`、prompt 摘要、
+  尺寸、"AI-generated content (review required)"），无记录不返回；默认 render 永不调用。
+
+### 已知限制
+
+- `photo`/`office`/`user` 背景模式还没有显式资产引用：render 目前以 flat 回退并在
+  `out/manifest.json#design.background.notes` 记录，`audit --profile` 按档案模式会报 error（B4 规则本身正确）。
+- deep 页 MiSans 的 ea font slot 与"非 PPT-safe 字体"由 `svg-quality` 记为 warning；WPS 渲染一致性待人工复核。
+- 人工复核未尽项：S27 三样本并排评分、S28 背景观感、S19 删页重排、S23 旁白播放。
 
 ## v0.2.0 — 2026-09-23
 

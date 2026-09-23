@@ -17,6 +17,11 @@ filled with concrete observations the next time the machine is available.
 | 8 | CJK fonts render | user-reported pass |
 | 9 | SVG fallback renders | user-reported pass |
 | 10 | save and reopen | user-reported pass |
+| 11 | page numbers renumber after deleting a page (V6 WP1) | pending user check |
+| 12 | profile theme consistency (V7.2 B2) | pending user check |
+| 13 | profile background, flat/svg (V7.2 B5) | pending user check |
+
+Rows 11–13 were added after the 2026-09-22 confirmation and still need a run on the WPS machine.
 
 Consequence: the S17 gate is satisfied on the user's confirmation, so the v1 release notes may
 claim T1 (the plan's rule). Capture the WPS version and any degradation here on the next run; if

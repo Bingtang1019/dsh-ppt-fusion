@@ -6,6 +6,7 @@ least the golden package and one CJK deck:
 - `fixtures/golden/hello-merged.pptx`
 - `tmp/eval/topic-only/attempt-1/work/deck/out/deck.pptx`
 - `tmp/eval/doc-to-deck/attempt-1/work/deck/out/xinghe-v3-release.pptx`
+- `tmp/eval/reference-quality/attempt-1/work/deck/out/food-safety-internship-report.pptx` (profile-built, v0.3)
 
 Record every row (pass / fail / note) in `docs/compat/wps-report.md`.
 
@@ -22,6 +23,8 @@ Record every row (pass / fail / note) in `docs/compat/wps-report.md`.
 | 9 | SVG fallback | zoom the deep pages to 200% | vector fallback renders; no blank page |
 | 10 | save and reopen | save as a copy, close, reopen | WPS does not rewrite or degrade the deck |
 | 11 | page numbers (V6 WP1) | a deck with the default chrome (cover/ending skipped) | non-skipped pages show a page number; delete one middle page, save, and the remaining numbers renumber themselves (native field, not literal digits) |
+| 12 | profile theme consistency (V7.2 B2) | the profile-built `reference-quality` deck: compare one content page with the reference design language | profile palette/fonts render (MiSans/Noto Sans SC, no missing glyphs), titles/cards keep the profile's size hierarchy, chrome keeps the section/meta markers without per-page page numbers |
+| 13 | profile background (V7.2 B5) | the same deck (profile copy sets `background.mode: flat` or `svg`) | flat background equals the profile `bg`; an `svg` background shows no blank frame and keeps its PNG fallback |
 
 Notes for the tester:
 
