@@ -753,8 +753,19 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   overlay blend (an opaque shape covering the text wins instead). A violation is an error when
   the page has an overlay shape and a warning when it does not, because a hand-authored deck
   cannot be repaired by the audit.
+- **Design pass.** When `designProfile` is declared, `render` applies the profile's
+  language to the standard (pptwise) pages after the merge and before the font pass
+  (`bridge/design-pass.ts`, ADR-069): the representative title shape takes the role's
+  size, colour and anchor; the dominant body-size runs take the role's body style while
+  accent runs are recoloured to `palette.accent`; toc/content card columns are re-spaced
+  to `roles.<role>.cardGapIn`; a section page without a watermark numeral gains the
+  profile's watermarked ordinal (an existing numeral is resized to `watermarkSizePt`),
+  and cover/ending pages gain the meta footer from the IR's organization/author. Deep
+  pages keep their authored composition and are judged by the same audit.
+  `out/manifest.json#design.pass` records the per-rule counts.
 - **Evidence.** On this machine the reference deck passes with `ok=true`, 0 error and one
   `design-background-mode` warning (page 8: one body box sits on 33 % compliant pixels), and
   `pnpm design:verify` runs both the S24 field comparison and the S26 profile audit. Negative
   tests cover wrong size, colour, accent, anchor, columns, watermark and chrome, plus SVG
-  fallback and picture-contrast failures.
+  fallback and picture-contrast failures; the 3-page design-pass probe (cover/chapter/ending)
+  audits 0 error / 0 warning after the pass.

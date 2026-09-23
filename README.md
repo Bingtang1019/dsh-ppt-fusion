@@ -109,7 +109,7 @@ skills/        dsh-ppt-fusion 的中英 SKILL 与预算 manifest
 scripts/       opc-invariants、win-com-smoke、probe/测量工具、compat-matrix、engine-provision
 fixtures/      hello deck（golden 输入：含 deep/*/notes.md 与 narration/*.mp3）、master deep 项目、golden（base/deep/merged + golden-manifest.json + compat-levels.json）、M0 夹具 m0-fixtures.json
 python-assets/ requirements.in/.lock、上游 SHA manifest、vendor 文档位
-docs/          architecture / cli / contracts / decisions(ADR) / guide.zh / install / licensing / acceptance-report / capacity / m6-model-eval / upstream-drill / m0-* / compat/
+docs/          architecture / cli / contracts / decisions(ADR) / guide.zh / install / licensing / acceptance-report / quality / capacity / m6-model-eval / upstream-drill / m0-* / compat/
 tests/         vitest 单元与契约回放；themes:record/verify、fixtures:record/verify（T1 黄金门）
 ```
 
@@ -121,7 +121,7 @@ tests/         vitest 单元与契约回放；themes:record/verify、fixtures:re
 - 中文用户指南：[`docs/guide.zh.md`](docs/guide.zh.md)
 - 安装与卸载：[`docs/install.md`](docs/install.md)；许可清单：[`docs/licensing.md`](docs/licensing.md)
 - 发布清单：[`docs/release.md`](docs/release.md)
-- M6 模型评估结论：[`docs/m6-model-eval.md`](docs/m6-model-eval.md)；验收报告 S1–S17：[`docs/acceptance-report.md`](docs/acceptance-report.md)
+- M6 模型评估结论：[`docs/m6-model-eval.md`](docs/m6-model-eval.md)；验收报告 S1–S17：[`docs/acceptance-report.md`](docs/acceptance-report.md)；质量基线：[`docs/quality.md`](docs/quality.md)
 - 兼容矩阵与 WPS 记录：[`docs/compat/matrix.md`](docs/compat/matrix.md)、[`docs/compat/wps-report.md`](docs/compat/wps-report.md)
 - ADR 裁决记录：[`docs/decisions.md`](docs/decisions.md)（ADR-001…053）
 - M0 决策门与兼容探针：[`docs/m0-decision.md`](docs/m0-decision.md)、[`docs/compat/probe.md`](docs/compat/probe.md)

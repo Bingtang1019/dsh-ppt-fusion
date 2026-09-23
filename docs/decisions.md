@@ -2052,3 +2052,15 @@ the ADR wins.**
   pre-baked reference deck (deck discipline and copyright); asking the scenario prompt to
   hand-place every shape (the capability must live in the toolchain, not in one task's wording);
   auditing only plugin-generated pages (S26 audits the deck as delivered).
+- **B5b landed (2026-09-24 02:36, commit `6452634`).** `bridge/slide-text.ts` now owns the
+  extractor-shaped parsing shared with the audit, and `bridge/design-pass.ts` applies the
+  profile to the standard pages before the font pass: representative title size/colour/anchor
+  (title-size runs only, so a shared subtitle stays body-sized), dominant body size/colour,
+  accent recolouring, card-gap re-spacing (panels move with their text column), an existing
+  section watermark resized or a new one inserted, and the cover/ending meta footer taken from
+  the IR organization/author. `chromeRoleFor('chapter')` maps pptwise chapter slides to the
+  section role, and `render`/`audit` prefer the storyboard roles (toc included) over the coarse
+  IR roles. Evidence: the 3-page cover/chapter/ending probe audits `ok=true`, 0 error / 0
+  warning against the fixture profile; `design-pass.test.ts` covers title/body/accent/gap/
+  marker/footer and leaves deep pages untouched; the full suite is 460 tests / 58 files and the
+  fixtures/matrix gates stay green.

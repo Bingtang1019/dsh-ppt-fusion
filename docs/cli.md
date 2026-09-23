@@ -195,7 +195,9 @@ title/body/muted inks below 4.5:1. The SVG picture is left for the compat pass t
 its PNG sibling, so Office 2013 and 2016+ both render it; `out/manifest.json` records the
 applied mode, per-slide roles, generated parts and `minContrast`. `photo`, `office` and `user`
 have no asset reference in the profile yet, so they apply the flat colour and say so under
-`design.background.notes` (ADR-067).
+`design.background.notes` (ADR-067). When the same profile drives the standard pages, `render`
+also applies its type scale, role anchors, card gaps and chrome before the font pass
+(`design.pass` in `out/manifest.json`); deep pages keep their authored composition (ADR-069).
 
 Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
 leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.
