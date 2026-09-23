@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { Command } from 'commander'
 import { defaultDependencies } from './commands/context.ts'
 import { createFakeFileSystem, createFakeRunner } from '../tests/support/fake-runner.ts'
@@ -28,8 +28,15 @@ async function loadProgram(): Promise<Command> {
 }
 
 describe('CLI surface', () => {
-  it('offers --json on every leaf command except version', async () => {
-    const program = await loadProgram()
+  // The CLI module graph is the heaviest import in the suite; under parallel
+  // workers a single import can pass 5s. Load it once with a generous hook
+  // timeout, so the assertions below never race the module graph (ADR-063).
+  let program: Command
+  beforeAll(async () => {
+    program = await loadProgram()
+  }, 30_000)
+
+  it('offers --json on every leaf command except version', () => {
     const missing = leaves(program)
       .filter((leaf) => leaf.path !== 'dsh-ppt version')
       .filter((leaf) => !leaf.longOptions.includes('--json'))
@@ -37,8 +44,7 @@ describe('CLI surface', () => {
     expect(missing).toEqual([])
   })
 
-  it('keeps every leaf described and free of duplicate options', async () => {
-    const program = await loadProgram()
+  it('keeps every leaf described and free of duplicate options', () => {
     for (const leaf of leaves(program)) {
       expect(leaf.description, leaf.path).not.toBe('')
       const duplicates = leaf.longOptions.filter((option, index) => leaf.longOptions.indexOf(option) !== index)
@@ -46,8 +52,7 @@ describe('CLI surface', () => {
     }
   })
 
-  it('covers the documented command groups', async () => {
-    const program = await loadProgram()
+  it('covers the documented command groups', () => {
     const paths = leaves(program).map((leaf) => leaf.path)
     for (const expected of [
       'dsh-ppt version',
