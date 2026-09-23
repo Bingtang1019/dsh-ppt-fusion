@@ -8,6 +8,8 @@
 import { readFileSync } from 'node:fs'
 import { auditDeck } from '../src/commands/audit.ts'
 import { defaultDependencies } from '../src/commands/context.ts'
+import { narrationTimings, showTimingsEnabled } from '../src/bridge/post.ts'
+import { OpcPackage } from '../src/bridge/opc.ts'
 import { assertCompatLevel, compatSnapshots, readCompatGolden, readGoldenManifest, verifyGolden, GOLDEN_DIR, GOLDEN_WORKSPACE } from './support/golden.ts'
 
 const recorded = readGoldenManifest()
@@ -38,6 +40,28 @@ if (recordedCompat.fixtureVersion !== recorded.fixtureVersion) {
   process.exit(1)
 }
 const mergedBytes = readFileSync(result.staged.merged)
+
+// S23 (V6 Q5): a narrated slide must advance on a timer whose number is the
+// deterministic recompute (frame-sum duration + the engine's lead-in and padding),
+// and the merged package must keep the show-timings flag that makes it effective.
+const mergedPackage = await OpcPackage.read(mergedBytes)
+const narrated = narrationTimings(mergedPackage).filter((timing) => timing.mediaPart !== null)
+if (narrated.length > 0) {
+  const timingProblems: string[] = []
+  if (!showTimingsEnabled(mergedPackage)) timingProblems.push('presProps.xml does not set p:showPr useTimings="1"')
+  for (const timing of narrated) {
+    if (timing.advanceMs === null) timingProblems.push(`${timing.slidePart}: narration ${timing.mediaPart ?? '?'} has no readable MPEG frames`)
+    else if (timing.advTmMs === null || Math.abs(timing.advTmMs - timing.advanceMs) > 100) {
+      timingProblems.push(`${timing.slidePart}: advTm ${timing.advTmMs === null ? 'missing' : String(timing.advTmMs)} but the audio measures ${String(timing.advanceMs)}`)
+    }
+  }
+  if (timingProblems.length > 0) {
+    console.error('fixtures:verify: narration auto-advance (S23) failed:')
+    for (const problem of timingProblems) console.error(`  ${problem}`)
+    process.exit(1)
+  }
+  console.log(`fixtures:verify: narration auto-advance ok (${String(narrated.length)} narrated slide(s), useTimings=1)`)
+}
 const fresh = await compatSnapshots(mergedBytes)
 for (const level of ['safe', 'standard', 'max'] as const) {
   const expected = JSON.stringify(recordedCompat.levels[level])

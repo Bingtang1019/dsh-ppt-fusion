@@ -7,7 +7,7 @@ import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from
 import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
-import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import type { CompatLevel } from '../compat/registry.ts'
@@ -37,6 +37,8 @@ export interface RenderResult {
   readonly sha256: string
   readonly bytes: number
   readonly slides: number
+  /** True when the render set `p:showPr useTimings="1"` for narration auto-advance. */
+  readonly showTimings: boolean
   /** The exporter receipts, one per engine that contributed pages. */
   readonly postflight: { deep?: PostflightReceipt }
   readonly merge: MergeReport
@@ -197,6 +199,9 @@ async function finalize(input: {
 
   // 4. Motion: the single post-merge application point (plan 3.6, ADR-032).
   const postApplied = input.postConfig === null ? null : applyPost(pkg, input.postConfig)
+  // Recorded narration needs the package-level show-timings flag; the merge rebuilds
+  // `presProps.xml` from the base deck, which drops it (V6 Q5, ADR-060).
+  const showTimings = ensureShowTimings(pkg)
   if (postApplied !== null && postApplied.unmatched.length > 0) {
     throw new DshPptFailure(
       'ContractViolation',
@@ -246,6 +251,7 @@ async function finalize(input: {
     staged,
     deps: input.deps,
     compat: { report: compatReport, source: input.compat.source },
+    showTimings,
     ...(delivery === null ? {} : { delivery: { stdout: delivery.result.stdout, status: delivery.result.status } }),
     ...(postApplied === null ? {} : { post: postApplied }),
       ...(chromeApplied === null ? {} : { chrome: chromeApplied }),
@@ -307,6 +313,8 @@ function publish(input: {
   deps: CommandDependencies
   delivery?: { stdout: string; status: number | null }
   post?: PostReport
+  /** Whether narration auto-advance needed the package show-timings flag. */
+  showTimings: boolean
   compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input
@@ -337,6 +345,8 @@ function publish(input: {
         counts: input.compat.report.counts,
         applied: input.compat.report.applied,
       },
+      // True when narration auto-advance required `p:showPr useTimings="1"` (V6 Q5).
+      showTimings: input.showTimings,
       ...(input.delivery === undefined ? {} : { delivery: { status: input.delivery.status, receipt: input.delivery.stdout.trim().split(/\r?\n/).slice(-3) } }),
       ...(input.post === undefined ? {} : { post: input.post }),
     }),
@@ -346,6 +356,7 @@ function publish(input: {
     sha256,
     bytes: bytes.length,
     slides: input.slides,
+    showTimings: input.showTimings,
     postflight: input.postflight,
     merge: input.merge,
     compat: { report: input.compat.report, reportFile, reportSha256 },

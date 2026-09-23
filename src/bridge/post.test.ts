@@ -3,10 +3,15 @@ import { OpcPackage } from './opc.ts'
 import {
   applyPost,
   dedupeShapeIds,
+  ensureShowTimings,
   entranceTimingXml,
+  narratedAdvanceMs,
+  narrationTimings,
   readPostConfig,
   resolveTargets,
+  showTimingsEnabled,
   stripMotion,
+  transitionElementOf,
   transitionXml,
 } from './post.ts'
 import { PostConfigSchema } from '../schema/post.ts'
@@ -256,5 +261,101 @@ describe('readPostConfig', () => {
   it('reports a missing file', () => {
     const fs = createFakeFileSystem({})
     expect(codeOf(() => readPostConfig(fs, 'C:/deck/post/animations.json'))).toBe('OutputMissing')
+  })
+})
+
+describe('narration auto-advance (V6 Q5)', () => {
+  /** @returns one MPEG-2 Layer III frame of 48 kbps / 24 kHz (144 bytes, 24 ms). */
+  function frame(): Buffer {
+    const bytes = Buffer.alloc(144)
+    bytes[0] = 0xff
+    bytes[1] = 0xf3
+    bytes[2] = 0x64
+    bytes[3] = 0xc4
+    return bytes
+  }
+
+  /** A package whose slide 1 carries recorded narration; extra slides stay plain. */
+  function narratedPackage(frames = 650, slideCount = 1): OpcPackage {
+    const pkg = miniPackage(slideCount)
+    const slide = 'ppt/slides/slide1.xml'
+    pkg.setPart(
+      slide,
+      SLIDE.replace(
+        '</p:sld>',
+        '<p:pic><p:nvPicPr><p:nvPr><a:audioFile r:link="rId9"/></p:nvPr></p:nvPicPr></p:pic><p:transition p14:dur="400" advClick="0" advTm="99999"><p:fade/></p:transition></p:sld>',
+      ),
+    )
+    pkg.setRelationships(slide, [
+      ...pkg.relationshipsOf(slide),
+      { id: 'rId9', type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio', target: '../media/narration1.mp3' },
+    ])
+    pkg.setPart('ppt/media/narration1.mp3', Buffer.concat(Array.from({ length: frames }, () => frame())))
+    pkg.setPart('ppt/presProps.xml', '<p:presentationPr xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>')
+    return pkg
+  }
+
+  it('recomputes the advance from the embedded bytes instead of the ffprobe number', () => {
+    const pkg = narratedPackage()
+    const slide = 'ppt/slides/slide1.xml'
+    expect(narratedAdvanceMs(pkg, slide, pkg.text(slide))).toBe(16_500)
+    applyPost(pkg, PostConfigSchema.parse({ slides: [{ index: 1, transition: 'wipe', durationMs: 500 }] }))
+    const xml = pkg.text(slide)
+    expect(xml).toContain('p14:dur="500"')
+    expect(xml).toContain('advClick="0"')
+    expect(xml).toContain('advTm="16500"')
+    expect(xml).not.toContain('99999')
+  })
+
+  it('keeps the engine transition and its effect when the config omits the slide', () => {
+    const pkg = narratedPackage(650, 2)
+    applyPost(pkg, PostConfigSchema.parse({ slides: [{ index: 2, transition: 'fade' }] }))
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    expect(xml).toContain('advClick="0" advTm="16500"')
+    expect(xml).toContain('<p:fade/>')
+  })
+
+  it('falls back to the recorded advance when the audio cannot be measured', () => {
+    const pkg = narratedPackage(650, 2)
+    pkg.setPart('ppt/media/narration1.mp3', Buffer.from('not audio'))
+    applyPost(pkg, PostConfigSchema.parse({ slides: [{ index: 2, transition: 'fade' }] }))
+    expect(pkg.text('ppt/slides/slide1.xml')).toContain('advTm="99999"')
+  })
+
+  it('reports the auto-advance per slide and finds the transition element', () => {
+    const pkg = narratedPackage()
+    const report = applyPost(pkg, PostConfigSchema.parse({ slides: [{ index: 1, transition: 'fade' }] }))
+    expect(report.slides[0]?.autoAdvanceMs).toBe(16_500)
+    expect(transitionElementOf('<p:sld><p:transition p14:dur="400"/></p:sld>')).toBe('<p:transition p14:dur="400"/>')
+    expect(transitionElementOf('<p:sld/>')).toBeNull()
+  })
+
+  it('sets useTimings once when a slide carries a timed advance', () => {
+    const pkg = narratedPackage()
+    expect(ensureShowTimings(pkg)).toBe(true)
+    expect(pkg.text('ppt/presProps.xml')).toContain('<p:showPr useTimings="1"/>')
+    expect(ensureShowTimings(pkg)).toBe(false)
+  })
+
+  it('reports per-slide narration timing facts for gates', () => {
+    const pkg = narratedPackage()
+    const timings = narrationTimings(pkg)
+    expect(timings[0]).toMatchObject({
+      slidePart: 'ppt/slides/slide1.xml',
+      mediaPart: 'ppt/media/narration1.mp3',
+      durationMs: 15_600,
+      advanceMs: 16_500,
+      advTmMs: 99_999,
+    })
+    expect(showTimingsEnabled(pkg)).toBe(false)
+    ensureShowTimings(pkg)
+    expect(showTimingsEnabled(pkg)).toBe(true)
+  })
+
+  it('leaves a deck without timed advance alone', () => {
+    const pkg = miniPackage(1)
+    pkg.setPart('ppt/presProps.xml', '<p:presentationPr xmlns:p="x"/>')
+    expect(ensureShowTimings(pkg)).toBe(false)
+    expect(pkg.text('ppt/presProps.xml')).toBe('<p:presentationPr xmlns:p="x"/>')
   })
 })

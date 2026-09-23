@@ -4,7 +4,7 @@ import { DshPptFailure } from '../engine/errors.ts'
 import { toWorkspaceRelative } from '../engine/contracts.ts'
 import { loadDeck } from '../deck.ts'
 import { OpcPackage } from '../bridge/opc.ts'
-import { applyPost, readPostConfig, type PostReport } from '../bridge/post.ts'
+import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import { resolveCompatLevel } from './render.ts'
 import { resolveDeckDir, type CommandDependencies } from './context.ts'
@@ -68,6 +68,9 @@ export async function postAnimate(options: PostAnimateOptions): Promise<PostAnim
   }
   const pkg = await OpcPackage.read(bytes)
   const report = applyPost(pkg, config)
+  // Keep recorded-narration auto-advance effective when re-animating a package whose
+  // `presProps.xml` predates the Q5 fix (ADR-060).
+  ensureShowTimings(pkg)
   if (report.unmatched.length > 0) {
     throw new DshPptFailure('ContractViolation', `post configuration selected shapes that do not exist on slide ${report.unmatched.join(', ')}; check the target names against the published pages`, {
       detail: { unmatched: report.unmatched },

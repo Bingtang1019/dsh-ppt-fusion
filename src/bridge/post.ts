@@ -1,3 +1,4 @@
+import { posix } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
 import {
   PostConfigSchema,
@@ -8,7 +9,18 @@ import {
   type TransitionEffect,
 } from '../schema/post.ts'
 import { listSlides, type OpcPackage } from './opc.ts'
+import { mp3DurationMs } from './audio.ts'
 import type { FileSystemPort } from '../engine/venv.ts'
+
+/**
+ * Recorded narration adds a lead-in and a tail to the measured audio before the
+ * slide advances: the exporter's `narration_lead_in + duration + narration_padding`
+ * with its 0.4 s start floor and 0.5 s padding (ADR-060). Post recomputes the
+ * advance from the embedded bytes with the same policy, so the delivered deck
+ * carries no host `ffprobe` number.
+ */
+export const NARRATION_LEAD_IN_MS = 400
+export const NARRATION_PADDING_MS = 500
 
 /**
  * Transition XML, ported from pptwise's byte-verified writer (its
@@ -18,11 +30,13 @@ import type { FileSystemPort } from '../engine/venv.ts'
  *
  * @param effect - transition effect; `none` is handled by the caller as a strip.
  * @param durationMs - duration in milliseconds.
+ * @param autoAdvanceMs - timed advance in milliseconds; omitted for a click-only transition.
  * @returns the `p:transition` fragment.
  */
-export function transitionXml(effect: Exclude<TransitionEffect, 'none'>, durationMs = 400): string {
+export function transitionXml(effect: Exclude<TransitionEffect, 'none'>, durationMs = 400, autoAdvanceMs?: number): string {
   const element = effect === 'fade' ? '<p:fade/>' : effect === 'push' ? '<p:push dir="r"/>' : '<p:wipe dir="r"/>'
-  return `<p:transition p14:dur="${String(durationMs)}" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">${element}</p:transition>`
+  const advance = autoAdvanceMs === undefined ? '' : ` advClick="0" advTm="${String(autoAdvanceMs)}"`
+  return `<p:transition p14:dur="${String(durationMs)}"${advance} xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">${element}</p:transition>`
 }
 
 /**
@@ -59,9 +73,136 @@ const ENTRANCE_PRESET: Record<EntranceEffect, { filter: string; presetID: number
 }
 
 /** Removes any transition block, so re-applying is idempotent. */
-const TRANSITION_RE = /<p:transition[\s\S]*?<\/p:transition>/
+const TRANSITION_RE = /<p:transition[\s\S]*?<\/p:transition>|<p:transition[^>]*\/>/
 /** Removes any timing block, so re-applying is idempotent. */
 const TIMING_RE = /<p:timing>[\s\S]*?<\/p:timing>/
+
+/** Matches one transition element in either the paired or the self-closing form. */
+const TRANSITION_ELEMENT_RE = /<p:transition[\s\S]*?<\/p:transition>|<p:transition[^>]*\/>/
+
+/**
+ * @param xml - one slide's XML.
+ * @returns the slide's transition element, or null when it carries none.
+ */
+export function transitionElementOf(xml: string): string | null {
+  return TRANSITION_ELEMENT_RE.exec(xml)?.[0] ?? null
+}
+
+/** @returns the narration audio a slide references and its decoded duration. */
+function narrationOf(pkg: OpcPackage, slidePart: string, xml: string): { mediaPart: string | null; durationMs: number | null } {
+  const relationshipId = /<a:audioFile[^>]*\br:(?:link|embed)="([^"]+)"/.exec(xml)?.[1]
+  const related = relationshipId === undefined ? undefined : pkg.relationshipsOf(slidePart).find((relationship) => relationship.id === relationshipId)
+  const mediaPart = related === undefined ? null : posix.normalize(posix.join(posix.dirname(slidePart), related.target))
+  const durationMs = mediaPart !== null && pkg.has(mediaPart) ? mp3DurationMs(pkg.part(mediaPart)) : null
+  return { mediaPart, durationMs }
+}
+
+/**
+ * Recompute one slide's auto-advance from the narration audio embedded in the package.
+ *
+ * The measured media is resolved through the slide's own relationships, so nothing
+ * outside the package is consulted and the same bytes always give the same number.
+ *
+ * @param pkg - the package being edited.
+ * @param slidePart - slide part name.
+ * @param xml - the slide's current XML.
+ * @returns the advance in milliseconds, or null when the slide has no readable narration.
+ */
+export function narratedAdvanceMs(pkg: OpcPackage, slidePart: string, xml: string): number | null {
+  const { durationMs } = narrationOf(pkg, slidePart, xml)
+  return durationMs === null ? null : NARRATION_LEAD_IN_MS + durationMs + NARRATION_PADDING_MS
+}
+
+/** One slide's recorded-narration facts, for gates that inspect a finished package. */
+export interface NarrationTiming {
+  readonly slidePart: string
+  /** The media part the slide's `a:audioFile` resolves to, or null when there is none. */
+  readonly mediaPart: string | null
+  /** Decoded audio duration in milliseconds, or null when no frame parses. */
+  readonly durationMs: number | null
+  /** The advance post applies (lead-in + duration + padding), or null without readable audio. */
+  readonly advanceMs: number | null
+  /** The advance the package's transition carries, or null when it carries none. */
+  readonly advTmMs: number | null
+}
+
+/**
+ * @param pkg - a finished (or in-progress) package.
+ * @returns the recorded narration of every slide, in slide order.
+ */
+export function narrationTimings(pkg: OpcPackage): NarrationTiming[] {
+  return listSlides(pkg).map((slidePart) => {
+    const xml = pkg.text(slidePart)
+    const { mediaPart, durationMs } = narrationOf(pkg, slidePart, xml)
+    return {
+      slidePart,
+      mediaPart,
+      durationMs,
+      advanceMs: durationMs === null ? null : NARRATION_LEAD_IN_MS + durationMs + NARRATION_PADDING_MS,
+      advTmMs: autoAdvanceOf(transitionElementOf(xml)),
+    }
+  })
+}
+
+/** @returns whether the package declares that slide timings drive the show. */
+export function showTimingsEnabled(pkg: OpcPackage): boolean {
+  return pkg.has('ppt/presProps.xml') && /<p:showPr\b[^>]*useTimings="1"/.test(pkg.text('ppt/presProps.xml'))
+}
+
+/** @returns `transition` with its advance attributes replaced by the given timed advance. */
+function withAutoAdvance(transition: string | null, autoAdvanceMs: number): string {
+  const advance = ` advClick="0" advTm="${String(autoAdvanceMs)}"`
+  if (transition === null) return `<p:transition${advance}/>`
+  const cleared = transition.replace(/\s+adv(?:Click|Tm)="[^"]*"/g, '')
+  return cleared.replace(/^<p:transition/, `<p:transition${advance}`)
+}
+
+/** @returns the advance the transition element carries, when it carries one. */
+function autoAdvanceOf(transition: string | null): number | null {
+  const match = /advTm="(\d+)"/.exec(transition ?? '')
+  return match === null ? null : Number(match[1])
+}
+
+/**
+ * @param transition - the slide's original transition element.
+ * @param autoAdvanceMs - the recomputed advance, or null when the audio was unreadable.
+ * @returns the transition to keep: retimed, the untouched original when it already
+ *   advanced on a timer, or null when the slide needs no transition at all.
+ */
+function timedTransition(transition: string | null, autoAdvanceMs: number | null): string | null {
+  if (autoAdvanceMs !== null) return withAutoAdvance(transition, autoAdvanceMs)
+  return autoAdvanceOf(transition) === null ? null : transition
+}
+
+/**
+ * Make the package's slide timings effective.
+ *
+ * The engine's recorded-narration route writes `p:showPr useTimings="1"` in
+ * `presProps.xml`, and the merge rebuilds that part from the base deck. Without the
+ * flag PowerPoint ignores every `advTm`, so a merged narrated deck must restore it.
+ * Idempotent, and a no-op for a deck whose slides never advance on a timer.
+ *
+ * @param pkg - package to update, mutated in place.
+ * @returns true when the show-timings flag had to be written.
+ */
+export function ensureShowTimings(pkg: OpcPackage): boolean {
+  const timed = pkg.names().some((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name) && pkg.text(name).includes('advTm="'))
+  if (!timed) return false
+  const name = 'ppt/presProps.xml'
+  if (!pkg.has(name)) return false
+  const xml = pkg.text(name)
+  if (/<p:showPr\b[^>]*useTimings="1"/.test(xml)) return false
+  if (/<p:showPr\b/.test(xml)) {
+    pkg.setPart(name, xml.replace(/<p:showPr\b/, '<p:showPr useTimings="1"'))
+    return true
+  }
+  const open = /<p:presentationPr\b[^>]*?(\/?)>/.exec(xml)
+  if (open === null) return false
+  const tag = open[0]
+  const inserted = open[1] === '/' ? `${tag.replace(/\/>$/, '>')}<p:showPr useTimings="1"/></p:presentationPr>` : `${tag}<p:showPr useTimings="1"/>`
+  pkg.setPart(name, xml.replace(tag, inserted))
+  return true
+}
 
 /**
  * Renumber duplicate `<p:cNvPr id="…">` values in one slide part.
@@ -298,6 +439,8 @@ export interface PostSlideReport {
   readonly index: number
   readonly slidePart: string
   readonly transition: TransitionEffect | null
+  /** Timed advance in milliseconds this slide received, from its recorded narration. */
+  readonly autoAdvanceMs: number | null
   /** Every shape the timeline targets, whatever the block kind. */
   readonly animatedSpids: readonly number[]
   readonly emphasis: EmphasisEffect | null
@@ -338,14 +481,23 @@ export function applyPost(pkg: OpcPackage, config: PostConfig): PostReport {
 
   for (const [offset, slidePart] of slides.entries()) {
     const index = offset + 1
-    let xml = stripMotion(dedupeShapeIds(pkg.text(slidePart)))
+    const original = dedupeShapeIds(pkg.text(slidePart))
+    const originalTransition = transitionElementOf(original)
+    let xml = stripMotion(original)
     const entry = byIndex.get(index)
+    const autoAdvanceMs = narratedAdvanceMs(pkg, slidePart, original)
+    const recordedAdvance = autoAdvanceOf(originalTransition)
     if (entry === undefined) {
+      const kept = timedTransition(originalTransition, autoAdvanceMs)
+      if (kept !== null) xml = xml.replace('</p:sld>', `${kept}</p:sld>`)
       pkg.setPart(slidePart, xml)
       continue
     }
     if (entry.transition !== undefined && entry.transition !== 'none') {
-      xml = xml.replace('</p:sld>', `${transitionXml(entry.transition, entry.durationMs ?? 400)}</p:sld>`)
+      xml = xml.replace('</p:sld>', `${transitionXml(entry.transition, entry.durationMs ?? 400, autoAdvanceMs ?? recordedAdvance ?? undefined)}</p:sld>`)
+    } else {
+      const kept = timedTransition(originalTransition, autoAdvanceMs)
+      if (kept !== null) xml = xml.replace('</p:sld>', `${kept}</p:sld>`)
     }
     const blocks: MotionBlock[] = []
     const animatedSpids: number[] = []
@@ -381,6 +533,7 @@ export function applyPost(pkg: OpcPackage, config: PostConfig): PostReport {
       index,
       slidePart,
       transition: entry.transition ?? null,
+      autoAdvanceMs: autoAdvanceMs ?? recordedAdvance,
       animatedSpids: [...new Set(animatedSpids)],
       emphasis: entry.emphasis?.effect ?? null,
       path: entry.path?.effect ?? null,
