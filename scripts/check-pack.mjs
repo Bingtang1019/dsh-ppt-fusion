@@ -74,7 +74,7 @@ if (problems.length === 0) {
   const forbidden = [
     { rule: /(^|\/)fixtures\//i, reason: 'deck fixtures never ship' },
     { rule: /\.(pptx|ppt|potx|ppsx|thmx|pdf|mp3|mp4|mov|webm|m4a|wav)$/i, reason: 'deck/media artifacts never ship' },
-    { rule: /design-profile|ref-profile/i, reason: 'local design profiles never ship' },
+    { rule: /(^|\/)(design|ref)-profile\.json$/i, reason: 'local design profiles never ship' },
   ]
   for (const path of names) {
     for (const { rule, reason } of forbidden) {

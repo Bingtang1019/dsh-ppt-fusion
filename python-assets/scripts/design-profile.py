@@ -363,7 +363,7 @@ def main(argv: list[str]) -> int:
     profile = extract(source, parse_roles(options.roles))
     output = Path(options.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(profile, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(json.dumps(profile, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     copied = copy_media(source, Path(options.copy_media)) if options.copy_media else 0
     print(json.dumps({"output": str(output), "mediaCopied": copied}, ensure_ascii=False))
     return 0
