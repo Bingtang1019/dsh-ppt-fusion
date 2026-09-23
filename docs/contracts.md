@@ -374,9 +374,16 @@ recurse into `ppt/embeddings/*` (ADR-017).
   into the project as `notes/<roster-stem>.md`, which is the roster the exporter embeds as
   speaker notes (`--with-notes`) and `notes-to-audio` narrates. Audio files under
   `<deck>/narration/` are copied into the project and passed to the exporter as
-  `--recorded-narration narration --use-narration-timings`, so the published deck carries the
-  audio (matched by SVG stem) plus auto-advance timings. The timings step reads durations with
-  **ffprobe**, so any machine or CI leg that renders narration needs ffmpeg (ADR-043).
+  `--recorded-narration narration --use-narration-timings`. The exporter measures the audio
+  with **ffprobe** and writes `advTm = lead-in + duration + padding` (its 0.4 s start floor
+  and 0.5 s padding). Post replaces that host-measured number: it sums the embedded MPEG
+  frames itself (`bridge/audio.ts`) and re-applies the same policy, so the delivered deck is
+  deterministic and needs no probe; a slide whose audio cannot be measured keeps the
+  exporter's `advTm`. Because the merge rebuilds `presProps.xml` from the base deck, the post
+  pass also restores `<p:showPr useTimings="1"/>` whenever a slide carries `advTm`, and
+  `out/manifest.json` records `showTimings`. Rendering narration still needs ffmpeg for the
+  exporter's own deep package (ADR-043), but the merged artifact's number no longer depends
+  on it (ADR-060).
 - **Recorded data.** `render` writes its post report into `out/manifest.json` (`post`), so a
   published deck records which shapes were animated. `dsh-ppt post animate` re-applies the
   configuration to a published package, re-runs the compat pass and refreshes

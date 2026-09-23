@@ -172,7 +172,9 @@ leaves `out/` untouched and the workspace diagnosable. `--out` resolves against 
 When the manifest declares `post.animations`, the post pass applies that configuration after
 the merge (transitions and entrances from one place, stripping whatever the engines wrote),
 records what it applied in `out/manifest.json`, and fails the render if a selector matches no
-shape.
+shape. A deck with recorded narration gets its narration auto-advance recomputed from the
+embedded audio bytes (no host probe) and, when a slide carries `advTm`, the package regains
+`p:showPr useTimings="1"`; `out/manifest.json` records `showTimings`.
 
 The compatibility pass runs after the post pass and before the structural gates: it scans the
 merged package against `src/compat/registry.json`, applies only the downgrades the registry

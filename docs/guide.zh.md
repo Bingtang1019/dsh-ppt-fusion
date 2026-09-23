@@ -132,6 +132,10 @@ dsh-ppt narrate hello -o narration      # 默认 edge-tts，无需 key
 dsh-ppt render hello                    # 自动嵌入 <deck>/narration/*.mp3 并设 auto-advance
 ```
 
+旁白页的自动翻页由 render 后处理**从内嵌音频字节重算**（`advTm = 引擎 0.4s lead-in + MPEG 帧时长 +
+0.5s padding`），同一份音频在任何机器上得到同一个数，不依赖主机 ffprobe；合并后会自动补回
+`p:showPr useTimings="1"`，`out/manifest.json` 的 `showTimings` 记录这次是否启用（ADR-060）。
+
 动效配置在 `hello/post/animations.json`：支持 `transition` 与 `entrance`/`emphasis`/`path`
 （顺序 entrance → emphasis → path）；选择器匹配不到是硬失败，不是 no-op。只改动效：
 

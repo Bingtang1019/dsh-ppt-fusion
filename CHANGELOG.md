@@ -18,6 +18,9 @@
 - **SKILL 升级**：Phase 3 改为"大纲 → 分镜 → BLOCKING 规划确认"（chrome 在 Phase 3 一次声明），Phase 4 按
   role 模板作者；checkpoint 增 `storyboard` 引用，`resume` 校验它；`skill audit` 预算不变（0 error，
   109,751/120,000 tokens）。
+- **旁白自动翻页**（Q5，ADR-060）：post 从 deck 内嵌音频字节**重算**每页 `advTm`（MPEG 帧时长 + 引擎自身的
+  0.4s lead-in / 0.5s padding），不再依赖主机 ffprobe；merge 之后恢复 `p:showPr useTimings="1"`；音频无法
+  解析时保留引擎写入的 `advTm`。narrated 黄金重录为 **fixtureVersion 7**，`fixtures:verify` 增加 S23 断言。
 
 ### 变更
 

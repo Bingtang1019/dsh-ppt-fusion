@@ -65,10 +65,14 @@ the ADR wins.**
 | 052 | M8 matrices: six theme menus, pixel ΔE gate, 60-page capacity probe |
 | 053 | Upstream drill: no newer patch exists; drift detection is the rehearsal |
 | 054 | V5 sync: plan, README, architecture, acceptance-report, docs index |
+| 054b | Public identity: @dsh-ppt/dsh-ppt-flashmade on GitHub under Bingtang1019 |
 | 055 | First CI run: platform threading in the venv manager, host-measured `advTm` normalised |
 | 056 | Published name is the unscoped `dsh-ppt-flashmade` (2FA-gated publish) |
 | 057 | Preview tool renders inside the deck and copies into the store (0.1.1) |
 | 058 | Deck-level chrome pass: native page-number field, footer/section, signature strip (0.1.2) |
+| 059 | Storyboard roles, the theme-menu allow-matrix and measured content budgets (v0.2 Q2) |
+| 060 | Narration auto-advance recomputed from embedded audio; `useTimings` restored after merge (Q5) |
+| 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
 
 ---
 
@@ -1677,3 +1681,65 @@ the ADR wins.**
   menu the deck renders with); keeping a second role mapping inside the storyboard module (the
   chrome skip rule and the storyboard would drift apart); leaving `unconfirmed` legal (the gate would
   approve an unplanned deck).
+
+## ADR-060 — Narration auto-advance is recomputed from the embedded audio (V6 Q5)
+
+- **Date:** 2026-09-23
+- **Context:** ADR-055 recorded the known gap: `bridge/post.ts` is the single motion
+  owner and rewrote every slide's transitions and timings, which dropped the exporter's
+  `advTm`; the merge also rebuilds `ppt/presProps.xml` from the base deck, so the
+  exporter's `p:showPr useTimings="1"` never survived either. The pinned 0.1.128 builder
+  writes `advTm = narration_lead_in + ffprobe_duration + narration_padding` (0.4 s start
+  floor + 0.5 s padding, read from its `svg_to_pptx` source).
+- **Decision:** post recomputes each narrated slide's advance from the audio bytes already
+  in the package. `src/bridge/audio.ts` sums MPEG frame durations (ID3v2/ID3v1 aware,
+  constant and variable bitrate) and post adds the exporter's own policy
+  (`NARRATION_LEAD_IN_MS = 400`, `NARRATION_PADDING_MS = 500`). No `ffprobe`, host or
+  network is involved, so the same bytes always produce the same `advTm`. A slide whose
+  audio cannot be measured keeps the recorded `advTm` instead of losing it, and a
+  configured transition keeps its effect while receiving the recomputed advance.
+  `ensureShowTimings` re-applies `useTimings="1"` after the post pass, but only when a
+  slide actually carries `advTm`, so non-narrated decks keep byte-level parity;
+  `out/manifest.json` records `showTimings`. The S23 gate in `tests/fixtures-verify.ts`
+  checks both halves on the fresh merged package.
+- **Deviation from the plan's wording (v7.2 §A2 and §6 S23).** The plan's acceptance says
+  `advTm ≈ 音频时长（±0.1s）`. The pinned exporter's own `advTm` is not the audio duration:
+  it adds its 0.4 s lead-in + 0.5 s padding (measured on both hello narrations — audio
+  15.600 s / 13.704 s, exporter `advTm` 16 500 / 14 600). The gate therefore asserts
+  `advTm = lead-in + frame-sum duration + padding` within ±0.1 s of the recompute, the
+  same relation the exporter applies; asserting "advTm equals the audio duration" would
+  fail the exporter's own deep package. Recorded here because the plan is the authority
+  and the next revision (v8) adopts this wording.
+- **Evidence:** `mp3DurationMs` reproduces the committed narration exactly (15 600 ms and
+  13 704 ms); the post unit tests cover recompute, preserve-on-unreadable-audio,
+  config-override and idempotent `useTimings`; `fixtures/hello` re-records as
+  **fixtureVersion 7** with merged slides 3–4 carrying `advTm="16500"` / `"14604"` and
+  `presProps` `useTimings="1"`; `fixtures:verify` prints the S23 line; CI is green on both
+  platforms.
+- **Alternatives rejected:** preserving the exporter's `ffprobe` number (host-measured —
+  exactly the drift ADR-055 had to normalise away); probing again during render (same
+  drift); a sidecar duration list (a second source of truth beside the audio bytes);
+  hardcoding `duration + 900` without reading the bytes (breaks on VBR and ID3 framing).
+
+## ADR-063 — The flaky CLI-surface test: one module import under a 30 s hook (V7 A0)
+
+- **Date:** 2026-09-23
+- **Finding:** the V7.2 snapshot recorded one failure in 378 tests —
+  `src/cli.test.ts > CLI surface > offers --json on every leaf command except version`,
+  "Test timed out in 5000ms" — with an immediate green re-run. Reproduced here in the second of
+  six consecutive full-suite runs (the other five green), so it is a load-dependent flake rather
+  than a one-off.
+- **Cause:** each of the three `CLI surface` tests awaited its own `import('./cli.ts')`. The first
+  import pulls the whole CLI module graph (commander, zod, every command module, the bridges) inside
+  vitest's 5 s default `testTimeout`; under parallel workers the transform/compile of that graph
+  intermittently exceeds it. The failure lands on whichever test pays the first import, which is
+  why a test that normally takes ~1.5 s can time out.
+- **Decision:** load the program once in a `beforeAll` with an explicit `30_000` ms hook timeout and
+  make the three assertions synchronous, so the expensive import has real headroom and runs once per
+  file. Numbers 060–062 stay reserved by V7.2 for A2/B1/B4 and 064 for B5.5.
+- **Evidence:** six consecutive full-suite runs after the change are green (378 tests / 46 files);
+  `typecheck` 0; `src/cli.test.ts` alone is 3/3 in 4.1 s.
+- **Alternatives rejected:** `retry: 1` (masks the same flake in CI and everywhere else) and raising
+  the global `testTimeout` (would hide genuine hangs in unrelated tests).
+- **Doc debt closed in the same work package:** the index gains row 059 (V6 WP2 Q2) and row `054b`
+  for the second ADR-054 (public identity); both historical bodies stay untouched.
