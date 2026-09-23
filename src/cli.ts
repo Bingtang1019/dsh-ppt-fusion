@@ -17,6 +17,8 @@ import { auditDeck } from './commands/audit.ts'
 import { formatSkillAuditReport, runSkillAudit } from './commands/skill.ts'
 import { brandExtract } from './commands/brand.ts'
 import { extractDesignProfile, formatDesignProfile } from './commands/design.ts'
+import { copyAsset, discoverOfficeAssets, formatAssetCopy, formatAssetsList, formatOfficeDiscovery, listAssets } from './commands/assets.ts'
+import { ASSET_FORMATS, OFFICE_CATEGORIES } from './schema/assets.ts'
 import { deepNativeRoundtrip } from './commands/roundtrip.ts'
 import { deepTemplateApply, deepTemplateCreate, templateRegister } from './commands/template.ts'
 import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
@@ -50,6 +52,17 @@ function readVersion(): string {
 /** Print a JSON document to stdout with a trailing newline. */
 function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`)
+}
+
+/**
+ * @param value - `--source` as given on the command line.
+ * @param command - subcommand name for the error message.
+ * @returns the validated library source.
+ * @throws DshPptFailure `UsageError` for anything but `office` or `user`.
+ */
+function assetSource(value: string, command: string): 'office' | 'user' {
+  if (value === 'office' || value === 'user') return value
+  throw new DshPptFailure('UsageError', `assets ${command} --source must be office or user, got "${value}"`, { detail: { source: value } })
 }
 
 /**
@@ -468,6 +481,73 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (options.json === true) printJson(result)
       else process.stdout.write(`${formatImagesSearch(result)}\n`)
+    })
+
+  const assets = program.command('assets').description('discover and copy the local asset libraries (office built-in, user supplied)')
+  assets
+    .command('discover')
+    .description('probe the local Office/WPS asset roots and write office-assets.json')
+    .requiredOption('--source <source>', 'library to discover (office)')
+    .option('--dir <dir>', 'directory a relative --output resolves against', '.')
+    .option('-o, --output <file>', 'record path; defaults to $DSH_HOME/ppt-fusion/assets/office-assets.json')
+    .option('--json', 'print the record as JSON')
+    .action((options: { source: string; dir: string; output?: string; json?: boolean }) => {
+      if (options.source !== 'office') {
+        throw new DshPptFailure('UsageError', `--source must be office, got "${options.source}"`, { detail: { source: options.source } })
+      }
+      const result = discoverOfficeAssets({
+        dir: options.dir,
+        deps,
+        ...(options.output === undefined ? {} : { output: options.output }),
+      })
+      if (options.json === true) printJson({ recordFile: result.recordFile, record: result.record })
+      else process.stdout.write(`${formatOfficeDiscovery(result)}\n`)
+    })
+  assets
+    .command('list')
+    .description('list assets from the office discovery record or the user libraries')
+    .requiredOption('--source <source>', 'library to list (office|user)')
+    .option('--dir <dir>', 'deck workspace the paths resolve against', '.')
+    .option('--record <file>', 'office discovery record override')
+    .addOption(new Option('--category <category>', 'office category filter').choices([...OFFICE_CATEGORIES]))
+    .addOption(new Option('--format <format>', 'format filter').choices([...ASSET_FORMATS]))
+    .option('--json', 'print the result as JSON')
+    .action((options: { source: string; dir: string; record?: string; category?: string; format?: string; json?: boolean }) => {
+      const result = listAssets({
+        source: assetSource(options.source, 'list'),
+        dir: options.dir,
+        deps,
+        ...(options.record === undefined ? {} : { record: options.record }),
+        ...(options.category === undefined ? {} : { category: options.category as (typeof OFFICE_CATEGORIES)[number] }),
+        ...(options.format === undefined ? {} : { format: options.format as (typeof ASSET_FORMATS)[number] }),
+      })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatAssetsList(result)}\n`)
+    })
+  assets
+    .command('copy')
+    .description('copy one library asset into the deck')
+    .argument('<id>', 'asset id, as `assets list` prints it')
+    .requiredOption('--source <source>', 'library to copy from (office|user)')
+    .option('--dir <dir>', 'deck workspace the copy lands in', '.')
+    .option('-o, --output <dir>', 'target directory inside the deck', 'assets')
+    .option('--as <file>', 'target file name; defaults to <id>.<format>')
+    .option('--force', 'replace an existing file with different bytes')
+    .option('--record <file>', 'office discovery record override')
+    .option('--json', 'print the result as JSON')
+    .action((id: string, options: { source: string; dir: string; output: string; as?: string; force?: boolean; record?: string; json?: boolean }) => {
+      const result = copyAsset({
+        id,
+        source: assetSource(options.source, 'copy'),
+        dir: options.dir,
+        output: options.output,
+        deps,
+        ...(options.as === undefined ? {} : { as: options.as }),
+        ...(options.force === true ? { force: true } : {}),
+        ...(options.record === undefined ? {} : { record: options.record }),
+      })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatAssetCopy(result)}\n`)
     })
 
   const brand = program.command('brand').description('read a customer deck brand into a theme')
