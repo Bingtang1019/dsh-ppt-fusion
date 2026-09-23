@@ -28,6 +28,7 @@
   `render` 默认要求 storyboard，`--no-storyboard` 仅调试用。
 - `init` 先物化主题再写 storyboard，因此骨架页直接使用主题菜单的合法版式，"init 即通过 validate" 不回退。
 - role 判定统一到 `chromeRoleFor(type, kind)`，chrome 跳过规则、storyboard 要求与 audit 共用同一映射。
+- `deep check|chart` 与 `serve` 从 Planned 表**删除**（本版不实现；ADR-065），CLI 只教已实现的命令面。
 
 ## v0.1.2 — 2026-09-23
 

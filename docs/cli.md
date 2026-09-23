@@ -338,8 +338,9 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 
 | Command | Milestone |
 |---|---|
-| `deep check|chart` | M3/M5 |
-| `serve` | M5 |
+| — | — |
 
-Options are registered with commander in `src/commands/*.ts`; a change to a documented
-option is an ADR, because the skill teaches the surface.
+`deep check|chart` and `serve` were dropped in v0.2.0 rather than carried indefinitely:
+neither is on a release path and the CLI must not advertise a surface no milestone owns
+(ADR-065, CHANGELOG v0.2.0). Options are registered with commander in `src/commands/*.ts`;
+a change to a documented option is an ADR, because the skill teaches the surface.

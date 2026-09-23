@@ -73,6 +73,7 @@ the ADR wins.**
 | 059 | Storyboard roles, the theme-menu allow-matrix and measured content budgets (v0.2 Q2) |
 | 060 | Narration auto-advance recomputed from embedded audio; `useTimings` restored after merge (Q5) |
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
+| 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 
 ---
 
@@ -1720,6 +1721,26 @@ the ADR wins.**
   exactly the drift ADR-055 had to normalise away); probing again during render (same
   drift); a sidecar duration list (a second source of truth beside the audio bytes);
   hardcoding `duration + 900` without reading the bytes (breaks on VBR and ID3 framing).
+
+## ADR-065 — `serve` and `deep check|chart` are dropped, not carried (V7 A3)
+
+- **Date:** 2026-09-23
+- **Context:** `docs/cli.md` listed `serve` (M5) and `deep check|chart` (M3/M5) as
+  Planned since v1. Neither command was implemented, no current release path owns them,
+  and the plan's V7.2 §A3 asks for a decision at v0.2.0 close: implement them or remove
+  them from the planned surface.
+- **Decision:** remove both from the planned table. `dsh-ppt` teaches only implemented
+  commands, and `docs/cli.md` now says so explicitly; the CHANGELOG v0.2.0 change list
+  records the removal. Re-adding either requires a milestone that needs it and its own
+  ADR, exactly like any other documented surface change.
+- **Evidence:** `docs/cli.md`'s `## Planned` table carries no rows; the CLI test that
+  lists the taught surface (documented groups) stays green; no source registers either
+  command.
+- **Alternatives rejected:** implementing `serve` as a thin wrapper over `preview --html`
+  (a second viewer surface with no owner for its lifecycle, auth or port policy) and
+  `deep check|chart` as aliases of `deep render`'s internal steps (the underlying checks
+  already run inside the four-step gate, so the aliases would only add a second way to
+  report the same facts).
 
 ## ADR-063 — The flaky CLI-surface test: one module import under a 30 s hook (V7 A0)
 
