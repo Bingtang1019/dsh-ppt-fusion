@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## v0.2.0 — 未发布（V6 WP2）
+
+规划与一致性层：先分镜（storyboard）→ 每页 role/版式/预算 → 生成前机械自检（ADR-059）。
+
+### 新增
+
+- **`deck.storyboard.json` 契约**：每页声明 `role`（`content` 页按 IR `kind` 细分为 `data`/`quote`）、
+  `layout`、`route`、页码参与、`budget` 与 `source`；`init` 写骨架、`plan` 起草草稿（draft 携带
+  manifest + storyboard）、`plan --confirm` 同时落两份文件。
+- **role→layout 允许矩阵**：`layout` 用 `"<主题>:<版式脸>"` 指向绑定主题菜单；`validate` 拒绝跨主题
+  引用（ADR-052 不允许跨菜单重绑）、菜单里不存在的脸、以及脸所在槽位与 role 不匹配（`data`→数据类、
+  `quote`→引用类）。
+- **内容预算**：各 role 首版默认 `maxWords/maxItems/maxCharts/maxTables/maxImages`，页面可逐字段覆盖；
+  pptwise 页按 IR 文本/组件实测、deep 页按 SVG 文本与 `data-pptx-replace-with` marker 实测，超限报
+  `budget-exceeded`（page/role/实测/上限）。
+
+### 变更
+
+- `validate` 新增 `storyboard` 源（存在/覆盖/与 manifest 的 role·route·页码一致、版式合法、预算守门）；
+  `render` 默认要求 storyboard，`--no-storyboard` 仅调试用。
+- `init` 先物化主题再写 storyboard，因此骨架页直接使用主题菜单的合法版式，"init 即通过 validate" 不回退。
+- role 判定统一到 `chromeRoleFor(type, kind)`，chrome 跳过规则、storyboard 要求与 audit 共用同一映射。
+
 ## v0.1.2 — 2026-09-23
 
 V6 WP1：deck 级 chrome 契约。页码不再"哪个版式自带就有"，而是由 `deck.fusion.json` 声明、由 render

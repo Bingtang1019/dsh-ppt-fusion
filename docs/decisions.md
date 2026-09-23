@@ -1632,3 +1632,48 @@ the ADR wins.**
   (the engines use generic names); leaving layout chrome in place and adding nothing (the reported
   defect); teaching each engine to emit chrome (deep pages are SVG-authored and would need the same
   logic twice).
+
+## ADR-059 — Storyboard roles, the theme-menu allow-matrix and measured content budgets (V6 WP2 Q2)
+
+- **Date:** 2026-09-23
+- **Context:** Q1 made `deck.storyboard.json` mandatory and had `validate` prove its existence,
+  coverage and agreement with the manifest. Plan §4.2/§4.3 make two further promises mechanical:
+  every `layout` must come from the bound theme's menu and be legal for the page's `role`, and every
+  page's measured content must fit its `budget`. Without them the planning gate approved any file
+  whose shape looked right.
+- **Decision:** One role definition serves both contracts. `chromeRoleFor(slideType, slideKind)` in
+  `schema/fusion.ts` maps a content slide's `kind` (`data`/`evidence`/`fact`/`stat`/`chart`/`table`/
+  `kpi`/`metric` → `data`, `statement`/`quote` → `quote`) and everything else through the v0.1.2
+  type mapping; `storyboardRoleFor` delegates to it, and render, audit and `chromeFindings` now pass
+  `kind` as well, so the storyboard role requirement, the chrome skip rule and the audit cannot
+  disagree. Layout ids are `"<themeId>:<face>"` (a bare face pins implicitly to the bound theme);
+  `validate` reads the materialised theme file's `menu` (`layoutMenuPaths` understands the measured
+  `cover`/`chapter`/`ending`/`content.<kind>` shape and ignores unknown ones) and rejects a foreign
+  theme pin (`ADR-052` cross-menu rebinding), an unregistered face and a face whose menu slot the
+  role may not use (`ROLE_LAYOUT_MENU`: `data` → `content.data|fact|evidence`, `quote` →
+  `content.statement`, `content` → any `content.*`). Budgets live in `DEFAULT_BUDGETS` per role and a
+  page's own `budget` overrides them field by field; `schema/budget.ts` measures pptwise pages from
+  their IR slide (known text keys and item arrays; chart/table/image components by type; payload
+  labels such as series names and axis categories are native-object data, not narrative copy) and
+  deep pages from their SVG (`<text>` contents, `data-pptx-replace-with` markers, `<image>`);
+  over-budget pages fail as `budget-exceeded` with `page/role/measured/limit`. Thresholds are a
+  first version: Q4 re-measures them against the three eval scenarios and records any change in an
+  ADR.
+- **Skeleton and defaults.** When a theme file is readable, `init` materialises the theme first and
+  fills every skeleton page with the first face its role may use, so `init` still leaves a deck that
+  validates; `plan` does the same for an existing workspace. `unconfirmed` remains the placeholder
+  for a workspace with no readable theme (a brand-new draft); `validate` reports it as an
+  unregistered face, which is the honest message for "this page was never planned".
+- **Evidence.** `validate` on the `hello` fixture is green across 6 gates (manifest, ir, storyboard,
+  deep, theme, palette); probes show `storyboard-layout: layout "brief:nope" is not in the "brief"
+  menu` and `page 2 (content): words measured 19, maxWords limit 5`; `pnpm test` is 375 tests / 46
+  files, `typecheck`/`lint` 0; `matrix:verify` 6/6 equal and `fixtures:verify` fixtureVersion 6 green
+  without re-recording (chrome artifacts do not depend on the storyboard's role field);
+  `fixtures/hello` pages 3–4 declare `role: data` for their `kind: data|evidence`.
+- **Alternatives rejected:** validating faces through `pptwise layouts --json` alone (its
+  `slideTypes` are only `cover`/`chapter`/`content`/`ending`, which cannot separate a data page from
+  prose, and it says nothing about which menu the bound theme owns); baking the 24 preset menus into
+  a checked-in catalog (drifts from upstream, while `theme ensure` already materialises the exact
+  menu the deck renders with); keeping a second role mapping inside the storyboard module (the
+  chrome skip rule and the storyboard would drift apart); leaving `unconfirmed` legal (the gate would
+  approve an unplanned deck).

@@ -97,6 +97,32 @@ dsh-ppt preview hello --html        # 标准页走 pptwise，deep 页用作者 S
 - 门禁：`dsh-ppt validate` 查契约完备（section 未声明、logo 文件缺失、全跳过），
   `dsh-ppt audit` 查覆盖/几何/文案/logo/剥离（error）与重叠（warning；`--strict` 时 warning 也红）。
 
+## 3.6 storyboard 与内容预算（v0.2）
+
+每份 deck 从 v0.2 起必须带 `deck.storyboard.json`：每页声明 `role`、`layout`、`route`、页码参与、
+内容预算与来源。`init` / `plan` 会从**绑定主题的菜单**里为每页填首个合法版式，`plan --confirm`
+落两份文件；模型/作者按页调整：
+
+```jsonc
+{
+  "index": 3,
+  "role": "data",                       // content 页按 IR kind 细分：data / quote
+  "layout": "brief:gauge-stats",        // "<主题>:<版式脸>"，必须在该主题菜单的对应槽位
+  "route": "ppt-master",
+  "chrome": { "pageNumber": "show" },
+  "budget": { "maxCharts": 1, "maxWords": 30 },
+  "source": "deep/p03-native-chart"
+}
+```
+
+- `validate` 硬门：storyboard 存在且覆盖每页、与 manifest 的 role/route/页码一致、`layout` 属于绑定
+  主题菜单且与其 `role` 匹配（`data`→数据类槽位、`quote`→引用槽位），页面实测内容不超预算。
+- 预算：`maxWords/maxItems/maxCharts/maxTables/maxImages`，未写字段用各 role 默认值；pptwise 页按 IR
+  文本与组件统计，deep 页按 SVG 文本与原生对象 marker 统计；超限报 `budget-exceeded`，消息含
+  页码/role/实测/上限。
+- 换主题必须重走一遍 storyboard：pptwise 拒绝跨菜单重绑（ADR-052），跨主题的 `layout` 会被
+  `storyboard-layout` 拦下。
+
 ## 4. 旁白与动画
 
 旁白文本写在每页 `deep/<page>/notes.md`；`narrate` 会按导出 stem 组成 notes roster：

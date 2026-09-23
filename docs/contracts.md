@@ -583,3 +583,35 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   background shapes are excluded). `--strict` reds the warning.
 - **Fixture.** `fixtures/hello` declares a footer and a section on page 3; the golden package is
   `fixtureVersion 6` and the theme matrix snapshots carry the chrome source.
+
+## 18. Storyboard contract (V6 WP2, ADR-059)
+
+- **Declaration.** Every deck carries `deck.storyboard.json`: `{ version: 1, pages: [...] }`, one
+  entry per manifest page with `index`, `role`, `layout`, `route`, optional `chrome.pageNumber`
+  (`show`/`skip`), an optional `budget` and an optional `source`. Unknown fields are rejected.
+- **Roles.** The IR slide's `type` maps onto `cover`/`section`/`content`/`data`/`quote`/`ending`; a
+  `content` slide's `kind` decides `data` (data/evidence/fact/stat/chart/table/kpi/metric numbers) or
+  `quote` (statement/quote). `chromeRoleFor(type, kind)` in `schema/fusion.ts` is the single mapping,
+  used by the storyboard requirement, the chrome skip rule and the audit.
+- **Layout ids.** `"<themeId>:<face>"`, for example `brief:gauge-stats`; a bare face is pinned
+  implicitly to the deck's bound theme. The theme pin must equal the bound theme's `id` because
+  pptwise refuses cross-menu rebinding (ADR-052) — changing the theme means re-planning the
+  storyboard.
+- **Allow-matrix.** A face is legal when the theme's `menu` advertises it under a slot the page's
+  role may use: `cover`→`cover`, `section`→`chapter`, `ending`→`ending`, `content`→any
+  `content.<kind>`, `data`→`content.data|fact|evidence`, `quote`→`content.statement`
+  (`ROLE_LAYOUT_MENU`). The menu reader tolerates unknown shapes instead of trusting them.
+- **Budgets.** `DEFAULT_BUDGETS` maps each role onto `maxWords/maxItems/maxCharts/maxTables/
+  maxImages` ceilings; a page's own `budget` overrides them field by field. pptwise pages are
+  measured from their IR slide (known text keys and item arrays, chart/table/image components by
+  type; native payload labels do not count as words), deep pages from their SVG (`<text>` contents,
+  `data-pptx-replace-with` markers and `<image>`). A page over budget fails as `budget-exceeded`
+  with `page/role/measured/limit`. The first-version thresholds are calibrated against the eval
+  scenarios in V6 Q4.
+- **Skeleton.** With a readable theme file, `init` and `plan` fill each page from the first menu face
+  its role may use, so a fresh workspace validates; without one the layout stays `unconfirmed`,
+  which `validate` reports as an unregistered face.
+- **Gate.** `validate`'s `storyboard` source checks existence, page coverage, role/route/chrome
+  agreement with the manifest, layout legality against the bound menu and every page's budget.
+  `render` requires the storyboard by default; `--no-storyboard` drops those findings for debugging
+  only.

@@ -77,25 +77,33 @@ row stays visible on purpose.
 ### `dsh-ppt init <dir> [--theme <preset>]`
 
 Creates a deck workspace that already validates: `deck.ir.json` (cover + ending),
-`deck.fusion.json`, then `theme ensure` for the bound preset. Refuses to overwrite an
-existing manifest.
+`deck.fusion.json`, `deck.storyboard.json`, then `theme ensure` for the bound preset. Refuses
+to overwrite an existing manifest. The storyboard is written after the theme is materialised,
+so each skeleton page gets the first layout its role may use in that theme's menu (V6 WP2).
 
 ### `dsh-ppt plan <dir> [--from <file...>] [--confirm]`
 
-Writes `deck.fusion.draft.json`: a schema-valid manifest skeleton plus the list of
-fields a model still has to decide (`theme.preset`, `name`, `pages[].route`). With
-`--from` it outlines one content page per `##` heading and infers a `data` kind for
-numeric headings. `--confirm` copies the draft into `deck.fusion.json`.
+Writes `deck.fusion.draft.json`: a schema-valid manifest skeleton plus the storyboard and the
+list of fields a model still has to decide (`theme.preset`, `name`, `pages[].route`,
+`storyboard`). With `--from` it outlines one content page per `##` heading and infers a `data`
+kind for numeric headings. When the workspace already has a readable theme, the draft's
+storyboard layouts are filled from that theme's menu; otherwise they stay `unconfirmed` until
+the model fills them from `pptwise layouts`. The storyboard carries `role`, `layout`, `route`,
+`chrome` and `budget` per page, and `plan --confirm` writes both `deck.fusion.json` and
+`deck.storyboard.json`.
 
 ### `dsh-ppt validate <dir> [--json]`
 
 Gates, in order: `manifest` (schema, with per-field messages), `ir` (page coverage and
-`placeholder: true` on every deep page), `deep` (each deep page directory holds
-`page.svg`), `post` (`post.animations` exists), `theme` (theme file matches the binding
-and `tokens.json` is in sync), `palette` (warning: a deep page paints a literal outside
-the deck palette), `chrome` (a declared `section` without `chrome.section`, a missing
-`chrome.logo.file`, and — as a warning — a contract that skips every page). Exit 1 when any
-error is present.
+`placeholder: true` on every deep page), `storyboard` (the file exists, covers every page,
+agrees with the manifest on role/route/page number, every `layout` is a face of the bound
+theme's menu under a slot its `role` may use, and every page stays inside its budget), `deep`
+(each deep page directory holds `page.svg`), `post` (`post.animations` exists), `theme` (theme
+file matches the binding and `tokens.json` is in sync), `palette` (warning: a deep page paints
+a literal outside the deck palette), `chrome` (a declared `section` without `chrome.section`, a
+missing `chrome.logo.file`, and — as a warning — a contract that skips every page). Exit 1 when
+any error is present. Layout and budget problems report as `storyboard-layout` and
+`budget-exceeded`.
 
 ### `dsh-ppt theme ensure <dir> [--json]`
 
@@ -146,13 +154,17 @@ exporter's report and its `[POSTFLIGHT]` receipt.
 
 ## Implemented (M4)
 
-### `dsh-ppt render <dir> [-o <out>] [--compat <level>]`
+### `dsh-ppt render <dir> [-o <out>] [--compat <level>] [--no-storyboard]`
 
 Renders the whole deck in one pass: pptwise `render --draft` for the standard pages (deep
 pages are placeholders in the IR) → `deep render` for the deep pages → slide-level merge
 with layout remap and the single-master invariant → OPC and delivery gates → atomic
 publish to `out/<name>.pptx` plus `out/manifest.json` (sha256, slide count, exporter
 receipts, merge report, staged artifacts).
+
+Render refuses a deck whose `validate` reports errors, including the storyboard gates
+(`storyboard-layout`, `budget-exceeded`); `--no-storyboard` drops the `storyboard` findings
+and exists for debugging only (plan §4.1).
 
 Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
 leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.
