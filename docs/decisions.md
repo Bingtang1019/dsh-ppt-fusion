@@ -66,6 +66,7 @@ the ADR wins.**
 | 053 | Upstream drill: no newer patch exists; drift detection is the rehearsal |
 | 054 | V5 sync: plan, README, architecture, acceptance-report, docs index |
 | 055 | First CI run: platform threading in the venv manager, host-measured `advTm` normalised |
+| 056 | Published name is the unscoped `dsh-ppt-flashmade` (2FA-gated publish) |
 
 ---
 
@@ -1539,3 +1540,30 @@ the ADR wins.**
   `CreateProcess` does not execute `.cmd`/`.bat`, so it would need a compiled launcher committed
   to the repository); removing narration from the golden deck (loses the embedding coverage that
   the audio parts and media hashes carry).
+
+## ADR-056 — Published name: unscoped `dsh-ppt-flashmade`
+
+- **Date:** 2026-09-23
+- **Decision:** The npm release is published **unscoped** as `dsh-ppt-flashmade`, which supersedes
+  ADR-054's published name `@dsh-ppt/dsh-ppt-flashmade`: the account (`bingtang1019`) does not own
+  the `@dsh-ppt` scope on npmjs.com, and creating a scope for one package would add a second public
+  identity for no functional gain. The repository (`github.com/Bingtang1019/dsh-ppt-fusion`), the
+  plugin bundle id, the skill name (`dsh-ppt-fusion`) and the CLI (`dsh-ppt`) are unchanged; the DSH
+  plugin card label reads `dsh-ppt-flashmade` under either name.
+- **Registry-facing surfaces renamed:** `package.json` `name`, `cordis.patch.yml`'s bundle row,
+  `dsh/client.js`'s module id, and the install / README / guide / release / architecture /
+  acceptance-report references. Historical ADR text (ADR-050's evidence, ADR-054) stays as written;
+  this entry is the current authority for the published name.
+- **Evidence (registry half pending the OTP):** the tarball is rebuilt as
+  `dsh-ppt-flashmade-0.1.0.tgz` (shasum `f83ef4eb8d2d7c5c255c5ad18f3678d73d5501d8`, 81 files /
+  661,948 B); the real `web` profile carries exactly one `dsh-ppt-flashmade` dependency and bundle
+  row after remove + add, and `--dump-config` composes its layer (id `dsh-ppt-fusion`). The registry
+  publish needs the interactive OTP recorded below; once done, this bullet gains the
+  `npm view dsh-ppt-flashmade version dist.tarball` output and the `ppt-eval` scratch-profile
+  install of the published version.
+- **Publish gate recorded:** the account has 2FA enabled, so CLI publishing needs an interactive
+  one-time password (`--otp`) or a granular access token with bypass-2FA; the attempt without
+  either failed `E403`.
+- **Alternatives rejected:** creating an npm org for the scope (a second public identity for one
+  package); documenting the scoped name while publishing unscoped (the docs must name what
+  `dsh plugin add -w` actually resolves).

@@ -8,7 +8,7 @@ the row.
 
 | # | scenario | evidence | status |
 |---|---|---|---|
-| S1 | install as a plugin, no environment tinkering | scratch profile `~/.dsh/profiles/ppt-eval`: `dsh plugin --profile ppt-eval add -w link:<checkout>` (dependency + bundle entry), `--dump-config` shows the `# == @dsh-ppt/dsh-ppt-flashmade` layer, boot on port 3098 logs no plugin error, `GET /dsh-ppt/preview/*` answers with `x-dsh-ppt-preview: 1`, `remove -w` leaves no residue (ADR-050); `dsh-ppt doctor` eight rows green (M1, ADR-020/024) | verified; **browser card user-confirmed 2026-09-22** (M9 prep); real `web`-profile re-check rides the M9 install |
+| S1 | install as a plugin, no environment tinkering | scratch profile `~/.dsh/profiles/ppt-eval`: `dsh plugin --profile ppt-eval add -w link:<checkout>` (dependency + bundle entry), `--dump-config` shows the `# == dsh-ppt-flashmade` layer, boot on port 3098 logs no plugin error, `GET /dsh-ppt/preview/*` answers with `x-dsh-ppt-preview: 1`, `remove -w` leaves no residue (ADR-050); `dsh-ppt doctor` eight rows green (M1, ADR-020/024) | verified; **browser card user-confirmed 2026-09-22** (M9 prep); real `web`-profile re-check rides the M9 install |
 | S2 | technology stack is the project's choice | `docs/architecture.md` (dual runtime, boundaries, invariants) + ADRs 001–051 | verified (documentation) |
 | S3 | a deck that can be edited, not a picture | `pnpm eval:run --scenario topic-only`: PASS attempt 1, 811 s / 133 tool calls, 5 slides, single master, audit ok, native table page; `docs/m6-model-eval.md` | verified |
 | S4 | 24 themes are swappable | `pnpm themes:verify` (24 token snapshots), `theme list --json` returns 24 ids, `pnpm matrix:verify` covers six menu families end-to-end | verified |

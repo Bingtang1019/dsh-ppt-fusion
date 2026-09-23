@@ -1,6 +1,6 @@
 # Architecture
 
-`@dsh-ppt/dsh-ppt-flashmade` fuses two upstream engines under one DeepSeek Harness plugin.
+`dsh-ppt-flashmade` fuses two upstream engines under one DeepSeek Harness plugin.
 This document records the runtime boundary between them, what each layer owns, and the
 invariants the code enforces. Plan references are to `PPT-FUSION-PLAN.md` **v5**; the
 authoritative arbitration record is `docs/decisions.md` (ADR-001…054) — when they

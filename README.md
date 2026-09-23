@@ -3,10 +3,10 @@
 DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5、24 套主题、审计、预览）与 **ppt-master** 的深度引擎（SVG→DrawingML、原生图表/表格/公式、动画/旁白）融合成一条 `dsh-ppt` 命令链。
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
-- 本包：`@dsh-ppt/dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
-- 权威计划：仓库外的 `PPT-FUSION-PLAN.md`（v5，不随仓库分发）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…054），冲突时 **ADR 比计划新**。
+- 本包：`dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
+- 权威计划：仓库外的 `PPT-FUSION-PLAN.md`（v5，不随仓库分发）；本仓库 `docs/decisions.md` 是裁决记录（ADR-001…056），冲突时 **ADR 比计划新**。
 
-> 状态：**M0–M8 已验收，M9 发布准备完成（v1 功能交付）。** 剩余收尾：① npm 发布渠道确认（`private:true` 待移除）；② 按 `dsh-ops-discipline` 安装到真实 `web` profile；③ WPS 版本明细回填、LibreOffice CI 首跑、浏览器卡片复核等外部资源项（完整清单见计划 §4.5 / `docs/acceptance-report.md`）。
+> 状态：**M0–M8 已验收，CI 双平台全绿（ADR-055），v0.1.0 已发布到 npm（`dsh-ppt-flashmade`，ADR-056）。** 剩余收尾：① 重启 `web` profile 后四项浏览器复核；② WPS 版本明细回填、外部资源项（完整清单见计划 §4.5 / `docs/acceptance-report.md`）。
 
 ---
 

@@ -3,4 +3,4 @@
 # `dsh_ppt_preview` tool; the web client half lives in dsh/client.js.
 - insert:
     - id: dsh-ppt-fusion
-      name: '@dsh-ppt/dsh-ppt-flashmade'
+      name: 'dsh-ppt-flashmade'

@@ -1,13 +1,13 @@
 # Release checklist (v0.1.0)
 
 Everything below runs from the repository root. The local gates are already green
-(`typecheck`, `lint`, `test` 314, `fixtures:verify`, `matrix:verify`, `compat:matrix`,
+(`typecheck`, `lint`, `test` 319, `fixtures:verify`, `matrix:verify`, `compat:matrix`,
 `prepack`); this page is the credentialed half.
 
 ## 0. Identity
 
-- npm package: `@dsh-ppt/dsh-ppt-flashmade` (npm rejects uppercase; "FlashMade" is the product
-  name in prose)
+- npm package: `dsh-ppt-flashmade` — unscoped, because the account does not own the
+  `@dsh-ppt` scope (ADR-056); "FlashMade" is the product name in prose
 - repository: `https://github.com/Bingtang1019/` (repository name: the project uses
   `dsh-ppt-fusion`; change the remote if the repo is named differently)
 - plugin/skill/CLI ids stay `dsh-ppt-fusion` / `dsh-ppt-fusion` / `dsh-ppt`
@@ -20,20 +20,20 @@ npm login --registry https://registry.npmjs.org/
 
 # the tracked .npmrc points at npmmirror, so every publish/ownership command overrides it
 npm whoami --registry https://registry.npmjs.org/
-npm org ls @dsh-ppt --registry https://registry.npmjs.org/   # must list your account
 
 # package.json must not be private
 grep -n '"private"' package.json      # remove the line (or set it to false)
 
 pnpm build && node scripts/check-pack.mjs
-npm publish --registry https://registry.npmjs.org/ --access public
+npm publish --registry https://registry.npmjs.org/
 ```
 
-If the `@dsh-ppt` scope is not owned by the account, either create the org or publish unscoped:
+The name is unscoped, so there is no scope-ownership check and no `--access public`.
+Verify the release from the registry, then hand-install it (section 3 uses the tarball;
+this is the published-artifact check):
 
 ```sh
-# package.json name -> "dsh-ppt-flashmade" (no scope), then
-npm publish --registry https://registry.npmjs.org/
+npm view dsh-ppt-flashmade version dist.tarball --registry https://registry.npmjs.org/
 ```
 
 ## 2. Push the repository
@@ -76,7 +76,7 @@ Then restart the web app from the launcher (this ends any running session), and 
 Rollback:
 
 ```sh
-dsh plugin --profile web remove -w @dsh-ppt/dsh-ppt-flashmade
+dsh plugin --profile web remove -w dsh-ppt-flashmade
 ```
 
 ## 4. Post-release

@@ -14,6 +14,12 @@ preview card, and `cordis.patch.yml` is the bundle layer DSH composes.
 
 ## Install
 
+From npm (v0.1.0):
+
+```sh
+dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.1.0
+```
+
 From a checkout, build first so the linked package has `dist/cli.js`:
 
 ```sh
@@ -36,7 +42,7 @@ the plugin loads on the next start.
 The `github:` form was verified on 2026-09-23 against
 `github:Bingtang1019/dsh-ppt-fusion` in the scratch profile: npm/pnpm runs the package's
 `prepare` script (`pnpm build`), so the installed copy carries `dist/cli.js`, and
-`--dump-config` composes the `@dsh-ppt/dsh-ppt-flashmade` layer.
+`--dump-config` composes the `dsh-ppt-flashmade` layer.
 
 ## What the plugin adds
 
@@ -62,7 +68,7 @@ requirements. Inside a DSH session this is simply the mapped `dsh-ppt` command.
 dsh --profile <profile> --dump-config | grep -A1 'dsh-ppt-fusion'
 ```
 
-The composed tree shows the `# == @dsh-ppt/dsh-ppt-flashmade` layer. With the web
+The composed tree shows the `# == dsh-ppt-flashmade` layer. With the web
 app running, the skill appears in the skill catalog and the preview card shows
 filmstrip pages; the route answers for any unknown id with
 `{"code":"preview_unknown"}` and the `x-dsh-ppt-preview: 1` header.
@@ -70,7 +76,7 @@ filmstrip pages; the route answers for any unknown id with
 ## Uninstall
 
 ```sh
-dsh plugin --profile <profile> remove -w @dsh-ppt/dsh-ppt-flashmade
+dsh plugin --profile <profile> remove -w dsh-ppt-flashmade
 ```
 
 DSH removes both the dependency and the bundle entry. The skill, tool and route
@@ -88,7 +94,7 @@ node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js plugin --profile ppt-eva
 node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js --profile ppt-eval --dump-config   # layer present
 node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js --profile ppt-eval --no-open --port 3098
 # GET http://127.0.0.1:3098/dsh-ppt/preview/does-not-exist -> 404, x-dsh-ppt-preview: 1, preview_unknown
-node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js plugin --profile ppt-eval remove -w @dsh-ppt/dsh-ppt-flashmade
+node <runtime>/node_modules/@deepseek-ai/dsh/lib/bin.js plugin --profile ppt-eval remove -w dsh-ppt-flashmade
 ```
 
 The browser card was verified by the user on 2026-09-22 in the scratch profile:
