@@ -76,6 +76,7 @@ the ADR wins.**
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 | 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
+| 067 | Three asset channels (svg/office/user) and the post background layer (V7 B2.5) |
 
 ---
 
@@ -1870,3 +1871,62 @@ the ADR wins.**
   longer resolve the deck-local file); adding `toc` to the chrome vocabulary (page-number
   semantics for a toc page are content's; keeping the change storyboard-only avoids
   touching the released chrome contract).
+
+## ADR-067 — Three asset channels (svg/office/user) and the post background layer (V7.2 B2.5)
+
+- **Date:** 2026-09-24
+- **Measured fact.** A Windows Office install ships no local icon gallery: `Office16`
+  carries UI assets (`LogoImages`, `sdxs` web bundles) rather than deck artwork, and
+  PowerPoint's modern icon set is cloud-hosted. What *is* on disk: `root\CLIPART`
+  (1651 WMF/JPG/GIF/BMP/PNG), `root\Templates` (`.potx`), and
+  `%APPDATA%\Microsoft\Templates\LiveContent` (32 `.thmx`). This machine's discovery
+  records 1689 assets (1651 clip-art + 38 theme) across seven probed roots; the record
+  is 340 KB. Copying `clip-art-pub60cor-j0400001` into a deck reproduces the source
+  bytes (sha256 `8032018b…`).
+- **Decision — three channels, no bundled library.**
+  - `office`: `assets discover --source office [-o <file>] [--json]` probes
+    `ProgramFiles`/`APPDATA` Office and WPS locations plus any
+    `DSH_PPT_OFFICE_ROOTS=<category>=<dir>` entries, records every probed root with its
+    per-format counts and the supported files, and fails `OutputMissing` with the
+    svg/user/flat fallback when nothing is found. The record lives at
+    `<DSH_HOME>/ppt-fusion/assets/office-assets.json`, not in a deck: it describes the
+    machine, and a deck must not carry an install path. `assets list|copy --source office`
+    read it and reject a record whose files disappeared (`discover` again), so the
+    recorded library never claims files that are gone.
+  - `user`: `DSH_PPT_ASSET_DIRS` (path list) or `<deck>/assets` when it carries
+    `asset-manifest.json`. The manifest requires a per-item licence; a missing manifest,
+    licence, supported format, escaping path, duplicate id or absent file is a
+    `ContractViolation`/`OutputMissing`. `assets copy` always lands inside the deck,
+    keeps `<id>.<format>`, refuses different existing bytes without `--force`, and treats
+    identical bytes as unchanged so reruns are idempotent.
+  - `svg`: generated, never shipped. `bridge/svg-background.ts` composes one deterministic
+    SVG per design role from blends of the profile's own colours (band, grid, ring,
+    content columns), so no off-palette ink can appear and reruns are byte-identical.
+- **Decision — one post background layer.** `render` applies the profile's
+  `background.mode` after motion and before chrome/compat: `flat` writes a solid `p:bg`
+  fill; `svg` inserts a full-canvas `<p:pic>` behind the authored shapes plus an overlay
+  shape whose alpha is `background.overlayOpacity`. Contrast is checked with the WCAG
+  math before anything is written and must stay ≥ 4.5:1 for the profile's title/body/muted
+  inks against every overlay-blended background colour, otherwise the render fails
+  `ContractViolation` instead of shipping unreadable text. The SVG picture carries the
+  `asvg:svgBlip` extension only; the existing compat pass (ADR for B7) rasterises it, adds
+  the `.png` sibling and points the main `a:blip` at the PNG, so Office 2013 and 2016+
+  both render the page (measured: `a:blip r:embed → …cover.png`,
+  `asvg:svgBlip r:embed → …cover.svg`, 2 stamps for 2 slides). `photo`, `office` and
+  `user` backgrounds need an explicit asset reference the profile does not carry yet, so
+  they apply the flat colour and record the fallback in
+  `out/manifest.json#design.background.notes`; B4 adds the reference and its audit rule.
+- **Evidence.** S28 on `tmp/bg-svg` and `tmp/bg-flat`: both render; the SVG deck contains
+  `dsh-bg-cover.svg` (709 B) + `dsh-bg-cover.png` (40 565 B) and the overlay
+  `<a:alpha val="15000"/>`; `minContrast` 5.61:1; the flat deck has no media and a
+  `p:bg` solid fill. Two consecutive renders of the SVG deck produce the same sha256
+  (`79e89503…`). Unit tests: `assets.test.ts` (15) and `background.test.ts` (9, including
+  the compat stamp); full suite 443 tests / 56 files, lint, typecheck, `prepack` 19/19.
+- **Alternatives rejected:** bundling an asset library in the package (v7.2 cancels it:
+  copyright and tarball size); keeping `office-assets.json` inside the deck (ties a
+  machine-wide discovery to one deck and would let install paths leak into deck
+  repositories); rasterising SVG backgrounds inside the background pass (bypasses the B7
+  stamp and creates a second raster path); treating `Office16\LogoImages`/`sdxs` as icons
+  (those are application chrome, not deck artwork, and would ship brand marks into
+  user decks); guessing a `photo`/`office`/`user` background file (would fake provenance
+  and make the audit's mode check meaningless).

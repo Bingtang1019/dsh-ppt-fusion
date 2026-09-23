@@ -35,13 +35,15 @@ scenario).
 | S23 | 旁白自动翻页 | `fixtures:verify` (fixtureVersion 7) prints `narration auto-advance ok (2 narrated slide(s), useTimings=1)`; `post.test.ts`/`audio.test.ts` cover the byte-driven recompute, the preserve-on-unreadable fallback and the `useTimings` restore (ADR-060); playing a narrated deck and watching it advance is a human check | automated verified; **playback pending user check** |
 | S24 | 档案提取忠于参考 | `pnpm design:verify` re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares it field by field with `fixtures/reference/profile.json` (5 roles / 5 type rows on this machine); the schema is strict; palette, fonts and the type scale match plan Appendix A (geometry anchors differ, ADR-061) | verified on this machine; CI skips without the deck |
 | S25 | 档案可套用 | `theme apply-profile` writes a ThemeFile whose palette/fonts match; `init --profile` leaves chrome/storyboard correct and copies the profile into the deck. Measured on `tmp/profile-deck`: validate OK 4 gates; rendered XML carries `#577FD2/#0D0D0D/#595959/#FFFFFF` and, after the font pass, `latin=MiSans ea=MiSans` on every run; `out/manifest.json` records `design.typefaces:["MiSans"]`; audit 11 sources, 0 error, 0 warning (ADR-066) | verified |
+| S28 | 素材不靠 AI 也能达标 | `assets discover --source office` on this machine records 1689 assets (1651 clip-art + 38 theme) from 7 probed roots into `<DSH_HOME>/ppt-fusion/assets/office-assets.json`; `assets copy` moves an office PNG and a user SVG+PNG into a deck (office copy sha256 equals the source, reruns report `unchanged`); a manifest without a licence / an escaping path / a bad format each fail `ContractViolation`; `flat` and `svg` backgrounds both render on `tmp/bg-flat` / `tmp/bg-svg`, the SVG deck carries `.svg`+`.png` parts with `a:blip→PNG` and `asvg:svgBlip→SVG`, `minContrast` 5.61:1, and two renders are byte-identical (ADR-067). Unit tests: `assets.test.ts` (15), `background.test.ts` (9) | automated verified; **background look pending user check** |
 
 ## What is deliberately not claimed
 
-- **Three human checks ride the user**: S19 (delete a page in PowerPoint/WPS and watch the
-  native field renumber), S23 (play a narrated deck and watch it advance) and the S21/S22
-  visual sample (open the v0.2 eval decks and score 观感/信息密度/叙事). The automated halves
-  are green and recorded above; these rows stay open until the user runs them.
+- **Four human checks ride the user**: S19 (delete a page in PowerPoint/WPS and watch the
+  native field renumber), S23 (play a narrated deck and watch it advance), the S21/S22
+  visual sample (open the v0.2 eval decks and score 观感/信息密度/叙事) and the S28 background
+  look (open `tmp/bg-svg/out/profile-deck.pptx` and judge one page's background). The automated
+  halves are green and recorded above; these rows stay open until the user runs them.
 - **T1 (canonical equality) is proven for this repository's fixtures**, not for every customer
   deck; the tier definitions live in `docs/architecture.md` and ADR-033/037.
 - **LibreOffice conversion** runs on the ubuntu CI leg (installs `libreoffice-impress`, compares the

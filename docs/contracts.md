@@ -684,3 +684,37 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   `post animate` re-applies it, and `out/manifest.json` records
   `design: {fontPass, typefaces}`. A family that is not installed on the viewer's machine still
   falls back there; the deck-local theme remains the declared authority.
+
+## 21. Asset channels and the background layer (V7.2 B2.5, ADR-067)
+
+- **`office` discovery.** `assets discover --source office` probes the install roots
+  (`<ProgramFiles>\Microsoft Office\root\CLIPART`, `…\Office16\MEDIA`, `…\root\Templates`,
+  `%APPDATA%\Microsoft\Templates\LiveContent`, plus the WPS locations and any
+  `DSH_PPT_OFFICE_ROOTS=<category>=<dir>` entry) and writes every probed root with its
+  per-format counts and the supported files to
+  `<DSH_HOME>/ppt-fusion/assets/office-assets.json`. `src/schema/assets.ts` validates the record
+  (`OfficeAssetRecordSchema`); `list`/`copy` reject a record whose file is gone and repeat the
+  `discover` guidance. The record is machine-scoped and never written into a deck.
+- **`user` libraries.** `DSH_PPT_ASSET_DIRS` names libraries; `<deck>/assets` is one when it
+  carries `asset-manifest.json`. Every manifest item needs `id`, `file`, `source: "user"` and a
+  non-empty `licence`; the file must resolve inside the library, exist, and use a format from
+  `ASSET_FORMATS`. Duplicate ids across libraries are refused rather than shadowed
+  (`UserAssetManifestSchema`).
+- **`copy`.** `assets copy <id> --source <office|user>` resolves the listed item, keeps the
+  destination inside the deck (default `assets/<id>.<format>`), refuses different existing bytes
+  without `--force`, and reports identical bytes as `unchanged`; `--as` may rename but must keep
+  the format extension.
+- **Background layer.** `render` applies the profile's `background.mode` after motion and before
+  chrome/compat. `flat` writes a solid `p:bg` in the profile's `bg`; `svg` composes one
+  deterministic SVG per design role from blends of the profile's own colours
+  (`bridge/svg-background.ts`), inserts it as the first picture of the slide plus an overlay
+  shape at `background.overlayOpacity`, and leaves the picture to the compat pass, which stamps
+  the `.png` sibling and points the main `a:blip` at it (B7). Before writing anything the layer
+  checks the WCAG contrast of the profile's title/body/muted inks against every
+  overlay-blended colour and fails `ContractViolation` below 4.5:1. `photo`, `office` and `user`
+  carry no asset reference yet, so they apply the flat colour and record the fallback in
+  `out/manifest.json#design.background.notes`.
+- **Evidence.** `out/manifest.json#design.background` records `mode`, per-slide `role`/
+  `application`/`overlayOpacity`/`minContrast` (and `svgPart`), the generated `parts` and any
+  `notes`; the published package carries both the `.svg` and `.png` parts with the Office SVG
+  picture structure, and two renders of the same deck are byte-identical.

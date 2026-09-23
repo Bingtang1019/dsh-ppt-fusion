@@ -9,9 +9,10 @@ import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { applyProfileFonts, slideTypefaces, type FontApplicationReport } from '../bridge/fonts.ts'
+import { applyProfileBackgrounds, designRoleFor, type BackgroundPage, type BackgroundReport } from '../bridge/background.ts'
 import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
-import { parseDesignProfile } from '../schema/design-profile.ts'
+import { parseDesignProfile, type DesignProfile } from '../schema/design-profile.ts'
 import { assertInsideWorkspace } from '../engine/contracts.ts'
 import type { CompatLevel } from '../compat/registry.ts'
 import { formatFindings, type FusionFinding } from '../audit.ts'
@@ -50,7 +51,7 @@ export interface RenderResult {
   /** What the chrome pass applied, when the manifest declared a chrome contract. */
   readonly chrome?: ChromeReport
   /** What the design-profile font pass applied, when the manifest declared a profile. */
-  readonly design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
+  readonly design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly background?: BackgroundReport }
   /** The compat pass result, the file it was serialised to, and that file's hash. */
   readonly compat: { readonly report: CompatReport; readonly reportFile: string; readonly reportSha256: string }
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
@@ -172,8 +173,9 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   // The design profile's fonts are applied after the merge and before motion/chrome:
   // pptwise resolves font stacks against a safe-font allowlist, so a deck-local theme
   // that names MiSans still needs this pass to carry the profile's families into the
-  // published package (ADR-066).
+  // published package (ADR-066). The same load owns the profile background layer.
   let design: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] } | undefined
+  let designProfile: DesignProfile | undefined
   if (context.deck.designProfile !== undefined) {
     const profilePath = assertInsideWorkspace(dir, context.deck.designProfile, 'designProfile')
     const profileText = fs.readText(profilePath)
@@ -182,9 +184,12 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
         detail: { designProfile: context.deck.designProfile },
       })
     }
-    const profile = parseDesignProfile(JSON.parse(profileText) as unknown)
-    design = { fontPass: applyProfileFonts(pkg, profile), typefaces: slideTypefaces(pkg) }
+    designProfile = parseDesignProfile(JSON.parse(profileText) as unknown)
+    design = { fontPass: applyProfileFonts(pkg, designProfile), typefaces: slideTypefaces(pkg) }
   }
+
+  // Slide roles come from the IR once: chrome and backgrounds must agree on them.
+  const chromePages = chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index))
 
   // The chrome contract, like motion, is applied after the merge: the engines
   // render content, this layer owns deck-level chrome (plan V6 WP1, ADR-058).
@@ -194,10 +199,11 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
       : {
           chrome: context.deck.chrome,
           tokens: context.tokens,
-          pages: chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index)),
+          pages: chromePages,
         }
+  const backgroundPages: readonly BackgroundPage[] = chromePages.map((page) => ({ index: page.index, role: designRoleFor(page.role) }))
 
-  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps, design })
+  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps, design, backgroundPages, ...(designProfile === undefined ? {} : { profile: designProfile }) })
 }
 
 /** Publish path, staged artifacts and the shared gate tail. */
@@ -216,6 +222,8 @@ async function finalize(input: {
   runDelivery: boolean
   deps: CommandDependencies
   design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
+  backgroundPages: readonly BackgroundPage[]
+  profile?: DesignProfile
 }): Promise<RenderResult> {
   const fs = input.deps.fs
   const { dir, pkg } = input
@@ -232,6 +240,12 @@ async function finalize(input: {
       { detail: { unmatched: postApplied.unmatched } },
     )
   }
+
+  // 4b. Backgrounds: generated after motion so a background never reorders the
+  //     authored shapes, and before the compat pass so an SVG background gets its
+  //     PNG sibling stamped (B7, V7.2 B2.5).
+  const background = input.profile === undefined ? undefined : applyProfileBackgrounds(pkg, { profile: input.profile, pages: input.backgroundPages })
+  const design = input.design === undefined ? undefined : { ...input.design, ...(background === undefined ? {} : { background }) }
 
   // 5. Chrome: the deck-level contract — page numbers (native field), footer and
   //    section — written after motion and before the compat scan, so the scan sees
@@ -275,7 +289,7 @@ async function finalize(input: {
     deps: input.deps,
     compat: { report: compatReport, source: input.compat.source },
     showTimings,
-    ...(input.design === undefined ? {} : { design: input.design }),
+    ...(design === undefined ? {} : { design }),
     ...(delivery === null ? {} : { delivery: { stdout: delivery.result.stdout, status: delivery.result.status } }),
     ...(postApplied === null ? {} : { post: postApplied }),
       ...(chromeApplied === null ? {} : { chrome: chromeApplied }),
@@ -340,7 +354,7 @@ function publish(input: {
   /** Whether narration auto-advance needed the package show-timings flag. */
   showTimings: boolean
   /** What the design-profile font pass applied, when the manifest declared a profile. */
-  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
+  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly background?: BackgroundReport }
   compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input

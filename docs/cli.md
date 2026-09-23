@@ -39,6 +39,8 @@ Codes: `PptwiseMissing`, `PptwiseFailed`, `VenvMissing`, `EngineVersionMismatch`
 | `DSH_HOME` | where the engine venv tree lives; defaults to `~/.dsh` |
 | `DSH_PPT_UV` | absolute path to `uv`; overrides the search |
 | `DSH_PPT_PYPI_INDEX` | package index used by `doctor --repair`; defaults to the Tsinghua mirror |
+| `DSH_PPT_ASSET_DIRS` | path list of user asset libraries; each directory needs `asset-manifest.json` with a licence per item |
+| `DSH_PPT_OFFICE_ROOTS` | `<category>=<dir>` entries (or bare `<dir>` for clip-art) the office discovery probes in addition to the install defaults |
 | `DEEPSEEK_API_KEY` and friends | **not** inherited by any child process; a credential reaches an engine only through an explicit allow list |
 
 ## Implemented (M1)
@@ -184,6 +186,16 @@ invalid; `--no-storyboard` drops the `storyboard` findings and exists for debugg
 the merge (runs ≥ 28 pt → heading family, digit-only runs ≥ 32 pt → number family, the rest →
 body family, EA slot following), recorded in `out/manifest.json` as
 `design: {fontPass, typefaces}` (ADR-066).
+
+The same profile drives the post background layer, applied after motion and before chrome:
+`flat` writes a solid `p:bg`, `svg` inserts a deterministic per-role SVG picture (built only
+from blends of the profile's own colours) with an overlay shape at `background.overlayOpacity`,
+and the pass refuses to publish when the overlay-blended background drops the profile's
+title/body/muted inks below 4.5:1. The SVG picture is left for the compat pass to stamp with
+its PNG sibling, so Office 2013 and 2016+ both render it; `out/manifest.json` records the
+applied mode, per-slide roles, generated parts and `minContrast`. `photo`, `office` and `user`
+have no asset reference in the profile yet, so they apply the flat colour and say so under
+`design.background.notes` (ADR-067).
 
 Every intermediate artifact is staged under `<deck>/.dsh-ppt/render/`, so a gate failure
 leaves `out/` untouched and the workspace diagnosable. `--out` resolves against the deck.
@@ -355,6 +367,30 @@ It carries no text, no media and no input path. `--roles` overrides the measured
 into `<output dir>/.dsh-ppt/design-media` (an ignored scratch directory). `pnpm design:verify`
 re-extracts the deck named by `DSH_PPT_REFERENCE_DECK` and compares it with
 `fixtures/reference/profile.json`; without that variable it skips (ADR-061).
+
+### `dsh-ppt assets discover --source office [-o <file>] [--dir <dir>] [--json]`
+
+Probes the machine's Office/WPS asset roots (`CLIPART`, `Templates`, `LiveContent`, plus any
+`DSH_PPT_OFFICE_ROOTS` entries) and records every probed root with its per-format counts and the
+supported files in `office-assets.json`, by default under
+`<DSH_HOME>/ppt-fusion/assets/`. A discovery that finds no supported file fails with the
+svg/user/flat fallback instead of writing an empty record; a record is a machine property, so it
+never lives in a deck (ADR-067).
+
+### `dsh-ppt assets list --source <office|user> [--record <file>] [--category <c>] [--format <f>] [--dir <dir>] [--json]`
+
+Lists the offices recorded by `discover`, or the user libraries named by `DSH_PPT_ASSET_DIRS`
+and/or `<deck>/assets/asset-manifest.json`. Every user item needs a licence; a missing manifest,
+licence, supported format, escaping path, duplicate id or absent file is reported
+(`ContractViolation`/`OutputMissing`), and an office record whose files disappeared asks for a
+fresh `discover`.
+
+### `dsh-ppt assets copy <id> --source <office|user> [-o <dir>] [--as <file>] [--force] [--record <file>] [--dir <dir>] [--json]`
+
+Copies one listed item into the deck (default `assets/<id>.<format>`); `--as` may rename but must
+keep the item's extension. The destination must stay inside the deck, different existing bytes
+are refused without `--force`, and identical bytes are reported as `unchanged`, so reruns are
+idempotent (ADR-067).
 
 ## JSON output
 
