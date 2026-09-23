@@ -1,8 +1,9 @@
-# Release checklist (v0.1.0)
+# Release checklist (current: v0.1.1)
 
 Everything below runs from the repository root. The local gates are already green
 (`typecheck`, `lint`, `test` 319, `fixtures:verify`, `matrix:verify`, `compat:matrix`,
-`prepack`); this page is the credentialed half.
+`prepack`); this page is the credentialed half. `v0.1.1` is a patch release and follows the same
+steps as `v0.1.0` with the version, tag and asset names replaced throughout.
 
 ## 0. Identity
 
@@ -41,12 +42,12 @@ npm view dsh-ppt-flashmade version dist.tarball --registry https://registry.npmj
 ```sh
 git remote -v                            # origin = https://github.com/Bingtang1019/<repo>.git
 git push -u origin main
-git push origin v0.1.0                   # annotated tag created in M9 prep
+git push origin v<version>               # annotated tag on the release commit
 ```
 
 The `github:` install path is verified (the package's `prepare` script builds `dist/`), and
-the release tag must point at the release commit: `git tag -fa v0.1.0 -m ... <commit>` then
-`git push origin v0.1.0 --force` after any post-tag release edit.
+the release tag must point at the release commit: `git tag -fa v<version> -m ... <commit>` then
+`git push origin v<version> --force` after any post-tag release edit.
 
 The repository must exist first (create it on GitHub; private or public). No credentials are
 stored in this repository: use `gh auth login`, a Git credential manager, or an SSH remote.
@@ -58,20 +59,22 @@ byte-identical copy. Fetch the published tarball (verify `shasum` against `npm v
 release on the existing tag, and upload the asset:
 
 ```sh
-curl -sSL -o dsh-ppt-flashmade-0.1.0.tgz \
-  https://registry.npmjs.org/dsh-ppt-flashmade/-/dsh-ppt-flashmade-0.1.0.tgz
-sha1sum dsh-ppt-flashmade-0.1.0.tgz        # must equal `npm view ... dist.shasum`
-# create the release via the API (tag_name: v0.1.0, body: the CHANGELOG's v0.1.0 section)
+curl -sSL -o dsh-ppt-flashmade-<version>.tgz \
+  https://registry.npmjs.org/dsh-ppt-flashmade/-/dsh-ppt-flashmade-<version>.tgz
+sha1sum dsh-ppt-flashmade-<version>.tgz     # must equal `npm view ... dist.shasum`
+# create the release via the API (tag_name: v<version>, body: that version's CHANGELOG section)
 curl -sS --ssl-no-revoke -X POST \
   -H "Authorization: token <token>" -H "Content-Type: application/gzip" \
-  --data-binary @dsh-ppt-flashmade-0.1.0.tgz \
-  "https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=dsh-ppt-flashmade-0.1.0.tgz"
+  --data-binary @dsh-ppt-flashmade-<version>.tgz \
+  "https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=dsh-ppt-flashmade-<version>.tgz"
 ```
 
 `--ssl-no-revoke` is required on this machine: Windows schannel cannot reach the certificate
 revocation service for `uploads.github.com` (`0x80092013`). Verify the release by downloading the
-asset back and comparing SHA-1 with the npm shasum; `GET /releases/tags/v0.1.0` must list the
-asset and point `target_commitish` at the tagged commit.
+asset back and comparing SHA-1 with the npm shasum; `GET /releases/tags/v<version>` must list the
+asset and point `target_commitish` at the tagged commit. When a later patch supersedes a release
+whose feature is broken, prepend a known-issue line to the older release's body (as `v0.1.0` now
+does) instead of rewriting its notes.
 
 ## 3. Install into the real `web` profile (ops discipline)
 
