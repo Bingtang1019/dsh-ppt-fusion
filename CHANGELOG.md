@@ -21,6 +21,9 @@
 - **旁白自动翻页**（Q5，ADR-060）：post 从 deck 内嵌音频字节**重算**每页 `advTm`（MPEG 帧时长 + 引擎自身的
   0.4s lead-in / 0.5s padding），不再依赖主机 ffprobe；merge 之后恢复 `p:showPr useTimings="1"`；音频无法
   解析时保留引擎写入的 `advTm`。narrated 黄金重录为 **fixtureVersion 7**，`fixtures:verify` 增加 S23 断言。
+- **Q4 模型评估回归**：`pnpm eval:run` 三场景**首轮 3/3 通过**（topic-only 548s / branded-template 734s /
+  doc-to-deck 795s），storyboard、role-layout、budget、chrome 四项新 error 检查全绿，checkpoint 均到 phase 7；
+  结果见 `docs/v02-model-eval.md`，验收表更新到 S1–S23。
 
 ### 变更
 

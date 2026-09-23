@@ -1,21 +1,22 @@
-# Acceptance report (S1–S17)
+# Acceptance report (S1–S23)
 
-Plan chapter 6 maps the leader-facing questions to seventeen scenarios. This page records the
-automated evidence behind each one on the development machine, and names the checks that need a
-machine this host does not have (a WPS 2019+ box, a Linux runner with LibreOffice). "Verified"
-means the listed command or test was executed and passed; the evidence file or ADR is named in
-the row.
+Plan chapter 6 maps the leader-facing questions to twenty-three scenarios. This page records
+the automated evidence behind each one on the development machine, and names the checks that
+need a machine this host does not have (a WPS 2019+ box, a Linux runner with LibreOffice).
+"Verified" means the listed command or test was executed and passed; the evidence file or ADR
+is named in the row. S18–S23 were added by V6; the v0.2 model run behind S21/S22 is recorded
+in `docs/v02-model-eval.md`.
 
 | # | scenario | evidence | status |
 |---|---|---|---|
 | S1 | install as a plugin, no environment tinkering | scratch profile `~/.dsh/profiles/ppt-eval`: `dsh plugin --profile ppt-eval add -w link:<checkout>` (dependency + bundle entry), `--dump-config` shows the `# == dsh-ppt-flashmade` layer, boot on port 3098 logs no plugin error, `GET /dsh-ppt/preview/*` answers with `x-dsh-ppt-preview: 1`, `remove -w` leaves no residue (ADR-050); `dsh-ppt doctor` eight rows green (M1, ADR-020/024) | verified; **browser card user-confirmed 2026-09-22** (M9 prep); real `web`-profile re-check rides the M9 install |
 | S2 | technology stack is the project's choice | `docs/architecture.md` (dual runtime, boundaries, invariants) + ADRs 001–051 | verified (documentation) |
-| S3 | a deck that can be edited, not a picture | `pnpm eval:run --scenario topic-only`: PASS attempt 1, 811 s / 133 tool calls, 5 slides, single master, audit ok, native table page; `docs/m6-model-eval.md` | verified |
+| S3 | a deck that can be edited, not a picture | `pnpm eval:run` (v0.2 regression): topic-only PASS attempt 1, 548 s / 131 tool calls, 5 slides, single master, audit ok, native table page; earlier M6 run 811 s in `docs/m6-model-eval.md`; v0.2 results in `docs/v02-model-eval.md` | verified |
 | S4 | 24 themes are swappable | `pnpm themes:verify` (24 token snapshots), `theme list --json` returns 24 ids, `pnpm matrix:verify` covers six menu families end-to-end | verified |
 | S5 | reuse the company deck's colours | real `brand extract --bind` run + a reference extraction compared against the bound palette (M7 spot check); M6 first caught the model rewriting the palette; the SKILL rule was added and the confirmation run bound the reference palette field for field (ADR-047) | verified |
 | S6 | charts must be editable | M6 doc-to-deck: 4 native chart parts; PowerPoint COM reads series values `31,42`, `6.1,8.6`, `65,68`, `46,27,18,9`; golden `ppt/charts/chart101.xml` root `c:chartSpace` | verified |
 | S7 | animation and transitions | ADR-042 COM probe: emphasis type 61 and path type 149 with `behaviours >= 1`; golden v5 carries `p:transition` and `p:timing` | verified |
-| S8 | narration | M5: real edge-tts MP3s 93600 B / 82224 B plus SRTs; golden v5 embeds media with auto-advance timings; `fixtures:verify` recomputes them | verified |
+| S8 | narration | M5: real edge-tts MP3s 93600 B / 82224 B plus SRTs; golden v7 embeds media with auto-advance timings recomputed from the bytes (`fixtures:verify` prints the S23 line); without the Q5 fix the merged package lost the exporter's `advTm` and its `useTimings` flag (ADR-055 → ADR-060) | verified |
 | S9 | the CLI has what it should | M8 item 3: every leaf command accepts `--json`, enforced by `src/cli.test.ts`; `dsh-ppt audit` carries `schemaVersion: 1` | verified |
 | S10 | no keys, no model, no network | credentials cleared and `HTTP_PROXY=http://127.0.0.1:9` set: `dsh-ppt render tmp/s10` exits 0 with 5 slides / 196839 B; COM opens it; `docs/architecture.md` network boundary | verified |
 | S11 | no generated images | real Pexels search recorded `assets/image_sources.json` with licence/author/attribution (ADR-048); the command surface has no `image-gen` (CLI coverage test) | verified |
@@ -25,9 +26,19 @@ the row.
 | S15 | other Office versions | `pnpm compat:matrix`: 10/10 artifacts pass `compat lint` at `safe`/`standard`/`max`; golden compat-level snapshots equal in `fixtures:verify` | verified |
 | S16 | WPS and older Office | python-pptx reopen 10/10 (`docs/compat/matrix.md`); LibreOffice headless conversion runs in `pnpm compat:matrix` — the ubuntu CI leg installs `libreoffice-impress` and compares the rendered PDF page count (run 35761959099, green) | python-pptx verified; LibreOffice verified in CI (PDF page count per artifact) |
 | S17 | signed off on a real WPS machine | user confirmed on 2026-09-22 that the ten-point checklist passed (`docs/compat/wps-report.md`, ADR-051); concrete WPS build and per-item notes to be captured next run | **user-confirmed; v1 may claim T1** (ADR-051); a future failure reverts to T2 |
+| S18 | 页码按契约出现 | `chrome.test.ts` unit assertions: a non-skipped page carries exactly one `slidenum` field and a skipped page zero; `audit` rule `chrome-coverage` on every rendered deck; fixture `fixtures/hello` validates with page numbers on pages 2–4 only | verified (automated) |
+| S19 | 页码是原生域 | rendered XML carries `<a:fld type="slidenum">` with text `‹#›` and a deterministic UUID-v5 id (`chrome.test.ts`, ADR-058); deleting a page and watching PowerPoint/WPS renumber is a human check on a machine with the suite | XML verified; **deletion renumber pending user check** |
+| S20 | chrome 几何/文案一致 | `chrome.test.ts`: identical `a:off`/`a:ext` per chrome kind across pages, footer text identical, idempotent re-apply and two-run byte equality; `audit` rules `chrome-geometry`/`chrome-footer-text`/`chrome-section`/`chrome-baked-strip` | verified |
+| S21 | role→layout 匹配 | `validate` rejects a foreign theme pin, an unregistered face and a menu slot the role may not use (ADR-059); `pnpm eval:run` v0.2 rubric `role-layout` green in 3/3 scenarios (`docs/v02-model-eval.md`); `schema/storyboard.test.ts` covers the three rejection paths | verified |
+| S22 | 内容预算守门 | `validate` measures words/items/charts/tables/images and reports `budget-exceeded` with page/role/measured/limit; `schema/budget.test.ts` covers the counters and the violation shape; v0.2 rubric `budget` green in 3/3 scenarios | verified |
+| S23 | 旁白自动翻页 | `fixtures:verify` (fixtureVersion 7) prints `narration auto-advance ok (2 narrated slide(s), useTimings=1)`; `post.test.ts`/`audio.test.ts` cover the byte-driven recompute, the preserve-on-unreadable fallback and the `useTimings` restore (ADR-060); playing a narrated deck and watching it advance is a human check | automated verified; **playback pending user check** |
 
 ## What is deliberately not claimed
 
+- **Three human checks ride the user**: S19 (delete a page in PowerPoint/WPS and watch the
+  native field renumber), S23 (play a narrated deck and watch it advance) and the S21/S22
+  visual sample (open the v0.2 eval decks and score 观感/信息密度/叙事). The automated halves
+  are green and recorded above; these rows stay open until the user runs them.
 - **T1 (canonical equality) is proven for this repository's fixtures**, not for every customer
   deck; the tier definitions live in `docs/architecture.md` and ADR-033/037.
 - **LibreOffice conversion** runs on the ubuntu CI leg (installs `libreoffice-impress`, compares the
