@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v0.1.1 — 2026-09-23
+
+修复 `dsh_ppt_preview` 预览卡片的渲染路径（v0.1.0 里卡片无法生成：插件把预览输出目录指到
+deck 之外，而融合 CLI 的 `-o` 必须是 deck 相对路径，ADR-026）。
+
+### 修复
+
+- **预览卡片**：改在 deck 内 `.dsh-ppt/preview` 渲染（CLI 的契约），再把
+  `manifest.json`/`preview.html`/清单列出的页面 SVG 复制进预览缓存目录；下载按钮、缩略图条与
+  iframe 查看器都读同一份产物。
+- **目标校验**：预览工具现在明确要求 deck 目录（或 decks root 下的 deck 名）；传入单个
+  pptwise IR 文件会给出可操作的错误（融合 CLI 的 `preview` 只接受 deck），工具描述同步更新。
+
 ## v0.1.0 — 2026-09-22
 
 首个版本：把 pptwise 的 DSH-native 前端和 ppt-master 的原生 DrawingML 引擎融合成一个

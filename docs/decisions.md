@@ -67,6 +67,7 @@ the ADR wins.**
 | 054 | V5 sync: plan, README, architecture, acceptance-report, docs index |
 | 055 | First CI run: platform threading in the venv manager, host-measured `advTm` normalised |
 | 056 | Published name is the unscoped `dsh-ppt-flashmade` (2FA-gated publish) |
+| 057 | Preview tool renders inside the deck and copies into the store (0.1.1) |
 
 ---
 
@@ -1575,3 +1576,25 @@ the ADR wins.**
 - **Alternatives rejected:** creating an npm org for the scope (a second public identity for one
   package); documenting the scoped name while publishing unscoped (the docs must name what
   `dsh plugin add -w` actually resolves).
+
+## ADR-057 — Preview tool renders inside the deck, then copies into the store (v0.1.1)
+
+- **Date:** 2026-09-23
+- **Context:** v0.1.0 shipped `dsh_ppt_preview` adapted from pptwise's tool, which invoked
+  `preview <target> -o <store>/<id>.partial --html`. The fusion CLI accepts only a deck-relative
+  output (ADR-026), so every card call died with `PathOutsideWorkspace`: the route answered, the
+  card never got a deck. Found while answering how to see the card, and reproduced against the
+  installed plugin (`createPreviewService(...).tool.execute({ target })` failed).
+- **Decision:** the tool renders into the deck's own `.dsh-ppt/preview` (the CLI's contract) and
+  copies `manifest.json`, `preview.html` and the manifest's page files into the preview store
+  (`~/.dsh-ppt/previews/<id>`); the store layout, HTTP route and card protocol are unchanged. A
+  bare pptwise IR target is rejected with a message naming what the fusion `preview` accepts, and
+  the tool description now says deck directory (or deck name) instead of IR file.
+- **Evidence:** after the fix, `tool.execute` minted preview `d918356f-d6ff-4038-b76f-b72061e60097`
+  (5 pages, 0 findings) and the store directory carried `manifest.json`, five page SVGs,
+  `preview.html`, `record.json` and `snapshot.ir.json`; the running app served
+  `GET /dsh-ppt/preview/<id>` with 200 + `x-dsh-ppt-preview: 1` and `<id>/html` with 200 (25,787 B,
+  no token required); `tests/plugin/plugin.test.ts` stays green. Shipped as **0.1.1**.
+- **Alternatives rejected:** letting the CLI write outside the deck (breaks ADR-026 and every
+  path assumption in the publish flow); having the card read the deck directory directly (the card
+  runs in a browser and must read the same-origin store).

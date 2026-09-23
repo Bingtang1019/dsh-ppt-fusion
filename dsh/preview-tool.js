@@ -1005,6 +1005,24 @@ async function snapshotThemeFile(sourceDir, outDir) {
 }
 
 /**
+ * Copy the files the card reads out of the deck-local preview directory.
+ *
+ * The manifest names every page file, so a stale SVG left by an earlier run is
+ * never copied into the store.
+ *
+ * @param fromDir - `<deck>/.dsh-ppt/preview`, as the CLI wrote it.
+ * @param toDir - the preview store's stage directory.
+ */
+async function copyPreviewFiles(fromDir, toDir) {
+  await copyFile(join(fromDir, MANIFEST_FILE), join(toDir, MANIFEST_FILE))
+  await copyFile(join(fromDir, PREVIEW_HTML_FILE), join(toDir, PREVIEW_HTML_FILE))
+  const manifest = JSON.parse(await readFile(join(toDir, MANIFEST_FILE), 'utf8'))
+  for (const page of Array.isArray(manifest.pages) ? manifest.pages : []) {
+    if (typeof page?.file === 'string') await copyFile(join(fromDir, page.file), join(toDir, page.file))
+  }
+}
+
+/**
  * Copy a single-file IR target, rewriting every local asset src to an
  * absolute path.
  *
@@ -1681,14 +1699,22 @@ export function createPreviewService(cliPath) {
    * answerable in the single `rename` that `execute` performs afterwards.
    */
   async function render(outDir, target, exec) {
+    // The fusion `preview` takes a deck directory and a deck-relative `-o`
+    // (ADR-026), so this is also where a bare IR file stops being acceptable.
+    const deckDir = await locateDeckDir(target)
+    if (deckDir === undefined) {
+      throw new Error(
+        `the fusion preview needs a deck directory (with deck.fusion.json) or a deck name under the decks root; ${target} is neither`,
+      )
+    }
     const { themeFile } = await captureSnapshot(cliPath, target, outDir, exec?.signal)
     // The fusion preview reads the deck once: standard pages through pptwise and
-    // deep pages from their authored SVGs, which the CLI overlays.
-    await runCli(
-      cliPath,
-      ['preview', target, '-o', outDir, '--html'],
-      exec?.signal,
-    )
+    // deep pages from their authored SVGs, which the CLI overlays. Render into
+    // the deck's own preview directory, then copy the files the card serves into
+    // the store: an output path outside the deck is rejected by the CLI.
+    const staged = join('.dsh-ppt', 'preview')
+    await runCli(cliPath, ['preview', target, '-o', staged, '--html'], exec?.signal)
+    await copyPreviewFiles(join(deckDir, staged), outDir)
     const bundle = await readPreviewBundle(outDir)
     const findingCount = bundle.pages.reduce((n, p) => n + (p.findings?.length ?? 0), 0)
 
@@ -1739,7 +1765,7 @@ export function createPreviewService(cliPath) {
     name: TOOL_NAME,
     description:
       'Render a dsh-ppt-fusion deck and show it to the user as a slide preview inside this conversation. ' +
-      'Accepts a fusion deck directory (deep pages are shown from their authored SVGs) or a single pptwise IR json file. ' +
+      'Accepts a fusion deck directory (deep pages are shown from their authored SVGs) or a deck name under the decks root. ' +
       'Prefer this over telling the user to open a preview file — they can page through the deck right here.',
     parameters: {
       type: 'object',
