@@ -16,6 +16,8 @@ export const FUSION_MANIFEST = 'deck.fusion.json'
  */
 const IrViewSchema = z.object({
   version: z.union([z.string(), z.number()]).optional(),
+  // Deck meta (organization, authors) feeds the profile's cover/ending meta footer.
+  meta: z.unknown().optional(),
   slides: z.array(
     z
       .object({
@@ -32,6 +34,8 @@ const IrViewSchema = z.object({
 /** The parts of the IR this package reads. */
 export interface IrView {
   readonly version?: string | number
+  /** Deck metadata (organization, authors); shape owned by pptwise. */
+  readonly meta?: unknown
   readonly slides: readonly { type: string; id?: string; placeholder?: boolean; readonly [key: string]: unknown }[]
 }
 

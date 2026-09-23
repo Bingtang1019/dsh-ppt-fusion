@@ -1,15 +1,16 @@
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { DshPptFailure } from '../engine/errors.ts'
-import { irRoleAt, loadDeck } from '../deck.ts'
+import { irRoleAt, loadDeck, type IrView } from '../deck.ts'
 import { validateDeck } from './validate.ts'
-import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies } from './context.ts'
+import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies, designRoleMap } from './context.ts'
 import { createDeepRenderer, type DeepPage } from '../engine/deep-render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { mergeDeep, type MergeReport, type SlideRoute } from '../bridge/merge.ts'
 import { applyPost, ensureShowTimings, readPostConfig, type PostReport } from '../bridge/post.ts'
 import { applyProfileFonts, slideTypefaces, type FontApplicationReport } from '../bridge/fonts.ts'
 import { applyProfileBackgrounds, designRoleFor, type BackgroundPage, type BackgroundReport } from '../bridge/background.ts'
+import { applyDesignProfile, type DesignPassPage, type DesignPassReport } from '../bridge/design-pass.ts'
 import { applyChrome, chromePagesFrom, type ChromeOptions, type ChromeReport } from '../bridge/chrome.ts'
 import { applyCompatPass, compatReportHash, serializeCompatReport, type CompatReport } from '../bridge/compat.ts'
 import { parseDesignProfile, type DesignProfile } from '../schema/design-profile.ts'
@@ -51,7 +52,7 @@ export interface RenderResult {
   /** What the chrome pass applied, when the manifest declared a chrome contract. */
   readonly chrome?: ChromeReport
   /** What the design-profile font pass applied, when the manifest declared a profile. */
-  readonly design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly background?: BackgroundReport }
+  readonly design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly pass?: DesignPassReport; readonly background?: BackgroundReport }
   /** The compat pass result, the file it was serialised to, and that file's hash. */
   readonly compat: { readonly report: CompatReport; readonly reportFile: string; readonly reportSha256: string }
   /** Absolute paths of the intermediate artifacts, all under `<deck>/.dsh-ppt/render/`. */
@@ -174,7 +175,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
   // pptwise resolves font stacks against a safe-font allowlist, so a deck-local theme
   // that names MiSans still needs this pass to carry the profile's families into the
   // published package (ADR-066). The same load owns the profile background layer.
-  let design: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] } | undefined
+  let design: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly pass?: DesignPassReport } | undefined
   let designProfile: DesignProfile | undefined
   if (context.deck.designProfile !== undefined) {
     const profilePath = assertInsideWorkspace(dir, context.deck.designProfile, 'designProfile')
@@ -185,7 +186,20 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
       })
     }
     designProfile = parseDesignProfile(JSON.parse(profileText) as unknown)
-    design = { fontPass: applyProfileFonts(pkg, designProfile), typefaces: slideTypefaces(pkg) }
+
+    // The profile's type scale, role anchors, card gaps and chrome are applied to the
+    // standard pages before the font pass, so the font pass sees the final sizes and
+    // the audit judges the language the profile describes (V7.2 B5b, ADR-069).
+    const storyboardRoles = designRoleMap(dir, options.deps)
+    const designPages: DesignPassPage[] = context.deck.pages.map((page) => ({
+      index: page.index,
+      role: storyboardRoles?.get(page.index) ?? designRoleFor(irRoleAt(context.ir, page.index)),
+      standard: page.route === 'pptwise',
+      ...(page.section === undefined ? {} : { section: page.section }),
+    }))
+    const footer = metaFooterText(context.ir)
+    const pass = applyDesignProfile(pkg, { profile: designProfile, pages: designPages, ...(footer === undefined ? {} : { metaFooter: footer }) })
+    design = { fontPass: applyProfileFonts(pkg, designProfile), typefaces: slideTypefaces(pkg), pass }
   }
 
   // Slide roles come from the IR once: chrome and backgrounds must agree on them.
@@ -221,7 +235,7 @@ async function finalize(input: {
   postflight: { deep?: PostflightReceipt }
   runDelivery: boolean
   deps: CommandDependencies
-  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[] }
+  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly pass?: DesignPassReport; readonly background?: BackgroundReport }
   backgroundPages: readonly BackgroundPage[]
   profile?: DesignProfile
 }): Promise<RenderResult> {
@@ -333,6 +347,25 @@ function assertNoErrors(findings: ReturnType<typeof auditPackage>): void {
   })
 }
 
+/**
+ * @param ir - the pptwise IR document.
+ * @returns the organization, else the first author name, for the cover/ending meta
+ *   footer; undefined when the deck declares neither.
+ */
+function metaFooterText(ir: IrView): string | undefined {
+  const meta = ir.meta
+  if (meta === null || typeof meta !== 'object') return undefined
+  const organization = (meta as { organization?: unknown }).organization
+  if (typeof organization === 'string' && organization.trim() !== '') return organization.trim()
+  const authors = (meta as { authors?: unknown }).authors
+  if (!Array.isArray(authors)) return undefined
+  for (const entry of authors) {
+    const name = entry !== null && typeof entry === 'object' ? (entry as { name?: unknown }).name : undefined
+    if (typeof name === 'string' && name.trim() !== '') return name.trim()
+  }
+  return undefined
+}
+
 /** @returns an empty merge report for decks with no deep page. */
 function emptyMergeReport(): MergeReport {
   return { replaced: [], imported: {}, reused: {}, layoutRemap: {}, multiMaster: false, dropped: [], renumberedCreationIds: 0 }
@@ -354,7 +387,7 @@ function publish(input: {
   /** Whether narration auto-advance needed the package show-timings flag. */
   showTimings: boolean
   /** What the design-profile font pass applied, when the manifest declared a profile. */
-  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly background?: BackgroundReport }
+  design?: { readonly fontPass: FontApplicationReport; readonly typefaces: readonly string[]; readonly pass?: DesignPassReport; readonly background?: BackgroundReport }
   compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input

@@ -232,6 +232,7 @@ export function chromeRoleFor(slideType: string | undefined, slideKind?: string)
     case 'cover':
       return 'cover'
     case 'section':
+    case 'chapter':
       return 'section'
     case 'quote':
       return 'quote'

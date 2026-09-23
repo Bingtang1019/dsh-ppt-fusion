@@ -1,4 +1,5 @@
 import { deltaE76 } from './pixels.ts'
+import { EMU_PER_INCH, chooseTitle, isGrey, isNumberLike, shapeGeometry, shapeProperties, shapeRuns, simpleLuminance, topLevelShapes, type SlideRun } from './slide-text.ts'
 import { listSlides, resolveTarget, type OpcPackage } from './opc.ts'
 import { slideSize } from './chrome.ts'
 import { contrastRatio } from './profile-theme.ts'
@@ -35,22 +36,7 @@ export const DESIGN_DELTA_E_LIMIT = 3
 /** Inch tolerance for a measured title anchor or card gap. */
 export const DESIGN_POSITION_TOLERANCE_IN = 0.05
 
-/** EMU per inch, the unit both the extractor and this audit use. */
-export const EMU_PER_INCH = 914400
-
-/** One styled text run with its shape geometry, as the extractor sees it. */
-interface SlideRun {
-  readonly text: string
-  readonly sizePt: number
-  readonly bold: boolean
-  readonly color: string
-  /** Explicit Latin (preferred) or East-Asian typeface; a run without one is not styled. */
-  readonly font: string
-  readonly x: number
-  readonly y: number
-  readonly w: number
-  readonly h: number
-}
+export { EMU_PER_INCH } from './slide-text.ts'
 
 /** One slide's styled runs in document order. */
 interface SlideFacts {
@@ -80,29 +66,6 @@ export interface DesignAuditOptions {
   readonly chrome?: boolean
 }
 
-/**
- * @param hex - `#RRGGBB`.
- * @returns the extractor's simple weighted luminance (0–1).
- */
-function simpleLuminance(hex: string): number {
-  const value = hex.startsWith('#') ? hex.slice(1) : hex
-  const channels = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255)
-  return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0)
-}
-
-/** @param hex - `#RRGGBB`. @returns true when the channels differ by at most 0x08. */
-function isGrey(hex: string): boolean {
-  const value = hex.startsWith('#') ? hex.slice(1) : hex
-  const channels = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16))
-  return Math.max(...channels) - Math.min(...channels) <= 8
-}
-
-/** @param text - one run's text. @returns true for a numeral run such as `02` or `12、`. */
-function isNumberLike(text: string): boolean {
-  const stripped = text.trim().replace(/[.．、\s]+$/g, '').replace(/^[.．、\s]+/g, '')
-  return /^\d{1,4}$/.test(stripped)
-}
-
 /** @param values - typed values. @returns the most common value, ties broken by first appearance. */
 function mode<T>(values: readonly T[]): T | undefined {
   const counts = new Map<T, number>()
@@ -119,53 +82,6 @@ function mode<T>(values: readonly T[]): T | undefined {
     }
   }
   return best
-}
-
-/**
- * @param xml - one slide part.
- * @returns the shape XML of top-level `p:sp` shapes. Shapes inside `p:grpSp` are
- *   dropped, matching python-pptx's `slide.shapes` iteration.
- */
-function topLevelShapes(xml: string): string[] {
-  const withoutGroups = xml.replace(/<p:grpSp\b[^>]*>[\s\S]*?<\/p:grpSp>/g, '')
-  return [...withoutGroups.matchAll(/<p:sp>[\s\S]*?<\/p:sp>/g)].map((match) => match[0])
-}
-
-/** @returns the shape's `a:off`/`a:ext`, or null when either is absent. */
-function shapeGeometry(shape: string): { x: number; y: number; w: number; h: number } | null {
-  const off = /<a:off x="(-?\d+)" y="(-?\d+)"\/>/.exec(shape)
-  const ext = /<a:ext cx="(\d+)" cy="(\d+)"\/>/.exec(shape)
-  if (off === null || ext === null) return null
-  return { x: Number(off[1]), y: Number(off[2]), w: Number(ext[1]), h: Number(ext[2]) }
-}
-
-/**
- * @param shape - one `p:sp` block.
- * @returns every run that names an explicit size, colour and text, as python-pptx sees them.
- */
-function shapeRuns(shape: string): SlideRun[] {
-  const geometry = shapeGeometry(shape)
-  if (geometry === null) return []
-  const runs: SlideRun[] = []
-  for (const match of shape.matchAll(/<a:r>([\s\S]*?)<\/a:r>/g)) {
-    const inner = match[1] ?? ''
-    const open = /<a:rPr\b([^>]*)>/.exec(inner)
-    const sizeText = open === null ? null : /\bsz="(\d+)"/.exec(open[1] ?? '')
-    const color = /<a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(inner)
-    const latin = /<a:latin typeface="([^"]*)"/.exec(inner)
-    const font = latin?.[1] ?? /<a:ea typeface="([^"]*)"/.exec(inner)?.[1] ?? ''
-    const text = [...inner.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((entry) => entry[1] ?? '').join('')
-    if (sizeText === null || color === null || font === '' || text.trim() === '') continue
-    runs.push({
-      text,
-      sizePt: Number(sizeText[1]) / 100,
-      bold: /\bb="1"/.test(open?.[1] ?? ''),
-      color: `#${(color[1] ?? '').toUpperCase()}`,
-      font,
-      ...geometry,
-    })
-  }
-  return runs
 }
 
 /** @param pkg - the package. @returns each slide's styled runs, in deck order. */
@@ -193,21 +109,6 @@ function roleOf(slides: readonly SlideFacts[], overrides: ReadonlyMap<number, De
     if (offset === 1 && digits.length >= 2) return 'toc'
     return 'content'
   })
-}
-
-/** @param runs - styled runs. @returns the slide's title run: largest dark, tie by smallest y. */
-function chooseTitle(runs: readonly SlideRun[]): { run: SlideRun; rest: SlideRun[] } | null {
-  const dark = runs.filter((run) => simpleLuminance(run.color) <= 0.75)
-  let title: SlideRun | undefined
-  let titleIndex = -1
-  for (const [index, run] of dark.entries()) {
-    if (title === undefined || run.sizePt > title.sizePt || (run.sizePt === title.sizePt && run.y < title.y)) {
-      title = run
-      titleIndex = index
-    }
-  }
-  if (title === undefined) return null
-  return { run: title, rest: dark.filter((_, index) => index !== titleIndex) }
 }
 
 /** @param groups - runs clustered by x. @returns the smallest positive gap between neighbours, in inches. */
@@ -575,11 +476,6 @@ function readPicture(pkg: OpcPackage, slidePart: string, xml: string, canvas: { 
     return { svgPart: svgPart !== null && /\.svg$/i.test(svgPart) ? svgPart : null, rasterPart, samplePart }
   }
   return null
-}
-
-/** @param shape - one shape block. @returns its `p:spPr` XML, or an empty string. */
-function shapeProperties(shape: string): string {
-  return /<p:spPr\b[^>]*>[\s\S]*?<\/p:spPr>|<p:spPr\b[^>]*\/>/.exec(shape)?.[0] ?? ''
 }
 
 /** @param xml - one slide part. @param canvas - slide size in EMU. @returns the full-canvas overlay fill, when present. */

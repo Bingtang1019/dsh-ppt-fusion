@@ -142,6 +142,7 @@ describe('chrome role and skip rules', () => {
     expect(chromeRoleFor('cover')).toBe('cover')
     expect(chromeRoleFor('ending')).toBe('ending')
     expect(chromeRoleFor('section')).toBe('section')
+  expect(chromeRoleFor('chapter')).toBe('section')
     expect(chromeRoleFor('quote')).toBe('quote')
     expect(chromeRoleFor('data')).toBe('data')
     expect(chromeRoleFor('evidence')).toBe('data')

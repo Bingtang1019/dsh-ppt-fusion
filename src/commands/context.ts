@@ -1,4 +1,4 @@
-import { isAbsolute, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { createFrontend, resolvePptwiseCli, type Frontend, type ModuleResolver } from '../frontend.ts'
 import { nodeFileSystem, type FileSystemPort } from '../engine/venv.ts'
 import { spawnRunner, type Runner } from '../engine/runner.ts'
@@ -8,6 +8,8 @@ import { DEFAULT_PYPI_INDEX, createVenvManager, resolveDshHome } from '../engine
 import { packageAsset } from '../package-paths.ts'
 import { createLoggingRunner, createWorkspaceLogSink } from '../logging.ts'
 import { PINNED } from './doctor.ts'
+import type { DesignRole } from '../schema/design-profile.ts'
+import { STORYBOARD_FILE } from '../schema/storyboard.ts'
 
 /**
  * Everything a deck command needs from outside itself.
@@ -72,6 +74,42 @@ export function frontendFor(dir: string, deps: CommandDependencies): Frontend {
  */
 export function themeBridgeFor(dir: string, deps: CommandDependencies) {
   return createThemeBridge({ workspace: dir, frontend: frontendFor(dir, deps), fs: deps.fs, upstream: PINNED.pptwise })
+}
+
+/**
+ * @param dir - deck workspace.
+ * @param deps - command dependencies.
+ * @returns the storyboard's role per page index — storyboard-only `toc` included,
+ *   `data`/`quote` folded onto content — or undefined when the storyboard is absent
+ *   or unreadable. The design pass and the design audit share this mapping so a toc
+ *   page is judged by the profile's toc row, not by its coarse IR type.
+ */
+export function designRoleMap(dir: string, deps: CommandDependencies): Map<number, DesignRole> | undefined {
+  const text = deps.fs.readText(join(dir, STORYBOARD_FILE))
+  if (text === null) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text) as unknown
+  } catch {
+    return undefined
+  }
+  const pages = (parsed as { pages?: unknown }).pages
+  if (!Array.isArray(pages)) return undefined
+  const roles = new Map<number, DesignRole>()
+  for (const entry of pages) {
+    if (entry === null || typeof entry !== 'object') continue
+    const index = (entry as { index?: unknown }).index
+    const role = (entry as { role?: unknown }).role
+    if (typeof index !== 'number' || typeof role !== 'string') continue
+    const mapped =
+      role === 'data' || role === 'quote'
+        ? 'content'
+        : role === 'cover' || role === 'toc' || role === 'section' || role === 'content' || role === 'ending'
+          ? role
+          : null
+    if (mapped !== null) roles.set(index, mapped)
+  }
+  return roles.size === 0 ? undefined : roles
 }
 
 /**
