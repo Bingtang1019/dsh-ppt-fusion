@@ -123,7 +123,8 @@ describe('applyProfileBackgrounds', () => {
     const flatPkg = miniPackage(2)
     const flatReport = applyProfileBackgrounds(flatPkg, { profile: flat, pages: pages.slice(0, 2) })
     expect(flatReport.application).toBe('flat')
-    expect(flatPkg.text('ppt/slides/slide1.xml')).toContain('<a:srgbClr val="#FFFFFF"/>')
+    expect(flatPkg.text('ppt/slides/slide1.xml')).toContain('<a:srgbClr val="FFFFFF"/>')
+    expect(flatPkg.text('ppt/slides/slide1.xml')).not.toContain('val="#')
     expect(flatPkg.text('ppt/slides/slide1.xml')).not.toContain('dsh-background')
     const photo: DesignProfile = { ...PROFILE, background: { mode: 'photo', overlayOpacity: 0.2 } }
     const photoPkg = miniPackage(1)

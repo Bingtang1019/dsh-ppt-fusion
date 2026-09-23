@@ -223,7 +223,7 @@ read-only half of the render chain's compatibility step, useful for re-checking 
 against another level. Errors always fail; `--strict` also fails on warnings. `--json`
 prints the occurrences and findings.
 
-### `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>]`
+### `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>] [--profile <file>] [--roles <spec>]`
 
 Runs the unified audit gate (plan §3.8) over a workspace: the `validate` pass, pptwise's own IR
 validation and geometry audit, the deep SVGs' quality gate, the published package's OPC
@@ -233,6 +233,17 @@ the engine's delivery check, the compat lint, and optionally the CIELAB colour c
 deep SVGs (`--pixels`). Errors fail the command; `--strict` also fails on warnings. Without an
 artifact the command reports `artifact-missing` and names the package sources it skipped instead
 of passing silently.
+
+`--profile <design-profile.json>` adds the `design` source (ADR-062): the package is
+re-measured with the extractor's own procedure and compared against the profile inside fixed
+tolerances — title/body size ±1 pt, colour ΔE ≤ 3, title anchor and card gap ±0.05 in, section
+watermark size, chrome booleans, the column count, the background mode, the SVG PNG fallback
+and the `office`/`user` picture provenance. Picture pages are read as pixels: body text must
+keep 4.5:1 over at least 70 % of the picture under it (after the overlay blend); a page
+without an overlay shape reports the same measurement as a warning. Roles come from the
+storyboard/IR when the deck loads, else from `--roles "cover=1;toc=2;content=3,4;ending=5"`
+(or a JSON index map); a `--file` outside the workspace audits the package only and names the
+workspace sources in `skipped`, so `--profile` can check a reference deck in place.
 
 ## Implemented (M5)
 

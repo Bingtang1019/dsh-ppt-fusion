@@ -8,8 +8,10 @@ import { resolveCompatLevel } from './render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { auditChrome, chromePagesFrom } from '../bridge/chrome.ts'
 import { designRoleFor } from '../bridge/background.ts'
-import { auditDesignPackage } from '../bridge/design-audit.ts'
+import { auditDesignBackgrounds, auditDesignPackage } from '../bridge/design-audit.ts'
+import { officeRecordPath } from './assets.ts'
 import { DESIGN_ROLES, parseDesignProfile, type DesignProfile, type DesignRole } from '../schema/design-profile.ts'
+import { USER_ASSET_MANIFEST, parseOfficeAssetRecord, parseUserAssetManifest } from '../schema/assets.ts'
 import { inspectCompat } from '../bridge/compat.ts'
 import { collectPixelFindings } from '../bridge/pixels.ts'
 import { runSkillAudit } from './skill.ts'
@@ -155,6 +157,8 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
             : new Map(chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index)).map((page) => [page.index, designRoleFor(page.role)] as const))
         const roles = roleOverrides ?? workspaceRoles
         findings.push(...auditDesignPackage(pkg, { profile, ...(roles === undefined ? {} : { roles }) }))
+        const provenance = designProvenance(dir, options.deps)
+        findings.push(...(await auditDesignBackgrounds(pkg, { profile, ...(roles === undefined ? {} : { roles }), ...provenance })))
       }
       if (packageOnly) {
         skipped.push('compat-lint, pptx-delivery-check: package-only profile audit')
@@ -405,6 +409,34 @@ function parseDesignRoles(spec: string): Map<number, DesignRole> {
     for (const index of indices.split(',')) set(Number(index.trim()), role)
   }
   return roles
+}
+
+/**
+ * @param dir - deck workspace.
+ * @param deps - command dependencies.
+ * @returns the office/user media ids a picture-mode background may reference. A record
+ *   that cannot be read is left absent: `assets` owns its diagnostics, and the
+ *   background rule then reports that the mode cannot be verified.
+ */
+function designProvenance(dir: string, deps: CommandDependencies): { officeIds?: ReadonlySet<string>; userIds?: ReadonlySet<string> } {
+  const provenance: { officeIds?: Set<string>; userIds?: Set<string> } = {}
+  const recordText = deps.fs.readText(officeRecordPath(deps))
+  if (recordText !== null) {
+    try {
+      provenance.officeIds = new Set(parseOfficeAssetRecord(JSON.parse(recordText) as unknown).assets.map((asset) => asset.id))
+    } catch {
+      // An invalid record is reported by `assets`; here it only removes the ids.
+    }
+  }
+  const manifestText = deps.fs.readText(join(dir, 'assets', USER_ASSET_MANIFEST))
+  if (manifestText !== null) {
+    try {
+      provenance.userIds = new Set(parseUserAssetManifest(JSON.parse(manifestText) as unknown).assets.map((asset) => asset.id))
+    } catch {
+      // An invalid manifest is reported by `assets`; here it only removes the ids.
+    }
+  }
+  return provenance
 }
 
 /** @returns an error finding from an arbitrary thrown value. */

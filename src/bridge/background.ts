@@ -153,6 +153,11 @@ function insertBehindContent(xml: string, shapes: string): string {
   return xml.slice(0, after) + shapes + xml.slice(after)
 }
 
+/** @param colour - `#RRGGBB` or `RRGGBB`. @returns the bare hex value DrawingML expects. */
+function srgbValue(colour: string): string {
+  return colour.replace(/^#/, '')
+}
+
 /**
  * @param xml - slide part.
  * @param colour - validated uppercase `#RRGGBB`.
@@ -160,7 +165,7 @@ function insertBehindContent(xml: string, shapes: string): string {
  * @throws DshPptFailure `ContractViolation` when the slide has no `p:cSld`.
  */
 function withSolidBackground(xml: string, colour: string): string {
-  const background = `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${colour}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`
+  const background = `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${srgbValue(colour)}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`
   const existing = /<p:bg>[\s\S]*?<\/p:bg>/.exec(xml)
   if (existing !== null) return xml.slice(0, existing.index) + background + xml.slice(existing.index + existing[0].length)
   const content = /<p:cSld\b[^>]*>/.exec(xml)
@@ -177,7 +182,7 @@ function pictureXml(id: number, relId: string, size: { cx: number; cy: number })
 
 /** @returns the full-canvas overlay XML; `alpha` is 0–1 and written in 1/1000 %. */
 function overlayXml(id: number, colour: string, alpha: number, size: { cx: number; cy: number }): string {
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${String(id)}" name="dsh-background-overlay"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(size.cx)}" cy="${String(size.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${colour}"><a:alpha val="${String(Math.round(alpha * 100000))}"/></a:srgbClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${String(id)}" name="dsh-background-overlay"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(size.cx)}" cy="${String(size.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${srgbValue(colour)}"><a:alpha val="${String(Math.round(alpha * 100000))}"/></a:srgbClr></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
 }
 
 /** @returns an image relationship on `slidePart`, appended after the existing ones. */

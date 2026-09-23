@@ -422,22 +422,31 @@ recurse into `ppt/embeddings/*` (ADR-017).
 
 ## 12. Unified audit gate (M4 part 2)
 
-`dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>]` is the
-eight-source gate plan §3.8 defines. It emits a `FusionAuditReport`:
+`dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>] [--profile <file>] [--roles <spec>]`
+is the eight-source gate plan §3.8 defines. It emits a `FusionAuditReport`:
 `{schemaVersion: 1, ok, strict, findings, sources, artifact, compatLevel, pixels, skipped}`, with
 each finding `{level, source, page?, rule, message}` — the envelope is frozen at schema 1 and a
 breaking change bumps it.
 
 - **Sources.** `manifest`/`ir`/`deep`/`theme`/`palette` (the `validate` pass, ADR-023);
   `pptwise-validate` and `pptwise-audit` (the front end's own IR validation and geometry
-  audit, mapped from `{slide, severity, code, message}`); `svg-quality-check` (re-run on each
+  audit, mapped from `{slide, severity, code, message}`); `design` (profile compliance when
+  `--profile` is given, ADR-062); `svg-quality-check` (re-run on each
   recorded `.dsh-ppt/deep/<project>`: `blocking` becomes an error,
   `introduced`/`inherited`/`source-import` become warnings); `pptx` (OPC integrity plus the P1
   single-master invariant); `pptx-delivery-check` (the engine's delivery gate on the
   artifact); `prompt-audit` (the SKILL budget gate of ?14, mapped from
-    `{severity, code, path, line}`); `compat-lint` (ADR-034 at the resolved level). `--pixels` adds the CIELAB
+  `{severity, code, path, line}`); `compat-lint` (ADR-034 at the resolved level). `--pixels` adds the CIELAB
   source-colour comparison of the deep SVGs (`palette-delta-e`, warning only: a 1 % coverage
   floor and ΔE above 10).
+- **Profile compliance.** `--profile <file>` adds the `design` source: the package's
+  representative title/body size and colour per role (±1 pt, ΔE ≤ 3), the accent body colour
+  (ΔE ≤ 3), the title anchor (±0.05 in) with the column count and card gap, the section
+  watermark, the chrome booleans, and the background mode (with the SVG PNG fallback and the
+  picture provenance for `office`/`user`). Roles come from the storyboard/IR when the deck
+  loads, else from `--roles role=1,2;role=3` or the extractor's hints. A `--file` outside the
+  workspace switches to a package-only audit: the OPC and `design` sources run and the
+  workspace-only sources are named in `skipped`, so a reference deck can be audited in place.
 - **Artifact.** `--file`, else `out/manifest.json`'s `file`, else the single `*.pptx` under
   `out/`. A missing artifact is an `artifact-missing` error and the package sources are named
   in `skipped`, never silently passed.
@@ -593,7 +602,8 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   `chrome-logo-part`, `chrome-baked-strip` (all error) and `chrome-overlap` (warning; full-canvas
   background shapes are excluded). `--strict` reds the warning.
 - **Fixture.** `fixtures/hello` declares a footer and a section on page 3; the golden package is
-  `fixtureVersion 6` and the theme matrix snapshots carry the chrome source.
+  re-recorded at the current fixtureVersion (8 as of ADR-062) and the theme matrix snapshots
+  carry the chrome source.
 
 ## 18. Storyboard contract (V6 WP2, ADR-059)
 
@@ -720,3 +730,31 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   `application`/`overlayOpacity`/`minContrast` (and `svgPart`), the generated `parts` and any
   `notes`; the published package carries both the `.svg` and `.png` parts with the Office SVG
   picture structure, and two renders of the same deck are byte-identical.
+
+## 22. Design compliance audit (V7.2 B4, ADR-062)
+
+- **Command.** `dsh-ppt audit <dir> --profile <design-profile.json> [--roles <spec>] [--file <pptx>]`
+  adds the `design` source. Roles come from the storyboard/IR when the deck loads; an external
+  package uses `--roles cover=1;toc=2;content=3,4;ending=5` (or a JSON index map), else the
+  extractor's hints (cover/ending by position, section by a light ≥ 60 pt watermark, toc by two
+  large numerals on page 2). A `--file` outside the workspace runs the package-only audit.
+- **Re-measured rules.** The audit replays the extractor's measurement on the OOXML package and
+  compares it with the profile: `design-role-title-font` (representative title and dominant body
+  size ±1 pt, colour ΔE ≤ 3), `design-accent-body-color` (dominant non-grey body colour
+  ΔE ≤ 3), `design-role-geometry` (title anchor ±0.05 in, column count/limit, card gap
+  ±0.05 in), `design-section-marker` (watermark size ±1 pt) and `design-chrome-match`
+  (page-number/meta-footer/section booleans). A role the deck plays but the profile does not
+  describe is a warning (`design-role-unprofiled`).
+- **Background rule.** `design-background-mode` measures the deck mode from its full-canvas
+  pictures (`flat`, `svg`, `photo`, or a `mixed` error), requires an SVG picture to carry a
+  raster fallback part, and checks `office`/`user` pictures against the discovery record and the
+  deck manifests. Picture pages are read as pixels: body-scale text (up to the role's body size
+  + 2 pt) must keep 4.5:1 over at least 70 % of the picture pixels under its box after the
+  overlay blend (an opaque shape covering the text wins instead). A violation is an error when
+  the page has an overlay shape and a warning when it does not, because a hand-authored deck
+  cannot be repaired by the audit.
+- **Evidence.** On this machine the reference deck passes with `ok=true`, 0 error and one
+  `design-background-mode` warning (page 8: one body box sits on 33 % compliant pixels), and
+  `pnpm design:verify` runs both the S24 field comparison and the S26 profile audit. Negative
+  tests cover wrong size, colour, accent, anchor, columns, watermark and chrome, plus SVG
+  fallback and picture-contrast failures.

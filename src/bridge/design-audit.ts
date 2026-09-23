@@ -1,6 +1,7 @@
 import { deltaE76 } from './pixels.ts'
-import { listSlides, type OpcPackage } from './opc.ts'
+import { listSlides, resolveTarget, type OpcPackage } from './opc.ts'
 import { slideSize } from './chrome.ts'
+import { contrastRatio } from './profile-theme.ts'
 import type { FusionFinding } from '../audit.ts'
 import type { DesignProfile, DesignRole } from '../schema/design-profile.ts'
 
@@ -399,5 +400,348 @@ export function auditDesignPackage(pkg: OpcPackage, options: DesignAuditOptions)
     }
   }
 
+  return findings
+}
+
+/** One rasterised picture sample; production uses sharp, tests inject a fixture. */
+export interface PixelRaster {
+  readonly width: number
+  readonly height: number
+  readonly channels: number
+  readonly data: Buffer
+}
+
+/** Options for {@link auditDesignBackgrounds}. */
+export interface DesignBackgroundOptions {
+  readonly profile: DesignProfile
+  /** 1-based role overrides; without them the extractor's role hints are re-run. */
+  readonly roles?: ReadonlyMap<number, DesignRole>
+  /** Media ids (file stem) the office discovery record authorises, for `office` mode. */
+  readonly officeIds?: ReadonlySet<string>
+  /** Media ids the user manifests authorise, for `user` mode. */
+  readonly userIds?: ReadonlySet<string>
+  /** Rasteriser seam; defaults to sharp. */
+  readonly rasterise?: (bytes: Buffer) => Promise<PixelRaster>
+}
+
+/** The background picture of one slide, resolved through its relationships. */
+interface BackgroundPicture {
+  readonly svgPart: string | null
+  readonly rasterPart: string | null
+  /** Part sampled for contrast: the raster sibling, else the SVG. */
+  readonly samplePart: string
+}
+
+/** One opaque shape that can occlude the picture under a text box. */
+interface OpaqueShape {
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+  readonly colour: string
+}
+
+/** The background facts of one slide. */
+interface SlideBackground {
+  readonly index: number
+  readonly part: string
+  readonly role: DesignRole
+  readonly xml: string
+  readonly picture: BackgroundPicture | null
+  readonly overlay: { readonly colour: string; readonly alpha: number } | null
+  readonly boxes: readonly { readonly x: number; readonly y: number; readonly w: number; readonly h: number; readonly runs: readonly SlideRun[] }[]
+  readonly opaque: readonly OpaqueShape[]
+}
+
+/** Raster media extensions a PNG fallback may use. */
+const RASTER_MEDIA = /\.(?:png|jpe?g|gif|bmp)$/i
+
+/** Contrast floor for body-scale text over a background (plan B4 `background-mode`). */
+export const BACKGROUND_TEXT_CONTRAST_FLOOR = 4.5
+
+/**
+ * Share of the pixels under a body text box that must clear the contrast floor.
+ * A single mean colour is not how photography reads: the reference deck's worst
+ * body box measured 3.49:1 by mean over a light photo with one blue band, while
+ * 84 % of its pixels clear 4.5:1. Coverage keeps that page passing and still fails
+ * a text box that mostly sits on a dark photo.
+ */
+export const BACKGROUND_TEXT_COVERAGE_FLOOR = 0.7
+
+/** @param channel - 0-255. @returns the linear-light value. */
+function linearise(channel: number): number {
+  const value = channel / 255
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+}
+
+/** @returns the WCAG relative luminance of an RGB triplet. */
+function relativeLuminance(red: number, green: number, blue: number): number {
+  return 0.2126 * linearise(red) + 0.7152 * linearise(green) + 0.0722 * linearise(blue)
+}
+
+/** @param left - one relative luminance. @param right - the other. @returns their WCAG contrast ratio. */
+function ratioFromLuminance(left: number, right: number): number {
+  const [lighter, darker] = left >= right ? [left, right] : [right, left]
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+/** @param hex - `#RRGGBB`. @returns the WCAG relative luminance. */
+function hexLuminance(hex: string): number {
+  const value = hex.replace(/^#/, '')
+  return relativeLuminance(
+    Number.parseInt(value.slice(0, 2), 16),
+    Number.parseInt(value.slice(2, 4), 16),
+    Number.parseInt(value.slice(4, 6), 16),
+  )
+}
+
+/**
+ * @param raster - rasterised picture.
+ * @param box - the text box in EMU.
+ * @param canvas - slide size in EMU.
+ * @param textColour - the run colour.
+ * @param overlay - the overlay fill applied above the picture, when present.
+ * @returns the share of the box's picture pixels that clear the contrast floor after
+ *   the overlay blend.
+ */
+function regionCoverage(raster: PixelRaster, box: { x: number; y: number; w: number; h: number }, canvas: { cx: number; cy: number }, textColour: string, overlay: { colour: string; alpha: number } | null): number {
+  const x0 = Math.max(0, Math.floor((box.x / canvas.cx) * raster.width))
+  const y0 = Math.max(0, Math.floor((box.y / canvas.cy) * raster.height))
+  const x1 = Math.min(raster.width, Math.ceil(((box.x + box.w) / canvas.cx) * raster.width))
+  const y1 = Math.min(raster.height, Math.ceil(((box.y + box.h) / canvas.cy) * raster.height))
+  const text = hexLuminance(textColour)
+  const over = overlay === null ? null : overlay.colour.replace(/^#/, '')
+  const overRed = over === null ? 0 : Number.parseInt(over.slice(0, 2), 16)
+  const overGreen = over === null ? 0 : Number.parseInt(over.slice(2, 4), 16)
+  const overBlue = over === null ? 0 : Number.parseInt(over.slice(4, 6), 16)
+  const alpha = overlay?.alpha ?? 0
+  let passing = 0
+  let total = 0
+  for (let y = y0; y < y1; y += 1) {
+    for (let x = x0; x < x1; x += 1) {
+      const offset = (y * raster.width + x) * raster.channels
+      const red = raster.data[offset] ?? 0
+      const green = raster.data[offset + 1] ?? 0
+      const blue = raster.data[offset + 2] ?? 0
+      const blended =
+        over === null
+          ? relativeLuminance(red, green, blue)
+          : relativeLuminance(red + (overRed - red) * alpha, green + (overGreen - green) * alpha, blue + (overBlue - blue) * alpha)
+      if (ratioFromLuminance(blended, text) >= BACKGROUND_TEXT_CONTRAST_FLOOR) passing += 1
+      total += 1
+    }
+  }
+  return total === 0 ? 0 : passing / total
+}
+
+/** @param bytes - picture bytes. @returns the default sharp rasteriser. */
+async function rasteriseWithSharp(bytes: Buffer): Promise<PixelRaster> {
+  const { default: sharp } = await import('sharp')
+  const { data, info } = await sharp(bytes).resize({ width: 480, height: 270, fit: 'fill' }).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  return { width: info.width, height: info.height, channels: info.channels, data }
+}
+
+/** @param hex - `#RRGGBB` with or without the hash. @returns the uppercase `#RRGGBB`. */
+function normalized(hex: string): string {
+  return `#${hex.replace(/^#/, '').toUpperCase()}`
+}
+
+/** @param slidePart - part the relationship belongs to. @param relationships - that part's relationships. @param id - relationship id. @returns the resolved part, or null. */
+function partOf(slidePart: string, relationships: ReturnType<OpcPackage['relationshipsOf']>, id: string | undefined): string | null {
+  if (id === undefined) return null
+  const rel = relationships.find((entry) => entry.id === id)
+  return rel === undefined ? null : resolveTarget(slidePart, rel.target)
+}
+
+/** @param shape - one shape block. @param canvas - slide size in EMU. @returns true when the shape covers at least 90% of the canvas. */
+function fullCanvas(shape: string, canvas: { cx: number; cy: number }): boolean {
+  const ext = /<a:ext cx="(\d+)" cy="(\d+)"\/>/.exec(shape)
+  return ext !== null && Number(ext[1]) >= canvas.cx * 0.9 && Number(ext[2]) >= canvas.cy * 0.9
+}
+
+/** @param pkg - the package. @param slidePart - the slide. @param xml - its XML. @param canvas - slide size in EMU. @returns the full-canvas picture facts, or null. */
+function readPicture(pkg: OpcPackage, slidePart: string, xml: string, canvas: { cx: number; cy: number }): BackgroundPicture | null {
+  const relationships = pkg.relationshipsOf(slidePart)
+  for (const match of xml.matchAll(/<p:pic>[\s\S]*?<\/p:pic>/g)) {
+    const shape = match[0]
+    if (!fullCanvas(shape, canvas)) continue
+    const svgRel = /<asvg:svgBlip\b[^>]*\br:embed="([^"]+)"/.exec(shape)?.[1]
+    const mainRel = /<a:blip\b[^>]*\br:embed="([^"]+)"/.exec(shape)?.[1]
+    const svgPart = partOf(slidePart, relationships, svgRel)
+    const mainPart = partOf(slidePart, relationships, mainRel)
+    const rasterPart = mainPart !== null && RASTER_MEDIA.test(mainPart) ? mainPart : null
+    const samplePart = rasterPart ?? svgPart ?? mainPart
+    if (samplePart === null) continue
+    return { svgPart: svgPart !== null && /\.svg$/i.test(svgPart) ? svgPart : null, rasterPart, samplePart }
+  }
+  return null
+}
+
+/** @param shape - one shape block. @returns its `p:spPr` XML, or an empty string. */
+function shapeProperties(shape: string): string {
+  return /<p:spPr\b[^>]*>[\s\S]*?<\/p:spPr>|<p:spPr\b[^>]*\/>/.exec(shape)?.[0] ?? ''
+}
+
+/** @param xml - one slide part. @param canvas - slide size in EMU. @returns the full-canvas overlay fill, when present. */
+function readOverlay(xml: string, canvas: { cx: number; cy: number }): { colour: string; alpha: number } | null {
+  for (const shape of topLevelShapes(xml)) {
+    if (!fullCanvas(shape, canvas)) continue
+    const fill = /<a:solidFill>\s*<a:srgbClr val="#?([0-9A-Fa-f]{6})"\s*>\s*<a:alpha val="(\d+)"\s*\/>\s*<\/a:srgbClr>\s*<\/a:solidFill>/.exec(shapeProperties(shape))
+    if (fill === null) continue
+    return { colour: normalized(fill[1] ?? ''), alpha: Number(fill[2]) / 100000 }
+  }
+  return null
+}
+
+/** @param xml - one slide part. @returns the opaque shape-properties fills that can sit above the picture. */
+function readOpaqueShapes(xml: string): OpaqueShape[] {
+  const shapes: OpaqueShape[] = []
+  for (const shape of topLevelShapes(xml)) {
+    const geometry = shapeGeometry(shape)
+    if (geometry === null) continue
+    const fill = /<a:solidFill>\s*<a:srgbClr val="#?([0-9A-Fa-f]{6})"\s*\/>\s*<\/a:solidFill>/.exec(shapeProperties(shape))
+    if (fill === null) continue
+    shapes.push({ ...geometry, colour: normalized(fill[1] ?? '') })
+  }
+  return shapes
+}
+
+/** @param xml - one slide part. @returns text boxes with their styled runs. */
+function readTextBoxes(xml: string): SlideBackground['boxes'] {
+  const boxes: { x: number; y: number; w: number; h: number; runs: SlideRun[] }[] = []
+  for (const shape of topLevelShapes(xml)) {
+    const geometry = shapeGeometry(shape)
+    if (geometry === null) continue
+    const runs = shapeRuns(shape)
+    if (runs.length === 0) continue
+    boxes.push({ ...geometry, runs })
+  }
+  return boxes
+}
+
+/** @param pkg - the package. @param slidePart - the slide. @param index - 1-based position. @param role - its role. @param canvas - slide size in EMU. @returns the slide's background facts. */
+function readBackground(pkg: OpcPackage, slidePart: string, index: number, role: DesignRole, canvas: { cx: number; cy: number }): SlideBackground {
+  const xml = pkg.text(slidePart)
+  return {
+    index,
+    part: slidePart,
+    role,
+    xml,
+    picture: readPicture(pkg, slidePart, xml, canvas),
+    overlay: readOverlay(xml, canvas),
+    boxes: readTextBoxes(xml),
+    opaque: readOpaqueShapes(xml),
+  }
+}
+
+/** @param slide - one slide's background facts. @param box - one text box. @returns the last opaque shape covering at least 90% of the box, or null. */
+function coveringFill(slide: SlideBackground, box: { x: number; y: number; w: number; h: number }): string | null {
+  let found: string | null = null
+  for (const shape of slide.opaque) {
+    const width = Math.max(0, Math.min(box.x + box.w, shape.x + shape.w) - Math.max(box.x, shape.x))
+    const height = Math.max(0, Math.min(box.y + box.h, shape.y + shape.h) - Math.max(box.y, shape.y))
+    if (width * height >= box.w * box.h * 0.9) found = shape.colour
+  }
+  return found
+}
+
+/** @param xml - one slide part. @returns the `p:bg` solid fill colour, when present. */
+function flatFill(xml: string): string | null {
+  const match = /<p:bg>[\s\S]*?<a:srgbClr val="#?([0-9A-Fa-f]{6})"/.exec(xml)
+  return match === null ? null : normalized(match[1] ?? '')
+}
+
+/**
+ * Check the package's background mode, overlay/contrast and SVG fallback against the
+ * profile (V7.2 B4, rule `design-background-mode`).
+ *
+ * The deck-level mode mirrors the extractor: any full-canvas picture makes the deck a
+ * picture deck, and an `asvg:svgBlip` makes it an SVG deck. Picture pages are then
+ * checked for the plan's real requirement — body-scale text (up to the role's body
+ * size + 2 pt) keeps ≥ 4.5:1 over at least 70 % of the pixels under its box, where
+ * the pixels are the picture blended with the overlay shape when one is present and
+ * the topmost opaque shape covering the text wins instead. An overlay shape is not
+ * required when coverage already proves the contrast, which keeps a hand-authored
+ * reference deck with a baked-in wash compliant.
+ *
+ * @param pkg - the published package.
+ * @param options - profile, roles, provenance id sets and the rasteriser seam.
+ * @returns one error finding per mode mismatch, missing PNG fallback or contrast violation.
+ */
+export async function auditDesignBackgrounds(pkg: OpcPackage, options: DesignBackgroundOptions): Promise<FusionFinding[]> {
+  const findings: FusionFinding[] = []
+  const canvas = slideSize(pkg)
+  const slides = readSlides(pkg)
+  const roles = roleOf(slides, options.roles)
+  const facts = listSlides(pkg).map((part, offset) => readBackground(pkg, part, offset + 1, roles[offset] ?? 'content', canvas))
+  const pictures = facts.filter((fact) => fact.picture !== null)
+  const svgCount = pictures.filter((fact) => fact.picture?.svgPart !== null).length
+  const rasterCount = pictures.length - svgCount
+  const measured = svgCount > 0 && rasterCount > 0 ? 'mixed' : svgCount > 0 ? 'svg' : rasterCount > 0 ? 'photo' : 'flat'
+  const expected = options.profile.background.mode
+  const pictureExpected = expected === 'svg' || expected === 'photo' || expected === 'office' || expected === 'user'
+  const modeMatches = expected === 'flat' ? measured === 'flat' : expected === 'svg' ? measured === 'svg' : pictureExpected ? measured === 'photo' : false
+  if (measured === 'mixed') {
+    findings.push({ level: 'error', source: 'design', rule: 'design-background-mode', message: 'full-bleed backgrounds mix SVG and raster pictures; a deck must use one picture mode' })
+  } else if (!modeMatches) {
+    findings.push({
+      level: 'error',
+      source: 'design',
+      rule: 'design-background-mode',
+      message: `background images are ${measured} but the profile says ${expected}; the flat colour stays until the mode's asset is attached`,
+    })
+  }
+
+  for (const fact of facts) {
+    const picture = fact.picture
+    if (picture === null) continue
+    if (expected === 'office' || expected === 'user') {
+      const ids = expected === 'office' ? options.officeIds : options.userIds
+      if (ids === undefined) {
+        findings.push({ level: 'error', source: 'design', page: fact.index, rule: 'design-background-mode', message: `${expected} background cannot be verified without the library record` })
+      } else {
+        const stem = (picture.samplePart.split('/').pop() ?? '').replace(/\.[^.]+$/, '')
+        if (!ids.has(stem)) {
+          findings.push({ level: 'error', source: 'design', page: fact.index, rule: 'design-background-mode', message: `${expected} background ${picture.samplePart} is not an id of the ${expected} library` })
+        }
+      }
+    }
+    if (picture.svgPart !== null && picture.rasterPart === null) {
+      findings.push({ level: 'error', source: 'design', page: fact.index, rule: 'design-background-mode', message: `SVG background ${picture.svgPart} has no raster fallback; run the compat pass so Office 2013 can render it` })
+    }
+    const bodySize = options.profile.typeScale[fact.role]?.body?.sizePt ?? 20
+    const candidates = fact.boxes.flatMap((box) => box.runs.filter((run) => run.sizePt <= bodySize + 2).map((run) => ({ run, box })))
+    if (candidates.length === 0) continue
+    let raster: PixelRaster | null = null
+    if (pkg.has(picture.samplePart) && !/\.svg$/i.test(picture.samplePart)) raster = await (options.rasterise ?? rasteriseWithSharp)(pkg.part(picture.samplePart))
+    let worst: { coverage: number; run: SlideRun } | null = null
+    for (const candidate of candidates) {
+      const occluded = coveringFill(fact, candidate.box)
+      const coverage =
+        occluded !== null
+          ? contrastRatio(candidate.run.color, occluded) >= BACKGROUND_TEXT_CONTRAST_FLOOR
+            ? 1
+            : 0
+          : raster !== null
+            ? regionCoverage(raster, candidate.box, canvas, candidate.run.color, fact.overlay)
+            : contrastRatio(candidate.run.color, flatFill(fact.xml) ?? options.profile.palette.bg) >= BACKGROUND_TEXT_CONTRAST_FLOOR
+              ? 1
+              : 0
+      if (worst === null || coverage < worst.coverage) worst = { coverage, run: candidate.run }
+    }
+    if (worst !== null && worst.coverage < BACKGROUND_TEXT_COVERAGE_FLOOR) {
+      // A plugin-owned picture carries an overlay this audit can hold to the floor. A
+      // hand-authored deck without one cannot be repaired by the audit, so the same
+      // measurement is a warning that names the missing overlay (ADR-062).
+      const overlayNote = fact.overlay === null ? ' and the page has no overlay shape to raise it' : ''
+      findings.push({
+        level: fact.overlay === null ? 'warning' : 'error',
+        source: 'design',
+        page: fact.index,
+        rule: 'design-background-mode',
+        message: `body text ${worst.run.color} keeps ${String(BACKGROUND_TEXT_CONTRAST_FLOOR)}:1 on only ${(worst.coverage * 100).toFixed(0)}% of its background (floor ${(BACKGROUND_TEXT_COVERAGE_FLOOR * 100).toFixed(0)}%)${overlayNote}`,
+      })
+    }
+  }
   return findings
 }

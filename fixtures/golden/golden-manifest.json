@@ -1,5 +1,5 @@
 {
-  "fixtureVersion": 7,
+  "fixtureVersion": 8,
   "upstream": {
     "pptwise": "0.35.0",
     "ppt-master": "0.1.128"
@@ -12,17 +12,17 @@
   },
   "deepRef": {
     "file": "hello-deep.pptx",
-    "sha256": "dbdc4a3c49bd1ce88833227f7af843cfbed9f3572716a2657e04a8089a0ec788",
+    "sha256": "dd7920517d597da5570b3ec4c701691ff946ac1c29d2a8db1bbacf7430de81a2",
     "canonical": "5376988e7456456458876fdbb500162f0329fa954a37596f49c859346ff36f52",
-    "bytes": 178234
+    "bytes": 178236
   },
   "mergedRef": {
     "file": "hello-merged.pptx",
-    "sha256": "26c8e4c7e1489c27ba13cad2beb29a4f9e18ebc8d9ecf983fe5606f2aca01912",
-    "canonical": "8755b6d1203b233afaaebc53783bec42a1654f7680057a3b30261c919c6220d7",
-    "bytes": 197721
+    "sha256": "de815560dc001c16bfbbc42a2726e62916e86492d9f8891a59e6deae97ef0e8c",
+    "canonical": "b6072ca1d561e2510f5d5d2ee459c092bb179e5add8bfb4b30a3125a5ea0191c",
+    "bytes": 197718
   },
   "generatedBy": "pnpm fixtures:record",
   "command": "dsh-ppt render fixtures/hello",
-  "createdAt": "2026-09-23T14:54:59.954Z"
+  "createdAt": "2026-09-23T18:05:46.907Z"
 }

@@ -139,7 +139,7 @@ function eaFamily(tokens: TokensFile): string {
 
 /** @returns the run properties every chrome shape uses (theme muted colour, body font). */
 function runProperties(tokens: TokensFile): string {
-  const color = escapeAttribute(tokens.colors.muted)
+  const color = escapeAttribute(tokens.colors.muted).replace(/^#/, '')
   const typeface = escapeAttribute(tokens.fonts.body[0] ?? 'Calibri')
   const ea = escapeAttribute(eaFamily(tokens))
   return `<a:rPr lang="en-US" sz="${String(FONT_SIZE)}" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${typeface}"/><a:ea typeface="${ea}"/><a:cs typeface="${typeface}"/></a:rPr>`

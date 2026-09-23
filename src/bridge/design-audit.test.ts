@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { auditDesignPackage, DESIGN_DELTA_E_LIMIT, DESIGN_POSITION_TOLERANCE_IN, DESIGN_SIZE_TOLERANCE_PT } from './design-audit.ts'
+import { auditDesignBackgrounds, auditDesignPackage, BACKGROUND_TEXT_COVERAGE_FLOOR, DESIGN_DELTA_E_LIMIT, DESIGN_POSITION_TOLERANCE_IN, DESIGN_SIZE_TOLERANCE_PT, type PixelRaster } from './design-audit.ts'
 import { OpcPackage } from './opc.ts'
 import type { DesignProfile } from '../schema/design-profile.ts'
 import type { FusionFinding } from '../audit.ts'
@@ -180,5 +180,79 @@ describe('auditDesignPackage', () => {
 
   it('names the colour tolerance it enforces', () => {
     expect(DESIGN_DELTA_E_LIMIT).toBe(3)
+  })
+})
+
+/** Image relationship type used by the background fixtures. */
+const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
+
+/** @returns whatever raster value the seam should report. */
+function greyRaster(value: number): PixelRaster {
+  return { width: 4, height: 4, channels: 4, data: Buffer.alloc(4 * 4 * 4, value) }
+}
+
+/** @returns a one-slide deck whose full-canvas picture has the requested parts and overlay. */
+function backgroundPackage(input: { svg: boolean; raster: boolean; overlay: boolean }): OpcPackage {
+  const pkg = new OpcPackage()
+  pkg.declareDefault('rels', 'application/vnd.openxmlformats-package.relationships+xml')
+  pkg.declareDefault('xml', 'application/xml')
+  const svgExt = '<a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip r:embed="rId2"/></a:ext></a:extLst>'
+  const blip = input.raster ? `<a:blip r:embed="rId1">${input.svg ? svgExt : ''}</a:blip>` : `<a:blip>${input.svg ? svgExt.replace('rId2', 'rId1') : ''}</a:blip>`
+  const picture = `<p:pic><p:nvPicPr><p:cNvPr id="2" name="bg"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill>${blip}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
+  const overlay = input.overlay
+    ? `<p:sp><p:nvSpPr><p:cNvPr id="3" name="overlay"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"><a:alpha val="15000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
+    : ''
+  const body = shapeXml({ x: 1, y: 1, w: 4, h: 1, runs: [{ sizePt: 14, color: '#262626', text: '正文' }] })
+  pkg.setPart('ppt/slides/slide1.xml', `<p:sld><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/></p:nvGrpSpPr><p:grpSpPr><a:xfrm/></p:grpSpPr>${picture}${overlay}${body}</p:spTree></p:cSld></p:sld>`)
+  pkg.setPart('ppt/presentation.xml', `<p:presentation><p:sldSz cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>`)
+  pkg.setRelationships('ppt/presentation.xml', [{ id: 'rId1', type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide', target: 'slides/slide1.xml' }])
+  const slideRels: { id: string; type: string; target: string }[] = []
+  if (input.raster) {
+    pkg.setPart('ppt/media/bg.png', Buffer.from('png'))
+    pkg.ensureContentType('ppt/media/bg.png', 'image/png')
+    slideRels.push({ id: 'rId1', type: IMAGE_REL, target: '../media/bg.png' })
+  }
+  if (input.svg) {
+    pkg.setPart('ppt/media/bg.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>')
+    pkg.ensureContentType('ppt/media/bg.svg', 'image/svg+xml')
+    slideRels.push({ id: input.raster ? 'rId2' : 'rId1', type: IMAGE_REL, target: '../media/bg.svg' })
+  }
+  pkg.setRelationships('ppt/slides/slide1.xml', slideRels)
+  return pkg
+}
+
+describe('auditDesignBackgrounds', () => {
+  const svgProfile: DesignProfile = { ...PROFILE, background: { mode: 'svg', overlayOpacity: 0.15 } }
+
+  it('passes an SVG background with a raster fallback and an overlay', async () => {
+    const findings = await auditDesignBackgrounds(backgroundPackage({ svg: true, raster: true, overlay: true }), { profile: svgProfile, rasterise: async () => greyRaster(255) })
+    expect(findings).toEqual([])
+  })
+
+  it('reports an SVG background without a raster fallback', async () => {
+    const findings = await auditDesignBackgrounds(backgroundPackage({ svg: true, raster: false, overlay: true }), { profile: svgProfile, rasterise: async () => greyRaster(255) })
+    expect(findings.map((finding) => finding.rule)).toEqual(['design-background-mode'])
+    expect(findings[0]?.message).toContain('raster fallback')
+  })
+
+  it('reports a flat deck for a picture profile', async () => {
+    const findings = await auditDesignBackgrounds(packageWith([cover(true), section(true), content(), content(), ending(true)]), {
+      profile: { ...PROFILE, background: { mode: 'photo', overlayOpacity: 0.15 } },
+      roles: ROLES,
+    })
+    expect(findings.some((finding) => finding.message.includes('background images are flat'))).toBe(true)
+  })
+
+  it('fails a dark picture under body text even with an overlay', async () => {
+    const findings = await auditDesignBackgrounds(backgroundPackage({ svg: true, raster: true, overlay: true }), { profile: svgProfile, rasterise: async () => greyRaster(0) })
+    expect(findings).toHaveLength(1)
+    expect(findings[0]?.level).toBe('error')
+    expect(findings[0]?.message).toContain(`${(BACKGROUND_TEXT_COVERAGE_FLOOR * 100).toFixed(0)}%`)
+  })
+
+  it('warns instead of failing when a dark picture has no overlay', async () => {
+    const findings = await auditDesignBackgrounds(backgroundPackage({ svg: true, raster: true, overlay: false }), { profile: svgProfile, rasterise: async () => greyRaster(0) })
+    expect(findings).toHaveLength(1)
+    expect(findings[0]?.level).toBe('warning')
   })
 })

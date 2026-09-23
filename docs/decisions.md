@@ -73,6 +73,7 @@ the ADR wins.**
 | 059 | Storyboard roles, the theme-menu allow-matrix and measured content budgets (v0.2 Q2) |
 | 060 | Narration auto-advance recomputed from embedded audio; `useTimings` restored after merge (Q5) |
 | 061 | Design profile: numeric extraction of a reference deck, deck-discipline guard (V7 B1) |
+| 062 | Profile compliance audit (`audit --profile`), picture-contrast coverage and bare `srgbClr` literals (V7 B4) |
 | 063 | Flaky CLI-surface test: one module import under a 30 s hook (V7 A0) |
 | 065 | `serve` and `deep check\|chart` dropped from the planned CLI surface (V7 A3) |
 | 066 | Profile theming through the deck-local `theme.json`; storyboard `toc` role (V7 B2) |
@@ -1965,3 +1966,53 @@ the ADR wins.**
   (`coverage.exempt` would hide it from the budget and duplicate gates); duplicating the
   tables into both language editions (the prompt-audit corpus already penalises cross-file
   duplication).
+
+## ADR-062 — Profile compliance audit (`audit --profile`), picture-contrast coverage and bare `srgbClr` literals (V7.2 B4)
+
+- **Date:** 2026-09-24
+- **Measured fact.** A design profile stores representative values (per-role title/body *modes*,
+  one title anchor per role, palette modes), not per-slide invariants: on the reference deck the
+  content titles sit at four different anchors and the extractor keeps one of them (0.59, 0.58);
+  the toc page's body mode is 20 pt/#595959 only because the 40 pt numerals split by font into a
+  minority tuple. A per-run audit that compares every run with the profile therefore contradicts
+  the profile's own measurement. Separately, the chrome and background writers emitted
+  `srgbClr val="#RRGGBB"` (the token and profile palettes carry the hash); OOXML's
+  `ST_HexColorRGB` forbids it, and the golden fixtures had recorded the invalid form.
+- **Decision — re-measured rules.** `audit --profile <profile>` reloads the profile and replays
+  the extractor's measurement in TypeScript (`bridge/design-audit.ts`) before comparing:
+  `design-role-title-font` (representative title/dominant body size ±1 pt, colour ΔE ≤ 3),
+  `design-accent-body-color` (dominant non-grey body colour ΔE ≤ 3), `design-role-geometry`
+  (representative title anchor ±0.05 in, column mode/limit, smallest positive card gap ±0.05 in
+  for toc/content), `design-section-marker` and `design-chrome-match` (booleans re-measured the
+  way the extractor measured them). Roles come from the storyboard/IR in a deck workspace; an
+  external package takes `--roles` or the extractor's hints. When `--file` resolves outside the
+  workspace the audit runs package-only (OPC + design) and names the workspace sources in
+  `skipped`, so the reference deck itself can be checked (S26).
+- **Decision — picture contrast by coverage.** `design-background-mode` measures the deck mode
+  from full-canvas pictures (`flat`/`svg`/`photo`; mixing SVG and raster is an error), requires
+  an SVG picture to carry a raster sibling (the compat stamp's output), checks `office`/`user`
+  picture stems against the loaded discovery record/manifests, and judges body-scale text
+  (≤ role body size + 2 pt) over picture pixels: at least 70 % of the pixels under the text box
+  must keep 4.5:1 after the overlay blend. A failure is an error when the page has an overlay
+  shape and a warning when it has none. The calibration is measured, not guessed: the reference
+  deck's worst body box reads 3.49:1 by mean colour but 33 % coverage, so a mean rule would fail
+  the quality bar; 70 % keeps the reference at 0 error while a dark photo under text still
+  fails.
+- **Decision — bare colour literals.** Every `srgbClr` writer strips the leading `#`
+  (`bridge/chrome.ts`, `bridge/background.ts`). The golden fixtures were re-recorded as
+  **fixtureVersion 8**; the only diff is `val="#…"` → `val="…"` in the chrome/background XML,
+  which the canonical and byte comparisons both show.
+- **Evidence.** Reference deck: `dsh-ppt audit tmp/ref-inspect --profile fixtures/reference/profile.json
+  --file <deck>` → `ok=true`, sources `pptx,design`, 0 error, one warning (page 8, 33 %
+  coverage). `pnpm design:verify` covers S24 (field comparison) and S26 (profile audit);
+  `design-audit.test.ts` has 12 tests (wrong size/colour/accent/anchor/columns/watermark/chrome,
+  flat-vs-picture profile, missing PNG fallback, dark-picture error with overlay, warning
+  without); `fixtures:verify` fixtureVersion 8, `matrix:verify` 6/6 and the full `pnpm test`
+  suite are green.
+- **Alternatives rejected:** auditing every run against the profile (contradicts the profile's
+  mode-based summary and fails the reference deck); comparing the mean colour under text (fails
+  the reference's 84 %-compliant box) or requiring all pixels (fails its 33 % box); requiring an
+  overlay shape on every picture page (the reference has a baked wash and cannot be repaired by
+  the audit); skipping the reference self-check (S26 is the proof the tolerances describe a real
+  deck); leaving the `#` in `srgbClr` (invalid OOXML, tolerated only by PowerPoint's repair
+  path).
