@@ -87,6 +87,7 @@ the ADR wins.**
 | 073 | Toc pages keep their authored title anchor, not the profile number-column geometry (S27 P2 fix) |
 | 074 | v0.3.2 patch release: the toc title fix on both channels (S27 P2) |
 | 075 | Content pages are laid out as the reference's equal card columns (S27 P4/P6/P11) |
+| 076 | v0.3.3 patch release: the content-page card layout on both channels |
 
 ---
 
@@ -2253,3 +2254,24 @@ the ADR wins.**
   read like the reference); applying the 20 pt accent title to every 14 pt run (would have promoted
   body text); trimming card panels to the reference's absolute column positions (breaks decks with
   different margins or card counts).
+## ADR-076 — v0.3.3 patch release: content-page card layout on both channels
+
+- **Date:** 2026-09-24
+- **Decision.** v0.3.3 ships ADR-075 on both channels from identical bytes and supersedes v0.3.2 as the
+  latest release. `package.json` moves to 0.3.3; README, `docs/install.md` and the CHANGELOG carry the new
+  version; the local web profile moves to the 0.3.3 tarball.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.3.3`, tarball 860,622
+  bytes, 85 files, shasum `b84475644c5461b8449bb475c4d18da5bd1862b1`; the registry tarball was downloaded
+  back and matched, and `dist-tags.latest` reads 0.3.3. GitHub: annotated tag `v0.3.3` (API tag object
+  `2f5c42363c94bf1dfbc9bd18b3a2f33597d40ccb` → commit
+  `2bdd4d638fdb7ad81f1f77b1747b7afefe36a323`), Release id 395427814 with asset
+  `dsh-ppt-flashmade-0.3.3.tgz` (id 585382661, digest
+  `sha256:aa94ae6adde45754b45c65ea605b0fb513aae338ab8f8e359f680224dd765a5e`); the downloaded-back asset's
+  sha1 equals npm's.
+- **Gates.** typecheck/lint, 471 tests / 58 files, `fixtures:verify` fixtureVersion 8, `matrix:verify` 6/6
+  and `prepack`'s 20-file pack check are green; CI run 35967907122 for `2bdd4d6` is green on ubuntu and
+  windows.
+- **Known limits.** The ending page (P12, 3/5) is untouched; `photo`/`office`/`user` backgrounds still need
+  an asset reference; the human re-scores (P2/P4/P6/P11) and WPS rows 11–13 remain user-side.
+- **Alternatives rejected:** shipping the card layout without a release; folding it into a feature release
+  (three reviewed pages were already below the reference bar).
