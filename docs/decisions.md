@@ -89,6 +89,7 @@ the ADR wins.**
 | 075 | Content pages are laid out as the reference's equal card columns (S27 P4/P6/P11) |
 | 076 | v0.3.3 patch release: the content-page card layout on both channels |
 | 077 | Content titles clear the corner mark; pages reserve illustration space |
+| 078 | v0.3.4 patch release: the title-clearance fix on both channels |
 
 ---
 
@@ -2303,3 +2304,26 @@ the ADR wins.**
   reads less like the reference; shrinking without the nudge — the mark still touches the glyphs;
   enforcing the illustration space with a storyboard rule — authoring decisions belong to the budgeted
   design reference and the SKILL checklist.
+## ADR-078 — v0.3.4 patch release: the title-clearance fix on both channels
+
+- **Date:** 2026-09-24
+- **Decision.** v0.3.4 ships ADR-077 on both channels from identical bytes and supersedes v0.3.3 as the
+  latest release. `package.json` moves to 0.3.4; README, `docs/install.md` and the CHANGELOG carry the
+  new version; the local web profile moves to the 0.3.4 tarball.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.3.4`, tarball 865,700
+  bytes, 85 files, shasum `0bad69c889ef350b170a757634d276b2c9f8c244`; the registry tarball was downloaded
+  back and matched, and `dist-tags.latest` reads 0.3.4. GitHub: annotated tag `v0.3.4` (API tag object
+  `0f75a85a069b5d17c869181c08d5f6e57c6f06c8` → commit
+  `4c3281213747dfb8609c926a4c9de9fea87a540b`), Release id 395451680 with asset
+  `dsh-ppt-flashmade-0.3.4.tgz` (id 585435070, digest
+  `sha256:52e3251b8e21c6b8c6a40fcf9dc2482c57b573cc2f38b2d0ba936729e3e6c85c`); the downloaded-back asset's
+  sha1 equals npm's.
+- **Gates.** typecheck/lint, 471 tests / 58 files, `fixtures:verify` fixtureVersion 8, `matrix:verify` 6/6,
+  `prepack`'s 20-file pack check and `skill audit` (25 files, 111,756/120,000, 0 error) are green; CI run
+  35970890135 for `4c32812` is green on ubuntu and windows.
+- **Known limits.** The ending page (P12, 3/5) is untouched; `photo`/`office`/`user` backgrounds still need
+  an asset reference; the S27 re-score (P2/P4/P6/P11) and WPS rows 11–13 remain user-side.
+- **Alternatives rejected:** shipping the clearance only in the pass without moving the audit expectations
+  (the deck would fail its own S26 gate); moving the corner mark instead (ADR-077's rejected option);
+  bundling the illustration-space guidance into a later feature release (the SKILL budget change belongs
+  with the fix that references it).
