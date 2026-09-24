@@ -25,7 +25,7 @@ markers and 1 meta footer, and the background layer applied the flat profile bac
 | # | Sample | 观感 | 信息密度 | 叙事 | Evidence |
 |---|---|---|---|---|---|
 | 1 | hello golden | 4 (est.) | 4 (est.) | 4 (est.) | clean chrome, single master, editable chart and table; chrome is not visible in the HTML viewer (ADR-057 backlog) |
-| 2 | reference-quality | 4 (est.) | 4 (est.) | 4 (est.) | 12 pages follow the profile's type scale, anchors, cards and chrome; preview at `tmp/quality-demo/preview/preview.html`; the two deep pages warn on MiSans font slots |
+| 2 | reference-quality | 3.6 (user) | 4 (est.) | 4 (est.) | 12 pages follow the profile's type scale, anchors, cards and chrome; preview at `tmp/quality-demo/preview/preview.html`; the two deep pages warn on MiSans font slots; user page scores below (mean 3.6, page 2 weakest) |
 | 3 | doc-to-deck | 3 (est.) | 4 (est.) | 4 (est.) | 6 pages, one editable chart; seven font-slot warnings |
 
 `(est.)` marks an assistant estimate from the preview structure and audit facts. The human scores
@@ -35,6 +35,22 @@ keep the estimates in git history if they change.
 User review (2026-09-24): the three samples were reviewed side by side with the reference deck. The
 standing comment is to watch card and element spacing when generating; the confirmed 1–5 numbers
 replace the `(est.)` cells once they are transcribed here.
+
+### S27 page-level alignment (user, 2026-09-24)
+
+The user compared the 12 `reference-quality` pages with the reference deck page by page and scored each
+page 1–5 (5 = closest to the reference):
+
+| Page | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Score | 4 | **2** | 4 | 3 | 4 | 3 | 4 | 5 | 4 | 4 | 3 | 3 |
+
+Mean 3.58. Page 2 (toc) is the outlier: the reference toc is a numbered list (`01.`–`05.` at 40 pt Noto
+Sans SC in a 1.77 in column beside 20 pt MiSans titles), while the page currently renders as a 4-card
+grid inherited from the pptwise content template. The design pass only re-spaces existing card columns
+and cannot produce the reference gap (1.04 in) without resizing or restructuring the cards, so the user
+asked to watch spacing here in particular. Pages 4/6/11 (score 3) and 12 (score 3) are the next
+candidates; page 8 scored 5.
 
 ## Reproduce
 
