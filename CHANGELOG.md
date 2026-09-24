@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## v0.3.1 — 2026-09-24
 
 ### 修复
 
