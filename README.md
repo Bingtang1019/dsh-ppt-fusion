@@ -4,11 +4,11 @@ DeepSeek Harness（DSH）插件：把 **pptwise** 的 DSH 原生前端（IR v5�
 
 - 上游：`@liustack/pptwise@0.35.0`（npm，MIT）· `ppt-master==0.1.128`（PyPI，MIT）
 - 本包：`dsh-ppt-flashmade`，MIT，Node >= 22.19，bin `dsh-ppt`
-- 下载：npm [`dsh-ppt-flashmade@0.3.3`](https://www.npmjs.com/package/dsh-ppt-flashmade) · GitHub Release [v0.3.1](https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.3.3)（附件 `dsh-ppt-flashmade-0.3.3.tgz` 与 npm 包字节一致）
+- 下载：npm [`dsh-ppt-flashmade@0.3.4`](https://www.npmjs.com/package/dsh-ppt-flashmade) · GitHub Release [v0.3.1](https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.3.4)（附件 `dsh-ppt-flashmade-0.3.4.tgz` 与 npm 包字节一致）
 - **交付物**：`out/<name>.pptx` —— 原生可编辑 PPTX（原生形状/图表/表格）。`preview --html` 与卡片里的
   HTML **只是评审查看器**，不代表交付物形态。
 
-> 状态：**CI 双平台全绿（ADR-055）；v0.3.3 已按 §8 双渠道发布（npm + GitHub Release，ADR-056/071/072/073/075）：design profile 提取/套用（ADR-061/066）、素材三通道与 svg/flat 背景（ADR-067）、`audit --profile` 符合性审计（ADR-062）、设计施加 pass 与 `reference-quality` 基准（ADR-069）、可选图像生成（ADR-064）。** v0.2 的 storyboard/role→layout/内容预算（ADR-059）、旁白自动翻页（ADR-060）、Q4 模型评估 3/3（`docs/v02-model-eval.md`）仍有效。
+> 状态：**CI 双平台全绿（ADR-055）；v0.3.4 已按 §8 双渠道发布（npm + GitHub Release，ADR-056/071/072/073/075/077）：design profile 提取/套用（ADR-061/066）、素材三通道与 svg/flat 背景（ADR-067）、`audit --profile` 符合性审计（ADR-062）、设计施加 pass 与 `reference-quality` 基准（ADR-069）、可选图像生成（ADR-064）。** v0.2 的 storyboard/role→layout/内容预算（ADR-059）、旁白自动翻页（ADR-060）、Q4 模型评估 3/3（`docs/v02-model-eval.md`）仍有效。
 
 ---
 
