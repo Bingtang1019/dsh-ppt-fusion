@@ -85,6 +85,7 @@ the ADR wins.**
 | 071 | Generated backgrounds land above the base page rectangle, not behind it (V7.2 post-release fix) |
 | 072 | v0.3.1 patch release: the svg background fix on both channels (V7.2 post-release) |
 | 073 | Toc pages keep their authored title anchor, not the profile number-column geometry (S27 P2 fix) |
+| 074 | v0.3.2 patch release: the toc title fix on both channels (S27 P2) |
 
 ---
 
@@ -2205,3 +2206,24 @@ the ADR wins.**
   (0.92, 1.91 in) — it still overlaps the card row; restructuring the page as the reference's numbered
   list or re-spacing the cards (the A/B prototypes) — the user reviewed the card grid and asked only for
   the hidden text to be fixed.
+## ADR-074 — v0.3.2 patch release: the toc title fix on both channels (S27 P2)
+
+- **Date:** 2026-09-24
+- **Decision.** v0.3.2 ships ADR-073 on both channels from identical bytes and supersedes v0.3.1 as the
+  latest release. `package.json` moves to 0.3.2; README, `docs/install.md` and the CHANGELOG carry the new
+  version; the local web profile moves to the 0.3.2 tarball.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.3.2`, tarball 853,432
+  bytes, 85 files, shasum `55f08870b877b166bcdad93ce7e3450a1f1e4dcb`; the registry tarball was downloaded
+  back and matched, and `dist-tags.latest` reads 0.3.2. GitHub: annotated tag `v0.3.2` (API tag object
+  `17d701e1a4d8437e7894bc1dd4fbe4a7b307b512` → commit
+  `d96c3b3d1d1e6ec435028374e128a10224f0ee0a`), Release id 395383517 with asset
+  `dsh-ppt-flashmade-0.3.2.tgz` (id 585284974, digest
+  `sha256:96da9e70eca89b98314cfae4b765bd5e5cbbd627008a851a5afd529685576100`); the downloaded-back asset's
+  sha1 equals npm's.
+- **Gates.** typecheck/lint, 470 tests / 58 files, `fixtures:verify` fixtureVersion 8, `matrix:verify` 6/6
+  and `prepack`'s 20-file pack check are green; CI run 35962372321 for `d96c3b3` is green on ubuntu and
+  windows, as is the fix commit's run 35962178146.
+- **Known limits.** The remaining S27 pages scored 3 (4/6/11/12) are untouched; `photo`/`office`/`user`
+  backgrounds still need an asset reference; the P2 re-score and WPS rows 11–13 remain user-side.
+- **Alternatives rejected:** shipping the toc fix without a release (npm users would keep the hidden
+  title); folding it into a later feature release (the defect already failed a human acceptance item).
