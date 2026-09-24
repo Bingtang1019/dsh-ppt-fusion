@@ -137,6 +137,34 @@ describe('applyDesignProfile', () => {
     expect(xml).toContain('sz="2000"')
   })
 
+  it('lays a content page out as equal card columns with accent titles', () => {
+    const slide = [
+      shapeXml({ x: 0.59, y: 0.58, w: 12.33, h: 0.53, runs: [runXml(3600, '0D0D0D', 'Page title')] }),
+      shapeXml({ x: 1, y: 2.04, w: 6.7, h: 4.33, runs: [], name: 'panel-a' }),
+      shapeXml({ x: 1.25, y: 4.2, w: 12.08, h: 0.28, runs: [runXml(1400, '1C1E23', 'Card A')], name: 'title-a' }),
+      shapeXml({ x: 1.25, y: 4.59, w: 12.08, h: 0.2, runs: [runXml(1200, '1C1E23', 'Body A')], name: 'body-a' }),
+      shapeXml({ x: 7.87, y: 2.04, w: 4.47, h: 2.08, runs: [], name: 'panel-b' }),
+      shapeXml({ x: 8.12, y: 3.07, w: 5.22, h: 0.28, runs: [runXml(1400, '1C1E23', 'Card B')], name: 'title-b' }),
+      shapeXml({ x: 8.12, y: 3.47, w: 5.22, h: 0.2, runs: [runXml(1200, '1C1E23', 'Body B')], name: 'body-b' }),
+      shapeXml({ x: 7.87, y: 4.29, w: 4.47, h: 2.08, runs: [], name: 'panel-c' }),
+      shapeXml({ x: 8.12, y: 5.32, w: 5.22, h: 0.28, runs: [runXml(1400, '1C1E23', 'Card C')], name: 'title-c' }),
+      shapeXml({ x: 8.12, y: 5.72, w: 5.22, h: 0.2, runs: [runXml(1200, '1C1E23', 'Body C')], name: 'body-c' }),
+    ].join('')
+    const pkg = packageWith([slide])
+    const report = applyDesignProfile(pkg, { profile: PROFILE, pages: contentPages })
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    const emu = (value: number): number => Math.round(value * 914400)
+    const width = (12.34 - 1 - 2 * 0.43) / 3
+    expect(report.cards).toBe(3)
+    expect(xml).toContain(`<a:ext cx="${String(emu(width))}" cy="${String(emu(4.33))}"/>`)
+    expect(xml).toContain(`<a:off x="${String(emu(1))}" y="${String(emu(2.04))}"/>`)
+    expect(xml).toContain(`<a:off x="${String(emu(1 + width + 0.43))}" y="${String(emu(2.04))}"/>`)
+    expect(xml).toContain(`<a:off x="${String(emu(1 + 2 * (width + 0.43)))}" y="${String(emu(2.04))}"/>`)
+    // card titles take 20 pt accent, bodies the profile body size and colour.
+    expect(xml.match(/sz="2000"/g) ?? []).toHaveLength(3)
+    expect(xml.match(/sz="1400"/g) ?? []).toHaveLength(3)
+  })
+
   it('rewrites an existing section watermark to the profile size', () => {
     const pkg = packageWith([sectionSlide()])
     const report = applyDesignProfile(pkg, { profile: PROFILE, pages: sectionPages })

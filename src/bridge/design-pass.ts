@@ -2,7 +2,7 @@ import { DshPptFailure } from '../engine/errors.ts'
 import { listSlides, type OpcPackage } from './opc.ts'
 import { slideSize } from './chrome.ts'
 import { EMU_PER_INCH, chooseTitle, isGrey, isNumberLike, shapeGeometry, shapeRuns, simpleLuminance, type SlideRun } from './slide-text.ts'
-import type { DesignProfile, DesignRole } from '../schema/design-profile.ts'
+import type { DesignProfile, DesignRole, DesignRoleGeometry } from '../schema/design-profile.ts'
 
 /**
  * The profile design pass (V7.2 B5b).
@@ -15,7 +15,10 @@ import type { DesignProfile, DesignRole } from '../schema/design-profile.ts'
  * - the representative title shape takes the role's size, colour and anchor;
  * - the dominant body-size runs take the role's body size and colour, while accent
  *   runs and other tiers keep theirs;
- * - toc/content card columns are re-spaced to the profile's card gap;
+ * - a content page's card panels are laid out as equal columns with the profile's gap,
+ *   their card titles taking the design language's 20 pt accent and their bodies the
+ *   role's body style;
+ * - toc card columns are re-spaced to the profile's card gap;
  * - a section page without a watermark gets the profile's watermark numeral, and
  *   cover/ending pages get the meta footer the profile expects.
  *
@@ -49,9 +52,24 @@ export interface DesignPassReport {
   readonly bodies: number
   readonly accents: number
   readonly gaps: number
+  readonly cards: number
   readonly markers: number
   readonly footers: number
 }
+
+/** Card-title size the design-language reference fixes for content cards. */
+const CARD_TITLE_SIZE_PT = 20
+
+/** Distance between a card's edge and the shapes inside it, in inches. */
+const CARD_PADDING_IN = 0.35
+
+/** Card title/body/icon offsets from the card's top edge, measured on the reference page. */
+const CARD_TITLE_OFFSET_IN = 1.14
+const CARD_BODY_OFFSET_IN = 1.91
+const CARD_ICON_OFFSET_IN = 0.3
+
+/** Minimum panel area (square inches) that counts as a content card. */
+const CARD_MIN_AREA_IN2 = 1.5
 
 /** One top-level shape with its position in the slide XML. */
 interface ShapeRecord {
@@ -241,6 +259,146 @@ function textShape(id: number, name: string, text: string, spec: { x: number; y:
 }
 
 /**
+ * @param xml - shape XML.
+ * @param x - new left edge, EMU.
+ * @param y - new top edge, EMU.
+ * @param w - new width, EMU.
+ * @param h - new height, EMU.
+ * @returns the shape with its transform rewritten.
+ */
+function placeShape(xml: string, x: number, y: number, w: number, h: number): string {
+  const emu = (value: number): number => Math.round(value)
+  return xml
+    .replace(/<a:off x="-?\d+" y="-?\d+"\/>/, `<a:off x="${String(emu(x))}" y="${String(emu(y))}"/>`)
+    .replace(/<a:ext cx="\d+" cy="\d+"\/>/, `<a:ext cx="${String(emu(w))}" cy="${String(emu(h))}"/>`)
+}
+
+/** One card on a standard page: its panel shape plus the shapes whose centres it holds. */
+interface CardShape {
+  readonly panel: number
+  readonly children: readonly number[]
+}
+
+/**
+ * @param records - the slide's top-level shapes.
+ * @param titleIndex - the title shape, never a panel and never a child.
+ * @param canvas - slide size.
+ * @returns the card panels in reading order with the shapes they contain; empty when
+ *   the page is not a card page.
+ */
+function cardShapes(records: readonly ShapeRecord[], titleIndex: number, canvas: { cx: number; cy: number }): CardShape[] {
+  const panels = records
+    .map((record, index) => ({ record, index }))
+    .filter(({ record, index }) => {
+      if (index === titleIndex || record.runs.length > 0 || record.geometry === null) return false
+      if (record.name.startsWith('chrome-') || record.name.startsWith('dsh-')) return false
+      if (isFullCanvas(record.geometry, canvas)) return false
+      return record.geometry.w * record.geometry.h >= CARD_MIN_AREA_IN2 * EMU_PER_INCH * EMU_PER_INCH
+    })
+    .sort((left, right) => (left.record.geometry?.y ?? 0) - (right.record.geometry?.y ?? 0) || (left.record.geometry?.x ?? 0) - (right.record.geometry?.x ?? 0))
+  const panelIndices = new Set(panels.map((panel) => panel.index))
+  const cards: CardShape[] = []
+  for (const panel of panels) {
+    const box = panel.record.geometry
+    if (box === null) continue
+    const children: number[] = []
+    for (const [index, record] of records.entries()) {
+      if (index === panel.index || index === titleIndex || panelIndices.has(index) || record.geometry === null) continue
+      if (isFullCanvas(record.geometry, canvas)) continue
+      const centreX = record.geometry.x + record.geometry.w / 2
+      const centreY = record.geometry.y + record.geometry.h / 2
+      if (centreX < box.x || centreX > box.x + box.w || centreY < box.y || centreY > box.y + box.h) continue
+      children.push(index)
+    }
+    cards.push({ panel: panel.index, children })
+  }
+  return cards
+}
+
+/**
+ * Lay a content page's cards out as equal columns, as the reference content page does:
+ * one row of `columns` cards with the profile's gap, a 20 pt accent card title and the
+ * role's body style. Preset layouts mix a tall panel with stacked ones, which reads much
+ * lighter than the reference and was the S27 page 4/6/11 gap.
+ *
+ * @param records - the slide's shapes.
+ * @param replacements - current shape rewrites, updated in place.
+ * @param profile - validated profile.
+ * @param role - the content role's geometry.
+ * @param titleIndex - the title shape, never moved.
+ * @param canvas - slide size.
+ * @returns how many cards were laid out.
+ */
+function layoutCards(
+  records: readonly ShapeRecord[],
+  replacements: Map<number, string>,
+  profile: DesignProfile,
+  role: DesignRoleGeometry,
+  titleIndex: number,
+  canvas: { cx: number; cy: number },
+): number {
+  const cards = cardShapes(records, titleIndex, canvas)
+  if (cards.length < 2) return 0
+  const gap = (role.cardGapIn ?? 0.43) * EMU_PER_INCH
+  const columns = Math.min(cards.length, role.columnsMax ?? role.columns ?? cards.length)
+  if (columns < 2 || gap <= 0) return 0
+  const rows = Math.ceil(cards.length / columns)
+  const boxes = cards.flatMap((card) => {
+    const geometry = records[card.panel]?.geometry
+    return geometry === null || geometry === undefined ? [] : [geometry]
+  })
+  if (boxes.length !== cards.length) return 0
+  const left = Math.min(...boxes.map((box) => box.x))
+  const right = Math.max(...boxes.map((box) => box.x + box.w))
+  const top = Math.min(...boxes.map((box) => box.y))
+  const bottom = Math.max(...boxes.map((box) => box.y + box.h))
+  const columnWidth = (right - left - (columns - 1) * gap) / columns
+  const rowHeight = (bottom - top - (rows - 1) * gap) / rows
+  if (columnWidth < EMU_PER_INCH || rowHeight < EMU_PER_INCH) return 0
+  const padding = CARD_PADDING_IN * EMU_PER_INCH
+  const titleOffset = CARD_TITLE_OFFSET_IN * EMU_PER_INCH
+  const bodyOffset = CARD_BODY_OFFSET_IN * EMU_PER_INCH
+  const iconOffset = CARD_ICON_OFFSET_IN * EMU_PER_INCH
+  const bodyExpect = profile.typeScale.content?.body
+  for (const [position, card] of cards.entries()) {
+    const column = position % columns
+    const row = Math.floor(position / columns)
+    const x = left + column * (columnWidth + gap)
+    const y = top + row * (rowHeight + gap)
+    const panel = records[card.panel]
+    if (panel === undefined) continue
+    replacements.set(card.panel, placeShape(replacements.get(card.panel) ?? panel.xml, x, y, columnWidth, rowHeight))
+    const textChildren = card.children.filter((index) => (records[index]?.runs.length ?? 0) > 0)
+    const largest = (index: number): number => Math.max(0, ...(records[index]?.runs ?? []).map((run) => run.sizePt ?? 0))
+    let cardTitle: number | null = null
+    for (const index of textChildren) {
+      if (cardTitle === null || largest(index) > largest(cardTitle)) cardTitle = index
+    }
+    for (const index of card.children) {
+      const record = records[index]
+      if (record === undefined || record.geometry === null) continue
+      const base = replacements.get(index) ?? record.xml
+      if (!textChildren.includes(index)) {
+        replacements.set(index, placeShape(base, x + padding, y + iconOffset, record.geometry.w, record.geometry.h))
+        continue
+      }
+      if (index === cardTitle) {
+        const shape = placeShape(base, x + padding, y + titleOffset, columnWidth - 2 * padding, 0.6 * EMU_PER_INCH)
+        replacements.set(index, styleRunsWhere(shape, () => true, { sizePt: CARD_TITLE_SIZE_PT, color: profile.palette.accent }).xml)
+        continue
+      }
+      const bodyHeight = Math.max(0.5 * EMU_PER_INCH, rowHeight - bodyOffset - 0.3 * EMU_PER_INCH)
+      let shape = placeShape(base, x + padding, y + bodyOffset, columnWidth - 2 * padding, bodyHeight)
+      if (bodyExpect !== undefined) {
+        shape = styleRunsWhere(shape, () => true, { sizePt: bodyExpect.sizePt, color: profile.palette.body }).xml
+      }
+      replacements.set(index, shape)
+    }
+  }
+  return cards.length
+}
+
+/**
  * Apply the profile's standard-page language to the merged package.
  *
  * @param pkg - the merged package.
@@ -251,7 +409,7 @@ function textShape(id: number, name: string, text: string, spec: { x: number; y:
 export function applyDesignProfile(pkg: OpcPackage, options: DesignPassOptions): DesignPassReport {
   const canvas = slideSize(pkg)
   const slides = listSlides(pkg)
-  const report = { titles: 0, bodies: 0, accents: 0, gaps: 0, markers: 0, footers: 0 }
+  const report = { titles: 0, bodies: 0, accents: 0, gaps: 0, cards: 0, markers: 0, footers: 0 }
   const sectionOrdinal = new Map<number, string>()
   let sections = 0
   for (const page of options.pages) {
@@ -324,8 +482,12 @@ export function applyDesignProfile(pkg: OpcPackage, options: DesignPassOptions):
       if (changed) replacements.set(index, shape)
     }
 
+    const cards = page.role === 'content' && geometry !== undefined
+      ? layoutCards(records, replacements, options.profile, geometry, title?.index ?? -1, canvas)
+      : 0
+    report.cards += cards
     const gap = geometry?.cardGapIn
-    if (gap !== undefined && (page.role === 'content' || page.role === 'toc')) {
+    if (cards === 0 && gap !== undefined && (page.role === 'content' || page.role === 'toc')) {
       const shift = cardGapShifts(records, title?.index ?? -1, gap, canvas)
       if (shift !== null) {
         for (const entry of shift.shifts) {

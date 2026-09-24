@@ -86,6 +86,7 @@ the ADR wins.**
 | 072 | v0.3.1 patch release: the svg background fix on both channels (V7.2 post-release) |
 | 073 | Toc pages keep their authored title anchor, not the profile number-column geometry (S27 P2 fix) |
 | 074 | v0.3.2 patch release: the toc title fix on both channels (S27 P2) |
+| 075 | Content pages are laid out as the reference's equal card columns (S27 P4/P6/P11) |
 
 ---
 
@@ -2227,3 +2228,28 @@ the ADR wins.**
   backgrounds still need an asset reference; the P2 re-score and WPS rows 11–13 remain user-side.
 - **Alternatives rejected:** shipping the toc fix without a release (npm users would keep the hidden
   title); folding it into a later feature release (the defect already failed a human acceptance item).
+## ADR-075 — Content pages are laid out as equal card columns (S27 P4/P6/P11)
+
+- **Date:** 2026-09-24
+- **Context.** The user's S27 review scored the three content pages 3/5. Their preset layouts mix a
+  6.7 × 4.33 in panel with two stacked 4.47 × 2.08 in panels, and the card text runs at 14 pt with
+  12 pt bodies and no accent colour; the reference content page is three equal 3.71 × 4.94 in columns
+  (x = 0.85/4.85/8.84) with 20 pt accent card titles and 14 pt bodies. The user approved a rendered
+  prototype of the equal-column layout before it was implemented.
+- **Decision.** On `content` pages the design pass detects card panels (text-free shapes at least
+  1.5 in², not full-canvas, not chrome/background), lays them out as `min(cardCount, columnsMax)`
+  equal columns with the profile's `cardGapIn`, and restyles each card's largest-run text as a 20 pt
+  accent card title (the design-language reference's value) and its remaining text as the role's body
+  style. Panels keep their authored fill; icons move to the card's top padding. Pages without two
+  card panels keep the previous gap-shift behaviour, and toc pages are untouched (ADR-073).
+- **Evidence.** `src/bridge/design-pass.test.ts` gains the card case (three panels become columns of
+  `(11.34 − 2 × 0.43)/3` in with 20 pt accent titles and 14 pt bodies); re-rendering the
+  `reference-quality` workspace reports `cards: 9` and produces 69,489 B, and slides 4/6/11 show panels
+  at x = 1.0/4.92/8.84 (3.49 × 4.33 in, gap 0.43 in), titles 20 pt `#577FD2` at y = 3.18 and bodies
+  14 pt `#262626` at y = 3.95.
+- **Impact.** Content pages of profile decks change their rendered bytes; card titles/bodies no longer
+  follow the preset's 14/12 pt scale.
+- **Alternatives rejected:** only re-spacing the existing asymmetric panels (the columns still did not
+  read like the reference); applying the 20 pt accent title to every 14 pt run (would have promoted
+  body text); trimming card panels to the reference's absolute column positions (breaks decks with
+  different margins or card counts).

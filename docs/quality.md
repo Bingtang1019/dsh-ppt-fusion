@@ -51,7 +51,8 @@ measured from the reference's `01.` number box (5.19, 1.79 in) — so the 40 pt 
 row's top edge (panels start at 1.94 in) and painted **under** the panels; PowerPoint COM rendered 0 px
 of title ink before the fix. ADR-073 keeps the authored anchor on toc pages, and the re-render puts the
 title above the cards (title-band ink 3755 px). The other low pages (4/6/11/12 at 3) are the next
-candidates; page 8 scored 5.
+candidates; page 8 scored 5. Content pages 4/6/11 were normalised to the reference's equal card
+columns and 20 pt accent / 14 pt body card text in ADR-075 (re-score pending).
 
 ## Reproduce
 
