@@ -83,6 +83,7 @@ the ADR wins.**
 | 069 | Reference-quality split: scenario/rubric landed; the profile design pass is the S27 prerequisite (V7 B5a) |
 | 070 | v0.3.0 dual-channel release and the fixtureVersion 8 quality-alignment record (V7 B6) |
 | 071 | Generated backgrounds land above the base page rectangle, not behind it (V7.2 post-release fix) |
+| 072 | v0.3.1 patch release: the svg background fix on both channels (V7.2 post-release) |
 
 ---
 
@@ -2158,4 +2159,27 @@ the ADR wins.**
   inserting above the last full-canvas rectangle (a later cover overlay would lift the background above
   content); shipping the defect as a documented limitation (S28 requires the generated background to
   render).
+## ADR-072 — v0.3.1 patch release: the svg background fix on both channels (V7.2 post-release)
 
+- **Date:** 2026-09-24
+- **Decision.** v0.3.1 ships ADR-071 on both channels from identical bytes and supersedes v0.3.0 as the
+  latest release. `package.json` moves to 0.3.1; README, `docs/install.md` and the CHANGELOG carry the new
+  version; the local web profile moves to the 0.3.1 tarball.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.3.1`, tarball 851,113
+  bytes, 85 files, shasum `ecfa6deedbb82a8e1070343bf6502bb2bb881a84`; the registry tarball was downloaded
+  back and matched, and `dist-tags.latest` reads 0.3.1. GitHub: annotated tag `v0.3.1` (API tag object
+  `c644010ece4d0b7ed90c3c39763af48e427da140` → commit
+  `364d6d254ae9f705dbd5b268b2cbcdb1793cec8c`), Release id 395355340 with asset
+  `dsh-ppt-flashmade-0.3.1.tgz` (id 585222228, digest
+  `sha256:3e062cbaabed9165c3f09955854c1b5e2687260ed83dc788389f202e49fa3a7b`); the downloaded-back asset's
+  sha1 equals npm's, so the channels are byte-identical.
+- **Gates.** typecheck/lint, 469 tests / 58 files, `fixtures:verify` fixtureVersion 8 (including the S23
+  assertion), `matrix:verify` 6/6 and `prepack`'s 20-file pack check are green; CI run 35959111376 for
+  `364d6d2` is green on ubuntu and windows.
+- **Known limits.** `photo`/`office`/`user` backgrounds still fall back to flat until the profile carries
+  an asset reference; deep pages keep the MiSans ea-slot/non-PPT-safe warnings; the human checks (S19/S23
+  now carry PowerPoint COM evidence, S27 scores, S28 look, WPS rows 11–13) remain user-side.
+- **Alternatives rejected:** shipping the v0.3.0 background behaviour as a documented limitation (S28
+  requires the generated background to render); a source-only fix without a release (npm users would keep
+  the blank background); tagging the fix commit instead of the metadata commit (the tagged tree would lack
+  the version, README and install updates).

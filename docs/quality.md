@@ -32,6 +32,10 @@ markers and 1 meta footer, and the background layer applied the flat profile bac
 are pending the user's side-by-side review (S27); update this table with the confirmed numbers and
 keep the estimates in git history if they change.
 
+User review (2026-09-24): the three samples were reviewed side by side with the reference deck. The
+standing comment is to watch card and element spacing when generating; the confirmed 1–5 numbers
+replace the `(est.)` cells once they are transcribed here.
+
 ## Reproduce
 
 ```sh
