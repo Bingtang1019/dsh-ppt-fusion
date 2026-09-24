@@ -58,7 +58,13 @@ export interface DesignPassReport {
 }
 
 /** Card-title size the design-language reference fixes for content cards. */
-const CARD_TITLE_SIZE_PT = 20
+export const CARD_TITLE_SIZE_PT = 20
+
+/**
+ * Clearance the design language keeps between a content-page title and the theme's
+ * corner mark, in inches — the 8 px the S27 review asked for at 96 dpi.
+ */
+export const CONTENT_TITLE_NUDGE_IN = 8 / 96
 
 /** Distance between a card's edge and the shapes inside it, in inches. */
 const CARD_PADDING_IN = 0.35
@@ -273,6 +279,22 @@ function placeShape(xml: string, x: number, y: number, w: number, h: number): st
     .replace(/<a:ext cx="\d+" cy="\d+"\/>/, `<a:ext cx="${String(emu(w))}" cy="${String(emu(h))}"/>`)
 }
 
+/**
+ * @param profile - validated design profile.
+ * @param role - the design role whose title is being written.
+ * @returns the next smaller title size in the profile's own ladder, or the role's size
+ *   when the ladder has no smaller step. A content title takes this step so the theme's
+ *   corner mark does not crowd it.
+ */
+export function steppedTitleSizePt(profile: DesignProfile, role: DesignRole): number | undefined {
+  const size = profile.typeScale[role]?.title?.sizePt
+  if (size === undefined) return undefined
+  const smaller = Object.values(profile.typeScale)
+    .map((scale) => scale.title?.sizePt)
+    .filter((candidate): candidate is number => candidate !== undefined && candidate < size)
+  return smaller.length === 0 ? size : Math.max(...smaller)
+}
+
 /** One card on a standard page: its panel shape plus the shapes whose centres it holds. */
 interface CardShape {
   readonly panel: number
@@ -443,8 +465,10 @@ export function applyDesignProfile(pkg: OpcPackage, options: DesignPassOptions):
       if (title !== null && index === title.index && titleExpect !== undefined) {
         // Only the representative title-size runs take the title style: a cover's
         // subtitle or meta line can share the shape and must stay body-sized.
+        const contentTitle = page.role === 'content'
+        const sizePt = contentTitle ? (steppedTitleSizePt(options.profile, 'content') ?? titleExpect.sizePt) : titleExpect.sizePt
         const styled = styleRunsWhere(shape, (facts) => facts.sizePt !== undefined && Math.abs(facts.sizePt - title.run.sizePt) < 0.01, {
-          sizePt: titleExpect.sizePt,
+          sizePt,
           color: titleExpect.color,
           bold: titleExpect.bold === true,
         })
@@ -455,8 +479,9 @@ export function applyDesignProfile(pkg: OpcPackage, options: DesignPassOptions):
           // The profile's toc title geometry comes from the reference's number column
           // (`01.`), not from a page heading, so moving the page title there would drop it
           // under the card row. Every other role's titlePos is a real heading anchor.
-          const x = Math.round(geometry.titlePos.x * EMU_PER_INCH)
-          const y = Math.round(geometry.titlePos.y * EMU_PER_INCH)
+          const nudge = contentTitle ? CONTENT_TITLE_NUDGE_IN : 0
+          const x = Math.round((geometry.titlePos.x + nudge) * EMU_PER_INCH)
+          const y = Math.round((geometry.titlePos.y + nudge) * EMU_PER_INCH)
           shape = shape.replace(/<a:off x="-?\d+" y="-?\d+"\/>/, `<a:off x="${String(x)}" y="${String(y)}"/>`)
         }
       }

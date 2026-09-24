@@ -69,7 +69,7 @@ function section(watermark: boolean): string {
 /** @returns one content slide with two columns and the given title/body/accent overrides. */
 function content(input: { columns?: number; titleSize?: number; titleColor?: string; bodyColor?: string; accentColor?: string; pageNumber?: boolean } = {}): string {
   const columns = input.columns ?? 2
-  const shapes = [title(0.59, 0.58, { sizePt: input.titleSize ?? 36, color: input.titleColor ?? '#0D0D0D', text: '内容页标题' })]
+  const shapes = [title(0.59 + 8 / 96, 0.58 + 8 / 96, { sizePt: input.titleSize ?? 34, color: input.titleColor ?? '#0D0D0D', text: '内容页标题' })]
   const bodyColor = input.bodyColor ?? '#262626'
   for (let column = 0; column < columns; column += 1) {
     const x = 0.59 + column * 4.43
@@ -146,7 +146,7 @@ describe('auditDesignPackage', () => {
 
   it('reports wrong title and body sizes and colours', () => {
     expect(rules(audit(baseline({ content: { titleSize: 31 } })), 'design-role-title-font').map((finding) => finding.message)).toEqual([
-      expect.stringContaining(`36 ±${String(DESIGN_SIZE_TOLERANCE_PT)} pt`),
+      expect.stringContaining(`34 ±${String(DESIGN_SIZE_TOLERANCE_PT)} pt`),
     ])
     expect(rules(audit(baseline({ content: { titleColor: '#FF0000' } })), 'design-role-title-font').some((finding) => finding.message.includes('title colour'))).toBe(true)
     expect(rules(audit(baseline({ content: { bodyColor: '#FF0000' } })), 'design-role-title-font').some((finding) => finding.message.includes('body colour'))).toBe(true)

@@ -71,6 +71,7 @@
 - `svg` 背景必须带 PNG 回退（compat stamp 自动补 `.png` sibling），否则旧版 Office 打不开。
 - `office` 发现不到时显式失败并给回退指引；`user` 记录逐项有 licence，copy 落 deck 的 `assets/`。
 - 素材只进 deck，不进 git、不进发布包（deck discipline）。
+- **未启用生图模型时主动留插图区**：默认路径不调用 `image-gen`，内容页必须留出一块可放插图的空位（≥ 1/4 页面积，或三列卡片只铺两列、右侧留整列），不要把版面用文字/卡片铺满；插图由 `user`/`office` 素材或用户后补，禁止用文字硬填。
 
 ## 5. chrome
 
@@ -87,3 +88,4 @@
 4. 背景模式已声明；图片/生成背景带覆盖层且对比 ≥4.5:1；SVG 背景有 PNG 回退。
 5. 素材许可/署名齐全（user 的 licence、photo 的 image_sources.json）；AI 生成图默认关闭、不得依赖。
 6. chrome 只在 manifest 声明一次；页脚/页码/章节标记都不手画。
+7. 未启用生图模型时，内容页留出 ≥1/4 页面积的插图区（不必每页一张图，但位置要预留）。

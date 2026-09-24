@@ -15,7 +15,7 @@
   "file_budgets": {
     "skills/dsh-ppt-fusion/SKILL.md": 2500,
     "skills/dsh-ppt-fusion/SKILL.en.md": 2250,
-    "skills/dsh-ppt-fusion/references/design-language.md": 2000,
+    "skills/dsh-ppt-fusion/references/design-language.md": 2250,
     "python-assets/vendor/ppt-master/docs/advanced-image-motion-smoke.md": 3750,
     "python-assets/vendor/ppt-master/docs/chart-recall.md": 500,
     "python-assets/vendor/ppt-master/docs/confirm_ui.md": 14000,
@@ -74,7 +74,7 @@
       "files": [
         "skills/dsh-ppt-fusion/references/design-language.md"
       ],
-      "max_tokens": 2000
+      "max_tokens": 2250
     },
     "generate.narration": {
       "description": "Narration roster, audio embedding and animation timing.",

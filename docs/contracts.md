@@ -768,7 +768,10 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   numeral is resized to `watermarkSizePt`), and cover/ending pages gain the meta footer
   from the IR's organization/author. Deep pages keep their authored composition and are
   judged by the same audit. `out/manifest.json#design.pass` records the per-rule counts
-  (its `cards` counter covers the ADR-075 layout).
+  (its `cards` counter covers the ADR-075 layout); a content title then takes the design
+  language's 8 px clearance from the theme's corner mark and one ladder step down (ADR-077),
+  and decks built without `image-gen` leave a ≥ 1/4-page illustration area free (design-language
+  reference §4/§6).
 - **Evidence.** On this machine the reference deck passes with `ok=true`, 0 error and one
   `design-background-mode` warning (page 8: one body box sits on 33 % compliant pixels), and
   `pnpm design:verify` runs both the S24 field comparison and the S26 profile audit. Negative

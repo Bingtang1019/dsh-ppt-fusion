@@ -97,10 +97,10 @@ describe('applyDesignProfile', () => {
     expect(report.bodies).toBe(4)
     expect(report.accents).toBe(2)
     expect(report.gaps).toBe(1)
-    // Title: profile size/colour and the profile anchor.
-    expect(xml).toContain('sz="3600"')
+    // Title: one ladder step down, at the profile anchor plus the corner-mark clearance.
+    expect(xml).toContain('sz="3400"')
     expect(xml).toContain('<a:srgbClr val="0D0D0D"/>')
-    expect(xml).toContain(`<a:off x="${String(Math.round(0.59 * 914400))}" y="${String(Math.round(0.58 * 914400))}"/>`)
+    expect(xml).toContain(`<a:off x="${String(Math.round((0.59 + 8 / 96) * 914400))}" y="${String(Math.round((0.58 + 8 / 96) * 914400))}"/>`)
     // Body runs take 14 pt / #262626; the accent runs take the profile accent.
     expect(xml).toContain('sz="1400"')
     expect(xml).toContain('<a:srgbClr val="262626"/>')

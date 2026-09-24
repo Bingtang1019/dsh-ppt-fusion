@@ -5,6 +5,7 @@ import { slideSize } from './chrome.ts'
 import { contrastRatio } from './profile-theme.ts'
 import type { FusionFinding } from '../audit.ts'
 import type { DesignProfile, DesignRole } from '../schema/design-profile.ts'
+import { CARD_TITLE_SIZE_PT, CONTENT_TITLE_NUDGE_IN, steppedTitleSizePt } from './design-pass.ts'
 
 /**
  * Profile-compliance audit for a published package (V7.2 B4, ADR-062).
@@ -36,12 +37,17 @@ export const DESIGN_DELTA_E_LIMIT = 3
 /** Inch tolerance for a measured title anchor or card gap. */
 export const DESIGN_POSITION_TOLERANCE_IN = 0.05
 
+/** Minimum panel area (square EMU) that counts as a card panel. */
+const CARD_MIN_AREA_EMU = 1.5 * EMU_PER_INCH * EMU_PER_INCH
+
 export { EMU_PER_INCH } from './slide-text.ts'
 
 /** One slide's styled runs in document order. */
 interface SlideFacts {
   readonly index: number
   readonly runs: readonly SlideRun[]
+  /** Text-free top-level shape boxes, in EMU; card candidates for the gap/column rules. */
+  readonly panels: readonly { readonly x: number; readonly y: number; readonly w: number; readonly h: number }[]
 }
 
 /** The measured per-role summary the rules compare against the profile. */
@@ -86,10 +92,18 @@ function mode<T>(values: readonly T[]): T | undefined {
 
 /** @param pkg - the package. @returns each slide's styled runs, in deck order. */
 function readSlides(pkg: OpcPackage): SlideFacts[] {
-  return listSlides(pkg).map((part, offset) => ({
-    index: offset + 1,
-    runs: topLevelShapes(pkg.text(part)).flatMap((shape) => shapeRuns(shape)),
-  }))
+  return listSlides(pkg).map((part, offset) => {
+    const shapes = topLevelShapes(pkg.text(part))
+    const panels = shapes
+      .filter((shape) => shapeRuns(shape).length === 0)
+      .map((shape) => shapeGeometry(shape))
+      .filter((box): box is { x: number; y: number; w: number; h: number } => box !== null)
+    return {
+      index: offset + 1,
+      runs: shapes.flatMap((shape) => shapeRuns(shape)),
+      panels,
+    }
+  })
 }
 
 /**
@@ -125,12 +139,29 @@ function smallestPositiveGap(groups: readonly (readonly SlideRun[])[]): number |
   return positive.length === 0 ? undefined : Math.min(...positive)
 }
 
+/** @param run - one styled run. @param profile - validated profile. @returns true when the run is a design-language card title (accent at the fixed card size), which is emphasis, not body text. */
+function isCardTitleRun(run: SlideRun, profile: DesignProfile): boolean {
+  return Math.abs(run.sizePt - CARD_TITLE_SIZE_PT) <= DESIGN_SIZE_TOLERANCE_PT && deltaE76(run.color, profile.palette.accent) <= DESIGN_DELTA_E_LIMIT
+}
+
+/** @param box - shape box in EMU. @param canvas - slide size. @returns true when the box spans the canvas. */
+function isCanvasBox(box: { readonly w: number; readonly h: number }, canvas: { readonly cx: number; readonly cy: number }): boolean {
+  return box.w >= canvas.cx * 0.98 && box.h >= canvas.cy * 0.98
+}
+
 /**
  * @param slides - styled runs per slide.
  * @param roles - role per slide.
+ * @param canvas - slide size.
+ * @param profile - validated profile.
  * @returns the per-role measurement the rules compare with the profile.
  */
-function measureRoles(slides: readonly SlideFacts[], roles: readonly DesignRole[]): RoleMeasurement[] {
+function measureRoles(
+  slides: readonly SlideFacts[],
+  roles: readonly DesignRole[],
+  canvas: { cx: number; cy: number },
+  profile: DesignProfile,
+): RoleMeasurement[] {
   const measurements = new Map<DesignRole, RoleMeasurement>()
   const titles = new Map<DesignRole, { run: SlideRun; slide: number }[]>()
   for (const [offset, slide] of slides.entries()) {
@@ -143,7 +174,10 @@ function measureRoles(slides: readonly SlideFacts[], roles: readonly DesignRole[
       const list = titles.get(role) ?? []
       list.push({ run: chosen.run, slide: slide.index })
       titles.set(role, list)
-      for (const run of chosen.rest) measurement.bodies.push({ run, slide: slide.index })
+      for (const run of chosen.rest) {
+        if (isCardTitleRun(run, profile)) continue
+        measurement.bodies.push({ run, slide: slide.index })
+      }
     }
     for (const run of slide.runs) {
       if (run.sizePt >= 60 && simpleLuminance(run.color) > 0.85 && (measurement.watermark === undefined || run.sizePt > measurement.watermark.sizePt)) {
@@ -177,6 +211,26 @@ function measureRoles(slides: readonly SlideFacts[], roles: readonly DesignRole[
     const gaps: number[] = []
     for (const slide of slides) {
       if (roles[slide.index - 1] !== measurement.role) continue
+      const panels = slide.panels.filter((box) => box.w * box.h >= CARD_MIN_AREA_EMU && !isCanvasBox(box, canvas))
+      if (panels.length >= 2) {
+        // The design pass lays cards out as panels, so the card gap is a panel gap.
+        const groups: { left: number; right: number }[] = []
+        for (const box of [...panels].sort((left, right) => left.x - right.x)) {
+          const last = groups[groups.length - 1]
+          if (last !== undefined && box.x - last.left <= EMU_PER_INCH) last.right = Math.max(last.right, box.x + box.w)
+          else groups.push({ left: box.x, right: box.x + box.w })
+        }
+        counts.push(groups.length)
+        const panelGaps: number[] = []
+        for (const [index, group] of groups.entries()) {
+          const next = groups[index + 1]
+          if (next === undefined) continue
+          const gap = (next.left - group.right) / EMU_PER_INCH
+          if (gap > 0.05) panelGaps.push(gap)
+        }
+        if (panelGaps.length > 0) gaps.push(Math.min(...panelGaps))
+        continue
+      }
       const clusters: SlideRun[][] = []
       for (const entry of measurement.bodies.filter((candidate) => candidate.slide === slide.index).sort((left, right) => left.run.x - right.run.x)) {
         const last = clusters[clusters.length - 1]
@@ -210,10 +264,10 @@ function designFinding(role: DesignRole, page: number | undefined, rule: string,
  */
 export function auditDesignPackage(pkg: OpcPackage, options: DesignAuditOptions): FusionFinding[] {
   const findings: FusionFinding[] = []
+  const size = slideSize(pkg)
   const slides = readSlides(pkg)
   const roles = roleOf(slides, options.roles)
-  const measurements = measureRoles(slides, roles)
-  const size = slideSize(pkg)
+  const measurements = measureRoles(slides, roles, size, options.profile)
 
   for (const measurement of measurements) {
     const { role } = measurement
@@ -223,8 +277,10 @@ export function auditDesignPackage(pkg: OpcPackage, options: DesignAuditOptions)
     }
     if (expected?.title !== undefined && measurement.title !== undefined) {
       const { run, slide } = measurement.title
-      if (Math.abs(run.sizePt - expected.title.sizePt) > DESIGN_SIZE_TOLERANCE_PT) {
-        findings.push(designFinding(role, slide, 'design-role-title-font', `title is ${String(run.sizePt)} pt but the profile says ${String(expected.title.sizePt)} ±${String(DESIGN_SIZE_TOLERANCE_PT)} pt`))
+      // A content title takes one ladder step down so the theme's corner mark has room.
+      const expectedTitlePt = role === 'content' ? (steppedTitleSizePt(options.profile, 'content') ?? expected.title.sizePt) : expected.title.sizePt
+      if (Math.abs(run.sizePt - expectedTitlePt) > DESIGN_SIZE_TOLERANCE_PT) {
+        findings.push(designFinding(role, slide, 'design-role-title-font', `title is ${String(run.sizePt)} pt but the profile says ${String(expectedTitlePt)} ±${String(DESIGN_SIZE_TOLERANCE_PT)} pt`))
       }
       const delta = deltaE76(run.color, expected.title.color)
       if (delta > DESIGN_DELTA_E_LIMIT) {
@@ -251,23 +307,31 @@ export function auditDesignPackage(pkg: OpcPackage, options: DesignAuditOptions)
     const geometry = options.profile.roles[role]
     if (geometry !== undefined && measurement.title !== undefined) {
       const { run, slide } = measurement.title
-      const dx = Math.abs(run.x / EMU_PER_INCH - geometry.titlePos.x)
-      const dy = Math.abs(run.y / EMU_PER_INCH - geometry.titlePos.y)
-      if (Math.max(dx, dy) > DESIGN_POSITION_TOLERANCE_IN) {
-        findings.push(
-          designFinding(
-            role,
-            slide,
-            'design-role-geometry',
-            `title anchor (${(run.x / EMU_PER_INCH).toFixed(2)}, ${(run.y / EMU_PER_INCH).toFixed(2)}) in differs from (${geometry.titlePos.x}, ${geometry.titlePos.y}) by more than ${String(DESIGN_POSITION_TOLERANCE_IN)} in`,
-          ),
-        )
+      // The profile's toc title row describes the reference's number column, not a page
+      // heading, so ADR-073 keeps toc titles on their authored anchor and the audit skips them.
+      if (role !== 'toc') {
+        const nudge = role === 'content' ? CONTENT_TITLE_NUDGE_IN : 0
+        const expectedX = geometry.titlePos.x + nudge
+        const expectedY = geometry.titlePos.y + nudge
+        const dx = Math.abs(run.x / EMU_PER_INCH - expectedX)
+        const dy = Math.abs(run.y / EMU_PER_INCH - expectedY)
+        if (Math.max(dx, dy) > DESIGN_POSITION_TOLERANCE_IN) {
+          findings.push(
+            designFinding(
+              role,
+              slide,
+              'design-role-geometry',
+              `title anchor (${(run.x / EMU_PER_INCH).toFixed(2)}, ${(run.y / EMU_PER_INCH).toFixed(2)}) in differs from (${expectedX.toFixed(2)}, ${expectedY.toFixed(2)}) by more than ${String(DESIGN_POSITION_TOLERANCE_IN)} in`,
+            ),
+          )
+        }
       }
       if (measurement.columns !== undefined && (role === 'toc' || role === 'content')) {
-        if (measurement.columns.mode !== geometry.columns) {
-          findings.push(designFinding(role, measurement.slides[0], 'design-role-geometry', `content clusters into ${String(measurement.columns.mode)} column(s) but the profile says ${String(geometry.columns)}`))
-        }
+        const min = geometry.columns
         const max = geometry.columnsMax ?? geometry.columns
+        if (measurement.columns.mode < min || measurement.columns.mode > max) {
+          findings.push(designFinding(role, measurement.slides[0], 'design-role-geometry', `content clusters into ${String(measurement.columns.mode)} column(s) but the profile says ${String(min)}–${String(max)}`))
+        }
         if (measurement.columns.max > max) {
           findings.push(designFinding(role, measurement.slides[0], 'design-role-geometry', `content clusters into up to ${String(measurement.columns.max)} column(s) but the profile says at most ${String(max)}`))
         }

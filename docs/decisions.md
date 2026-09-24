@@ -88,6 +88,7 @@ the ADR wins.**
 | 074 | v0.3.2 patch release: the toc title fix on both channels (S27 P2) |
 | 075 | Content pages are laid out as the reference's equal card columns (S27 P4/P6/P11) |
 | 076 | v0.3.3 patch release: the content-page card layout on both channels |
+| 077 | Content titles clear the corner mark; pages reserve illustration space |
 
 ---
 
@@ -2275,3 +2276,30 @@ the ADR wins.**
   an asset reference; the human re-scores (P2/P4/P6/P11) and WPS rows 11–13 remain user-side.
 - **Alternatives rejected:** shipping the card layout without a release; folding it into a feature release
   (three reviewed pages were already below the reference bar).
+## ADR-077 — Content titles clear the corner mark, and pages reserve illustration space
+
+- **Date:** 2026-09-24
+- **Context.** The S27 user review kept the content pages at 3/5 and named the cause: the theme's
+  top-left double-line corner mark (the `⇱` at 0.58/0.58 in, two 0.75 in arms) sits 0.01 in from the
+  content title, because the design pass moves that title to the profile anchor (0.59, 0.58 in). The
+  same review asked decks built without the optional image generator to leave room for an illustration.
+- **Decision.** A content-page title takes an 8 px (1/12 in) clearance down-right from the profile
+  anchor and one ladder step down — the next smaller title size in the profile's own type scale (36 →
+  34 on the reference profile). The profile audit compares content titles against those effective
+  values, stops comparing the toc title anchor (ADR-073), measures content card columns and gaps from
+  the card panels, accepts the `columns`–`columnsMax` range, and excludes design-language card titles
+  (accent at the fixed 20 pt) from the body mode. The design-language reference gains the
+  illustration-space rule: without `image-gen`, a content page keeps a ≥ 1/4-page area free (or fills
+  only two of three columns) so an illustration can be dropped in later; text must not fill it.
+- **Evidence.** Re-rendering the `reference-quality` deck puts the three content titles at
+  (0.673, 0.663) in at 34 pt while the card layout stays at `cards: 9`; the profile audit drops from six
+  design errors to the known flat-vs-photo background one. `design-pass.test.ts` and
+  `design-audit.test.ts` cover the stepped title, the skipped toc anchor, the panel gap/column
+  measurement and the card-title body exclusion. `skill audit` passes with the design file's ceiling
+  raised to 2250 tokens (25 files, 111,756/120,000).
+- **Impact.** Content titles are 2 pt smaller and 1/12 in lower-right of the profile anchor in every
+  profile deck; the audit's expectations move with them, so profile decks stay self-consistent.
+- **Alternatives rejected:** moving the corner mark itself — the title stays inside the mark's frame and
+  reads less like the reference; shrinking without the nudge — the mark still touches the glyphs;
+  enforcing the illustration space with a storyboard rule — authoring decisions belong to the budgeted
+  design reference and the SKILL checklist.
