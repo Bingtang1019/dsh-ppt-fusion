@@ -82,6 +82,7 @@ the ADR wins.**
 | 068 | Design language reference and the Phase 3/4 authoring rules (V7 B3) |
 | 069 | Reference-quality split: scenario/rubric landed; the profile design pass is the S27 prerequisite (V7 B5a) |
 | 070 | v0.3.0 dual-channel release and the fixtureVersion 8 quality-alignment record (V7 B6) |
+| 071 | Generated backgrounds land above the base page rectangle, not behind it (V7.2 post-release fix) |
 
 ---
 
@@ -2130,3 +2131,31 @@ the ADR wins.**
   install/CHANGELOG/guide updates); releasing a locally built tgz instead of the registry bytes
   (no third-party verification); shipping only npm (breaks the dual-channel rule of ADR-056);
   declaring v0.3.0 as the v1 (the plan keeps v1 for after the human checks).
+
+## ADR-071 — Generated backgrounds land above the base page rectangle (V7.2 post-release fix)
+
+- **Date:** 2026-09-24
+- **Context.** The S28 review prep re-rendered the `svg` probe with the shipped code and rasterised it
+  through PowerPoint COM (Office 16.0 build 20326). Both pages exported blank, and the `svg` and
+  `flat` exports were byte-identical: the generated picture had been inserted behind every authored
+  shape, and pptwise opens each standard page with an opaque full-canvas rectangle (the theme
+  background) that covered it. A shape-level export still showed the picture, so generation and the
+  compat PNG stamp were intact; only the placement was wrong.
+- **Decision.** The background layer inserts the picture and its overlay just past a leading
+  full-canvas opaque rectangle (offset 0,0; extent within 2 % of the canvas; bare `a:srgbClr` solid
+  fill) and keeps inserting behind all content when the slide has no such rectangle. Chrome inserts
+  its markers at the end of the shape tree, so page numbers stay above the background.
+- **Evidence.** `src/bridge/background.test.ts` gains the leading-rectangle case (469 tests / 58 files
+  green); re-rendering `tmp/bg-svg` and exporting slide 1 through PowerPoint COM now shows the art
+  (`#EEF2FB` right band, `#FCFDFD` circle, `#FFFFFF` gradient start) where the pre-fix export was
+  white and byte-identical to the flat deck. `fixtures:verify` (fixtureVersion 8) and `matrix:verify`
+  6/6 are green after the fix; `design:verify` still skips without `DSH_PPT_REFERENCE_DECK`.
+- **Impact.** Only `svg` mode is observable today, because `photo`/`office`/`user` still fall back to
+  the flat colour (ADR-067); the same insertion path covers them once an asset reference exists. The
+  fix changes rendered bytes only for decks that request `svg`.
+- **Alternatives rejected:** deleting the base rectangle (it also carries layouts that rely on an
+  opaque page fill); putting the picture into `p:bg` (the opaque base rectangle would still cover it);
+  inserting above the last full-canvas rectangle (a later cover overlay would lift the background above
+  content); shipping the defect as a documented limitation (S28 requires the generated background to
+  render).
+

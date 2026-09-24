@@ -721,8 +721,9 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
 - **Background layer.** `render` applies the profile's `background.mode` after motion and before
   chrome/compat. `flat` writes a solid `p:bg` in the profile's `bg`; `svg` composes one
   deterministic SVG per design role from blends of the profile's own colours
-  (`bridge/svg-background.ts`), inserts it as the first picture of the slide plus an overlay
-  shape at `background.overlayOpacity`, and leaves the picture to the compat pass, which stamps
+  (`bridge/svg-background.ts`), inserts it plus an overlay shape at
+  `background.overlayOpacity` above the leading full-canvas page rectangle the base render writes
+  and below every authored shape, and leaves the picture to the compat pass, which stamps
   the `.png` sibling and points the main `a:blip` at it (B7). Before writing anything the layer
   checks the WCAG contrast of the profile's title/body/muted inks against every
   overlay-blended colour and fails `ContractViolation` below 4.5:1. `photo`, `office` and `user`

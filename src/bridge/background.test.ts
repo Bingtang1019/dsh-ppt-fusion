@@ -91,6 +91,19 @@ describe('applyProfileBackgrounds', () => {
     }
   })
 
+  it('lands above the deck own full-canvas page rectangle but behind the content', () => {
+    const pkg = miniPackage(1)
+    const rect = `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Shape 0"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(SLIDE_SIZE.cx)}" cy="${String(SLIDE_SIZE.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></p:spPr></p:sp>`
+    const text = '<p:sp><p:nvSpPr><p:cNvPr id="3" name="Text 0"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp>'
+    const part = 'ppt/slides/slide1.xml'
+    pkg.setPart(part, pkg.text(part).replace('</p:spTree>', `${rect}${text}</p:spTree>`))
+    applyProfileBackgrounds(pkg, { profile: PROFILE, pages: pages.slice(0, 1) })
+    const xml = pkg.text(part)
+    expect(xml.indexOf('Shape 0')).toBeLessThan(xml.indexOf('dsh-background'))
+    expect(xml.indexOf('dsh-background-overlay')).toBeLessThan(xml.indexOf('Text 0'))
+    expect(xml.indexOf('dsh-background')).toBeLessThan(xml.indexOf('Text 0'))
+  })
+
   it('writes identical parts for identical inputs', () => {
     const left = miniPackage(2)
     const right = miniPackage(2)

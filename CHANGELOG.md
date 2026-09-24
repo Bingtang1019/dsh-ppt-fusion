@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## Unreleased
+
+### 修复
+
+- **svg 背景在 PowerPoint/WPS 里不可见（ADR-071）**：背景层原先把生成的背景图插在“所有作者内容之前”，而
+  pptwise 每个标准页的首个形状是一块不透明全幅底板（主题背景色），背景图正好被它盖住；PowerPoint COM 栅格化
+  证明 `svg` 导出与 `flat` 导出字节相同（全白），shape 级导出才看得到图。现插入点改为“首块全幅不透明底板之后、
+  其余内容之前”，没有该底板时保留原行为；chrome 的页码形状仍在形状树末尾，位于背景之上。`background.test.ts`
+  增加该用例（469 tests / 58 files 全绿）。
+
 ## v0.3.0 — 2026-09-24
 
 设计系统对齐：参考 deck → 数值化 design profile → theme/chrome/storyboard 套用 → 符合性审计。

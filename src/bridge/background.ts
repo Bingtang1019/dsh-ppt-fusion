@@ -136,15 +136,49 @@ function highestShapeId(xml: string): number {
 
 /**
  * @param xml - slide part.
- * @param shapes - shape XML to place before every existing shape.
- * @returns the slide with `shapes` inserted behind the authored content.
+ * @param size - canvas size in EMU.
+ * @returns the offset just past a leading full-canvas opaque rectangle, or
+ *   `null` when the shape tree does not open with one.
+ *
+ * pptwise paints every standard page as an opaque full-canvas rectangle ahead of
+ * its content. A background inserted ahead of that rectangle is invisible in
+ * PowerPoint and WPS, so the generated picture has to land above it.
+ */
+function leadingPageRectEnd(xml: string, size: { cx: number; cy: number }): number | null {
+  const tree = /<p:spTree\b[^>]*>/.exec(xml)
+  if (tree === null) return null
+  const anchor = /<p:grpSpPr\b[^>]*>[\s\S]*?<\/p:grpSpPr>|<p:grpSpPr\b[^>]*\/>/.exec(xml)
+  const from = anchor !== null ? anchor.index + anchor[0].length : tree.index + tree[0].length
+  const first = /<p:(sp|pic|graphicFrame|cxnSp|grpSp)\b[^>]*>/.exec(xml.slice(from))
+  if (first === null || first[1] !== 'sp') return null
+  const open = from + first.index
+  const close = xml.indexOf('</p:sp>', open)
+  if (close === -1) return null
+  const shape = xml.slice(open, close + '</p:sp>'.length)
+  const offset = /<a:off x="(-?\d+)" y="(-?\d+)"\s*\/>/.exec(shape)
+  if (offset === null || Number(offset[1]) !== 0 || Number(offset[2]) !== 0) return null
+  const extent = /<a:ext cx="(\d+)" cy="(\d+)"\s*\/>/.exec(shape)
+  if (extent === null || Number(extent[1]) < size.cx * 0.98 || Number(extent[2]) < size.cy * 0.98) return null
+  const opaqueFill = /<a:solidFill><a:srgbClr val="[0-9A-Fa-f]{6}"\s*\/><\/a:solidFill>/.exec(shape)
+  if (opaqueFill === null) return null
+  return close + '</p:sp>'.length
+}
+
+/**
+ * @param xml - slide part.
+ * @param shapes - shape XML to place before every authored shape.
+ * @param size - canvas size in EMU.
+ * @returns the slide with `shapes` inserted behind the authored content and, on
+ *   a standard page, above the leading full-canvas rectangle the base render wrote.
  * @throws DshPptFailure `ContractViolation` when the slide has no shape tree.
  */
-function insertBehindContent(xml: string, shapes: string): string {
+function insertBehindContent(xml: string, shapes: string, size: { cx: number; cy: number }): string {
   const tree = /<p:spTree\b[^>]*>/.exec(xml)
   if (tree === null) {
     throw new DshPptFailure('ContractViolation', 'a slide has no p:spTree, so a background cannot be inserted', { detail: {} })
   }
+  const rectEnd = leadingPageRectEnd(xml, size)
+  if (rectEnd !== null) return xml.slice(0, rectEnd) + shapes + xml.slice(rectEnd)
   const after = tree.index + tree[0].length
   const group = /<p:grpSpPr\b[^>]*>[\s\S]*?<\/p:grpSpPr>|<p:grpSpPr\b[^>]*\/>/.exec(xml)
   if (group !== null) return xml.slice(0, group.index + group[0].length) + shapes + xml.slice(group.index + group[0].length)
@@ -248,7 +282,7 @@ export function applyProfileBackgrounds(pkg: OpcPackage, options: BackgroundAppl
       const xml = pkg.text(slidePart)
       const firstId = highestShapeId(xml) + 1
       const shapes = overlayOpacity > 0 ? pictureXml(firstId, relId, size) + overlayXml(firstId + 1, profile.palette.bg, overlayOpacity, size) : pictureXml(firstId, relId, size)
-      pkg.setPart(slidePart, insertBehindContent(xml, shapes))
+      pkg.setPart(slidePart, insertBehindContent(xml, shapes, size))
       reports.push({
         index: page.index,
         role: page.role,
