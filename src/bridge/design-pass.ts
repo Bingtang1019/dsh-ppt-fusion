@@ -293,7 +293,10 @@ export function applyDesignProfile(pkg: OpcPackage, options: DesignPassOptions):
         shape = styled.xml
         report.titles += 1
         changed = true
-        if (geometry !== undefined) {
+        if (geometry !== undefined && page.role !== 'toc') {
+          // The profile's toc title geometry comes from the reference's number column
+          // (`01.`), not from a page heading, so moving the page title there would drop it
+          // under the card row. Every other role's titlePos is a real heading anchor.
           const x = Math.round(geometry.titlePos.x * EMU_PER_INCH)
           const y = Math.round(geometry.titlePos.y * EMU_PER_INCH)
           shape = shape.replace(/<a:off x="-?\d+" y="-?\d+"\/>/, `<a:off x="${String(x)}" y="${String(y)}"/>`)

@@ -45,11 +45,12 @@ page 1–5 (5 = closest to the reference):
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Score | 4 | **2** | 4 | 3 | 4 | 3 | 4 | 5 | 4 | 4 | 3 | 3 |
 
-Mean 3.58. Page 2 (toc) is the outlier: the reference toc is a numbered list (`01.`–`05.` at 40 pt Noto
-Sans SC in a 1.77 in column beside 20 pt MiSans titles), while the page currently renders as a 4-card
-grid inherited from the pptwise content template. The design pass only re-spaces existing card columns
-and cannot produce the reference gap (1.04 in) without resizing or restructuring the cards, so the user
-asked to watch spacing here in particular. Pages 4/6/11 (score 3) and 12 (score 3) are the next
+Mean 3.58. Page 2 (toc) is the outlier, and the user located the cause: text hidden behind the four
+cards. The design pass had moved the page title to `profile.roles.toc.titlePos` — geometry the extractor
+measured from the reference's `01.` number box (5.19, 1.79 in) — so the 40 pt title sat on the card
+row's top edge (panels start at 1.94 in) and painted **under** the panels; PowerPoint COM rendered 0 px
+of title ink before the fix. ADR-073 keeps the authored anchor on toc pages, and the re-render puts the
+title above the cards (title-band ink 3755 px). The other low pages (4/6/11/12 at 3) are the next
 candidates; page 8 scored 5.
 
 ## Reproduce

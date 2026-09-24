@@ -84,6 +84,7 @@ the ADR wins.**
 | 070 | v0.3.0 dual-channel release and the fixtureVersion 8 quality-alignment record (V7 B6) |
 | 071 | Generated backgrounds land above the base page rectangle, not behind it (V7.2 post-release fix) |
 | 072 | v0.3.1 patch release: the svg background fix on both channels (V7.2 post-release) |
+| 073 | Toc pages keep their authored title anchor, not the profile number-column geometry (S27 P2 fix) |
 
 ---
 
@@ -2183,3 +2184,24 @@ the ADR wins.**
   requires the generated background to render); a source-only fix without a release (npm users would keep
   the blank background); tagging the fix commit instead of the metadata commit (the tagged tree would lack
   the version, README and install updates).
+## ADR-073 — Toc pages keep their authored title anchor (S27 page-2 fix)
+
+- **Date:** 2026-09-24
+- **Context.** The user's page-by-page S27 review scored the `reference-quality` toc page 2/5 and located
+  the cause: text hidden behind the four cards (not the card layout, which the user judged fine). The
+  deck shows it exactly: the design pass moved the page title to `profile.roles.toc.titlePos`, and that
+  geometry was extracted from the reference's `01.` number box (5.19 in, 1.79 in), so the 40 pt title
+  landed on the card row (panels start at 1.94 in) and painted under the panels. PowerPoint COM rendered
+  0 px of title ink in the old deck.
+- **Decision.** The design pass skips the title-anchor rewrite for `toc` pages and keeps the authored
+  anchor. Size, colour and body styling still come from `typeScale.toc`; every other role keeps the
+  profile anchor.
+- **Evidence.** `src/bridge/design-pass.test.ts` gains the toc case (the title offset stays at the
+  authored anchor while the profile's `titlePos` is 5.19/1.79); re-rendering the `reference-quality`
+  workspace produced a 69,882 B deck whose slide 2 title sits at (1.0, 1.2) above the cards, and the
+  PowerPoint render's title band now carries 3755 px of ink (0 px before).
+- **Impact.** Decks with a toc page change their rendered bytes on that page only.
+- **Alternatives rejected:** moving the title to the reference's `目录`/`CONTENTS` heading position
+  (0.92, 1.91 in) — it still overlaps the card row; restructuring the page as the reference's numbered
+  list or re-spacing the cards (the A/B prototypes) — the user reviewed the card grid and asked only for
+  the hidden text to be fixed.

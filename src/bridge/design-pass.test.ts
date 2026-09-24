@@ -112,6 +112,31 @@ describe('applyDesignProfile', () => {
     expect(xml).not.toContain('sz="1800"')
   })
 
+  it('keeps the authored toc title anchor instead of the profile number column', () => {
+    const tocProfile: DesignProfile = {
+      ...PROFILE,
+      typeScale: {
+        ...PROFILE.typeScale,
+        toc: { title: { sizePt: 40, bold: false, color: '#000000', font: 'Noto Sans SC' }, body: { sizePt: 20, color: '#595959', font: 'MiSans' } },
+      },
+      roles: { ...PROFILE.roles, toc: { titlePos: { x: 5.19, y: 1.79 }, columns: 3, columnsMax: 3, cardGapIn: 1.04 } },
+    }
+    const slide = [
+      shapeXml({ x: 1, y: 1.2, w: 12.33, h: 0.55, runs: [runXml(3300, '1C1E23', '目录')] }),
+      shapeXml({ x: 1, y: 1.94, w: 6.7, h: 2.14, runs: [] }),
+      shapeXml({ x: 1.25, y: 2.99, w: 12.08, h: 0.28, runs: [runXml(1650, '1E2A4A', '原料准备')] }),
+      shapeXml({ x: 8.12, y: 2.99, w: 5.22, h: 0.28, runs: [runXml(1650, '1E2A4A', '关键控制点')] }),
+    ].join('')
+    const pkg = packageWith([slide])
+    applyDesignProfile(pkg, { profile: tocProfile, pages: [{ index: 1, role: 'toc', standard: true }] })
+    const xml = pkg.text('ppt/slides/slide1.xml')
+    const authored = `<a:off x="${String(Math.round(1 * 914400))}" y="${String(Math.round(1.2 * 914400))}"/>`
+    expect(xml).toContain(authored)
+    expect(xml).not.toContain(`x="${String(Math.round(5.19 * 914400))}"`)
+    expect(xml).toContain('sz="4000"')
+    expect(xml).toContain('sz="2000"')
+  })
+
   it('rewrites an existing section watermark to the profile size', () => {
     const pkg = packageWith([sectionSlide()])
     const report = applyDesignProfile(pkg, { profile: PROFILE, pages: sectionPages })
