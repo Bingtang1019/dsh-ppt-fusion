@@ -2,12 +2,14 @@
 // the vendored reference docs and the built CLI, and the package.json must
 // declare them so a tarball cannot silently drop one.
 //
-// Runs after `pnpm build` (see the prepack script). `npm pack --ignore-scripts`
-// lists the real tarball contents without re-entering prepack.
+// Runs after `pnpm build` (see the prepack script). `npm pack --ignore-scripts
+// --dry-run` lists the real tarball contents; npm 10 still runs `prepare` there,
+// so the payload is extracted by `packList` instead of parsed raw.
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { packList } from './pack-list.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -61,12 +63,12 @@ if (problems.length === 0) {
   // the list above already checked on disk.
   let packed
   try {
-    packed = JSON.parse(execSync('npm pack --ignore-scripts --dry-run --json', { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    packed = packList(execSync('npm pack --ignore-scripts --dry-run --json', { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
   } catch (error) {
     problems.push(`npm pack --dry-run failed: ${error instanceof Error ? error.message : String(error)}`)
-    packed = []
+    packed = undefined
   }
-  const names = new Set((packed[0]?.files ?? []).map((entry) => entry.path))
+  const names = new Set((packed?.[0]?.files ?? []).map((entry) => entry.path))
   for (const path of required) {
     if (!names.has(path)) problems.push(`not in the tarball: ${path}`)
   }
