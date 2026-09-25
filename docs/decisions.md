@@ -96,6 +96,7 @@ the ADR wins.**
 | 082 | Render-level gate: `audit --rendered` judges the page images on top of the source audit |
 | 083 | Model render self-review: the `dsh_ppt_review` tool and SKILL phase 5.5 |
 | 084 | The subagent critic stays optional and off by default (V10 B3) |
+| 085 | v0.5.0 release: render QA and the model self-review loop on both channels |
 
 ---
 
@@ -2525,3 +2526,37 @@ the ADR wins.**
 - **Alternatives rejected:** building the critic now (cost and merge policy without a proven need);
   dropping the mode from the skill (the plan keeps it as a flags-gated增量, and the marker is the
   contract a future implementation must honour).
+## ADR-085 — v0.5.0 release: render QA and the model self-review loop on both channels
+
+- **Date:** 2026-09-26
+- **Decision.** v0.5.0 ships V10 Part A and Part B together: `renderpages` (ADR-081), `text-measure`,
+  `audit --rendered` (ADR-082), the rendered page baseline, the `dsh_ppt_review` tool and SKILL phase
+  5.5 (ADR-083), with the subagent critic left optional (ADR-084). It supersedes v0.4.0 as `latest`.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.5.0`, 930,628 bytes,
+  88 files, shasum `4cdfc900e35c156e62007e5eede88182d12d29b4`, `dist-tags.latest` = 0.5.0; the registry
+  tarball was downloaded back and matched. GitHub: annotated tag `v0.5.0` (tag object
+  `0116d3a` → commit `2b3bedb88af4e798ff512e9463a33e120d5986d9`), Release id 396790489 with **two**
+  assets of the same bytes — `dsh-ppt-flashmade-0.5.0.tgz` (id 588837765) and the version-free alias
+  `dsh-ppt-flashmade.tgz` (id 588837802), both digest
+  `sha256:4aa831b615dd60ae929b8fe1c9078ed75f04ec19e1713598363ca3288542ed1c`, both downloaded back with
+  npm's sha1. The alias exists so a marketplace `releases/latest/download/dsh-ppt-flashmade.tgz` link
+  cannot rot when the next version ships a versioned asset name.
+- **Peer ranges.** Before publishing, the `@deepseek-ai/dsh*` peer ranges were replaced by a union with
+  one prerelease branch per supported minor line, because npm/pnpm only admit a prerelease when a
+  comparator on the same `major.minor.patch` tuple carries a prerelease tag; the previous
+  `>=0.1.2-rc.1 <0.2.0` would have failed an install on `0.1.7-rc.2` with `ERESOLVE` even though the
+  runtime gate accepted it (ADR-079's update, the 0.1.7 probe record, and the awesome-dsh-plugin
+  contributing rules document the trap).
+- **Gates.** typecheck, lint, 518 tests / 66 files, `fixtures:verify` (fixtureVersion 8, including
+  `--rendered` against both engine baselines), `matrix:verify` 6/6, `prepack`'s 21-file pack check and
+  `skill audit` (25 files, 112,405/120,000, 0 error) are green; CI run 36164726448 for `2b3bedb` is
+  green on ubuntu, windows and both `dsh-compat` legs.
+- **Runtime.** The local web profile moved to the 0.5.0 tarball (backup
+  `dsh-backups/20260926-0109-v050-web-upgrade`); it needs one launcher restart to load the new
+  commands and the review tool.
+- **Known limits.** A live model review still needs an image-capable route; the two-round cap and
+  `DSH_PPT_REVIEW` are skill-level policy; the subagent critic is documented, not exercised.
+- **Alternatives rejected:** releasing Part A alone and shipping Part B later (the plan defines v0.5.0
+  as both, and the tool plus skill text are testable without a vision model); uploading only the
+  versioned asset (a `latest/download/` link would rot at the next release); keeping the broad peer
+  range (install-time `ERESOLVE` for every 0.1.5+/0.1.7 prerelease).
