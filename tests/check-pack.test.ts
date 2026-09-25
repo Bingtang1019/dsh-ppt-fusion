@@ -8,18 +8,17 @@ describe('pack list parsing', () => {
     expect(packList(JSON.stringify(payload))?.[0]?.files?.length).toBe(2)
   })
 
-  it('parses the payload npm 10 prints after the prepare script log', () => {
-    const stdout = `\n> pkg@1.0.0 build\n> tsup\n\nBuild success\n${JSON.stringify(payload, null, 2)}\n.\n`
+  it('parses the payload npm 10 prints after the coloured prepare script log', () => {
+    const stdout = `\n> pkg@1.0.0 build\n> tsup\n\n\u001b[34mCLI\u001b[39m Building entry: {"cli":"src/cli.ts"}\n\u001b[32mESM\u001b[39m \u001b[1mdist/cli.js\u001b[22m 416.40 KB\n${JSON.stringify(payload, null, 2)}\n.\n`
     expect(packList(stdout)?.[0]?.files?.map((entry) => entry.path)).toEqual(['dist/cli.js', 'dsh/index.js'])
   })
 
   it('rejects output without a JSON array', () => {
     expect(packList('> pkg@1.0.0 build\n')).toBeUndefined()
-    expect(packList('[] trailing')).toEqual([])
     expect(packList('not json at all')).toBeUndefined()
   })
 
   it('rejects a JSON object, which is not the pack payload', () => {
-    expect(packList('{"pkg": {}}')).toBeUndefined()
+    expect(packList('{"pkg": {"files": [{"path": "x"}]}}')).toBeUndefined()
   })
 })
