@@ -1,9 +1,8 @@
 import { isAbsolute, join, resolve } from 'node:path'
 import { DshPptFailure, isDshPptFailure } from '../engine/errors.ts'
-import { assertInsideWorkspace } from '../engine/contracts.ts'
 import { irRoleAt, loadDeck } from '../deck.ts'
 import { validateDeck } from './validate.ts'
-import { engineFor, frontendFor, resolveDeckDir, type CommandDependencies, designRoleMap } from './context.ts'
+import { engineFor, frontendFor, resolveArtifact, resolveDeckDir, type CommandDependencies, designRoleMap } from './context.ts'
 import { resolveCompatLevel } from './render.ts'
 import { OpcPackage, auditPackage } from '../bridge/opc.ts'
 import { auditChrome, chromePagesFrom } from '../bridge/chrome.ts'
@@ -321,39 +320,6 @@ function deepQualityFindings(
     }
   }
   return findings
-}
-
-/** The package to audit: `--file`, else the last render's manifest entry, else one pptx. */
-function resolveArtifact(input: { dir: string; file: string | undefined; fs: CommandDependencies['fs']; allowOutside?: boolean }): { path: string; relative: string } | null {
-  if (input.file !== undefined) {
-    const path =
-      input.allowOutside === true
-        ? isAbsolute(input.file)
-          ? resolve(input.file)
-          : resolve(input.dir, input.file)
-        : assertInsideWorkspace(input.dir, input.file, 'file')
-    if (!input.fs.exists(path)) return null
-    return { path, relative: relative(input.dir, path) }
-  }
-  const manifestText = input.fs.readText(join(input.dir, 'out', 'manifest.json'))
-  if (manifestText !== null) {
-    try {
-      const manifest = JSON.parse(manifestText) as { file?: unknown }
-      if (typeof manifest.file === 'string' && manifest.file.length > 0) {
-        const path = resolve(input.dir, manifest.file)
-        if (input.fs.exists(path)) return { path, relative: manifest.file }
-      }
-    } catch {
-      // A corrupt manifest is not this command's finding; the single-pptx fallback
-      // below still lets the audit run.
-    }
-  }
-  const outDir = join(input.dir, 'out')
-  if (!input.fs.isDirectory(outDir)) return null
-  const candidates = input.fs.listDir(outDir).filter((name) => name.toLowerCase().endsWith('.pptx')).sort()
-  if (candidates.length !== 1) return null
-  const name = candidates[0] ?? ''
-  return { path: join(outDir, name), relative: `out/${name}` }
 }
 
 /** @param root - workspace root. @param path - candidate path. @returns true when the candidate stays inside the root. */

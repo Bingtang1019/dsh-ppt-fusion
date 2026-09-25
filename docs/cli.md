@@ -419,6 +419,23 @@ keep the item's extension. The destination must stay inside the deck, different 
 are refused without `--force`, and identical bytes are reported as `unchanged`, so reruns are
 idempotent (ADR-067).
 
+## Implemented (V10 Part A)
+
+### `dsh-ppt renderpages <dir> [-o <dir>] [--file <pptx>] [--engine powerpoint|libreoffice|both] [--scale 1|2] [--max-pages <n>] [--max-pixels <n>] [--required] [--force] [--json]`
+
+Rasterises the deck's published pptx into page images for the render-level gates and the model
+review loop (ADR-081). Each engine writes `<deck>/.dsh-ppt/render/<engine>/page-NNNN.png` plus
+`manifest.json` — engine version, source sha256, scale/dpi, limits, and per-page size and sha256 —
+and the run rewrites `.dsh-ppt/render/pages.json` with the same records. The cache key is
+`sha256(source bytes + engine + engine version + scale + limits)`, so an untouched deck re-runs with
+every engine marked `cached`; `--force` re-renders. `--engine both` runs PowerPoint COM first
+(Windows hosts only; `scripts/win-com-export-pages.ps1` opens the deck read-only and headless and
+leaves its bytes unchanged) and the LibreOffice Kit second. Kit discovery follows the plan's order:
+`DSH_PPT_LOKIT_CLI` (plus `DSH_PPT_LOKIT_NODE`) → a Kit installed beside the plugin or inside a DSH
+runtime under `$HOME` → system `soffice` with `pdftoppm`. `--scale 2` exports at 192 dpi;
+`--max-pages` defaults to 30 and `--max-pixels` to 16777216 per page. An engine that cannot run is
+recorded as `skipped` with its reason and a fix hint, unless `--required` turns it into a
+`ContractViolation`.
 ## JSON output
 
 Every leaf command accepts `--json` and prints one JSON document on stdout (exit codes are

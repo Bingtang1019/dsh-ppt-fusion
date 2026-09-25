@@ -42,6 +42,7 @@ scenario).
 | S30 | 双 DSH 版本可安装 | `dsh-compat` CI job 矩阵（0.1.2-rc.1 / 0.1.7-rc.2）：`scripts/dsh-compat.mjs` 在 0.1.7 上跑官方 peer 门禁、在 0.1.2 上显式 skipped；`scripts/dsh-compat-profile.mjs` 在两条线上都把打包后的插件装进 scratch profile 并 compose（本机实测两版 ok，ADR-079） | 无（CI 复核） | V8 Part 0 |
 | S31 | 0.1.7 探针记录 | `docs/dsh017-probe.md`：两版运行时矩阵、peer 门禁语义（只查 `@deepseek-ai/dsh*`、预发布参与匹配、`compatibility.json` 精确豁免与 BOM 坑）、本插件 5 个 peer 的声明与验证证据、V9 三杠杆（Kit/附件/子代理）可用性 | 无 | V8 Part 0 |
 | S32 | 0.1.7 实机运行 | 本机基线已切到 `~/dsh-017-runtime`（0.1.7-rc.2）：`--profile web --dump-config` 退出 0 且 `dsh-ppt-flashmade` 层在列；`%TEMP%\dsh-web.log` 无 `Failed to load / failed to import / did not activate`；`tests/dsh-peers.test.ts` 3 绿 | 浏览器 red banner 复核（用户） | V8 Part 0 |
+| S35 | 渲染快照可用 | `dsh-ppt renderpages` 在本机对 reference-quality deck 出全页 PNG：LibreOffice Kit 0.1.1（native，1280×721，12 页）与 PowerPoint COM 16.0（1280×720，12 页）各一份 + `pages.json`；二次运行两引擎均 `cached`（0 重渲）；`--force` 重渲；`--engine`/`--scale`/`--max-pages`/`--max-pixels` 与 `--required` 语义有单测（ADR-081） | 抽 2 页看图（用户） | V10 Part A |
 
 ## What is deliberately not claimed
 

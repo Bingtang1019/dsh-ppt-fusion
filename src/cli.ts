@@ -25,6 +25,7 @@ import { SOURCE_TYPES, sourceConvert } from './commands/source.ts'
 import { formatImagesGenerate, formatImagesSearch, imagesGenerate, imagesSearch } from './commands/images.ts'
 import { postAnimate } from './commands/post.ts'
 import { narrate, narrationVoices } from './commands/narrate.ts'
+import { DEFAULT_MAX_PAGES, DEFAULT_MAX_PIXELS, engineOption, formatRenderPagesResult, positiveOption, renderPagesCommand, scaleOption } from './commands/renderpages.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
@@ -688,6 +689,36 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       process.stdout.write(
         `merge: ${String(result.merge.replaced.length)} page(s) replaced, ${String(Object.keys(result.merge.imported).length)} part(s) imported, ${String(result.merge.multiMaster ? 'multi-master' : 'single master')}\n`,
       )
+    })
+
+  program
+    .command('renderpages')
+    .description('rasterise the published deck into page PNGs (PowerPoint COM and/or the LibreOffice Kit)')
+    .argument('<dir>', 'deck directory')
+    .option('-o, --output <dir>', 'output root, deck-relative', '.dsh-ppt/render')
+    .option('--file <pptx>', 'deck to rasterise; defaults to the last render recorded in out/manifest.json')
+    .addOption(new Option('--engine <engine>', 'rasteriser to run').choices(['powerpoint', 'libreoffice', 'both']).default('both'))
+    .addOption(new Option('--scale <factor>', 'page scale factor').choices(['1', '2']).default('1'))
+    .option('--max-pages <n>', 'page ceiling per engine', String(DEFAULT_MAX_PAGES))
+    .option('--max-pixels <n>', 'per-page pixel ceiling', String(DEFAULT_MAX_PIXELS))
+    .option('--required', 'fail instead of recording `skipped` when an engine is unavailable')
+    .option('--force', 'ignore a matching cache entry and re-render')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { output: string; file?: string; engine: string; scale: string; maxPages: string; maxPixels: string; required?: boolean; force?: boolean; json?: boolean }) => {
+      const result = renderPagesCommand({
+        dir,
+        ...(options.file === undefined ? {} : { file: options.file }),
+        output: options.output,
+        engine: engineOption(options.engine),
+        scale: scaleOption(options.scale),
+        maxPages: positiveOption(Number(options.maxPages), '--max-pages'),
+        maxPixels: positiveOption(Number(options.maxPixels), '--max-pixels'),
+        required: options.required === true,
+        force: options.force === true,
+        deps,
+      })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatRenderPagesResult(result)}\n`)
     })
 
   const compat = program.command('compat').description('inspect a rendered package against the compatibility registry')

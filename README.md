@@ -68,6 +68,7 @@ deck/
 - **兼容性被声明、不靠假设**：`src/compat/registry.json` 登记每个版本敏感标记的最低 Office/WPS 支持与降级规则；`render --compat safe|standard|max` 覆盖 manifest 的 `compat` 字段，默认 `standard`（Office 2016+/WPS 2019+）；报告写 `out/compat-report.json`，哈希进 `out/manifest.json`（ADR-034）。
 - **失败分类**：每个错误是 `src/engine/errors.ts` 的封闭枚举，CLI 打印 `dsh-ppt: <code> <message>`。
 - **交付门**：`dsh-ppt audit` 聚合八源（validate、pptwise、引擎门、OPC+P1、delivery、compat、可选 ΔE）；缺产物是 error 并把跳过的源记入 `skipped`（ADR-035）。
+- **渲染级 QA（v0.5.0 起）**：`dsh-ppt renderpages` 把发布包渲染成逐页 PNG（PowerPoint COM / LibreOffice Kit 双引擎、哈希缓存、页数与像素限额），供 `audit --rendered` 与模型看图自评使用（ADR-081）。
 - **素材署名**：`images search` 的每个下载项都进 `assets/image_sources.json`，缺许可或缺署名文本即失败；`--strict-no-attribution` 直接拒绝需署名的许可（ADR-040）。
 - **动效单一 owner**：`post/animations.json` 的 entrance/emphasis/path 由 `bridge/post.ts` 写；emphasis/路径必须按 PowerPoint 自己的包装结构书写，否则 COM 读回 behaviours=0（ADR-042）。
 - **非目标不可达**：`image-gen`、`video-*`、`gemini-watermark-remove` 不在 contracts 白名单（ADR-013）。

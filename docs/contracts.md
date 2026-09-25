@@ -802,3 +802,24 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   real CLI refusals are measured on this machine. A live provider call is not run here
   because no `GEMINI_API_KEY`/`OPENAI_API_KEY` is configured (S29 records that half as
   skipped).
+## 24. Render snapshots (V10 Part A, ADR-081)
+
+`dsh-ppt renderpages <dir>` is the only producer of page images. It resolves the pptx like `audit`
+(`--file`, else `out/manifest.json#file`, else the single pptx in `out/`), refuses an output root
+outside the deck, and rasterises with `--engine powerpoint|libreoffice|both`:
+
+| Engine | How | Cache identity |
+|---|---|---|
+| `powerpoint` | `scripts/win-com-export-pages.ps1` over COM: read-only headless open, per-slide `Export` at `round(pt × dpi / 72)`, `-MaxPages`/`-MaxPixels` checked before the first export | the `Microsoft PowerPoint` version |
+| `libreoffice` | the Kit CLI `render` (`--dpi` = 96 × `--scale`, fresh `--output-dir`) discovered via `DSH_PPT_LOKIT_CLI`/`DSH_PPT_LOKIT_NODE` → module resolution and runtime scan → `soffice` + `pdftoppm` | the Kit runtime version or `soffice --version` |
+
+Layout: `<deck>/.dsh-ppt/render/<engine>/page-NNNN.png` plus `manifest.json`
+(`{schemaVersion, engine, engineVersion, cacheKey, source, sourceSha256, scale, dpi, maxPages,
+maxPixels, pages[{index, file, width, height, bytes, sha256}]}`), and
+`<deck>/.dsh-ppt/render/pages.json` carrying the same records for every engine that ran. Page file
+names follow one `page-NNNN.png` convention so the render-level gates and the review loop read the
+same layout from both engines. The cache key is the sha256 of `{sourceSha256, engine, engineVersion,
+scale, maxPages, maxPixels}` and a cache entry is reused only while every page file still exists.
+An engine that cannot run is `skipped` with a reason and a fix hint (exit stays 0) unless `--required`
+is passed, which raises `ContractViolation`. Neither engine rewrites the source deck: the COM script
+opens it read-only and the Kit copies it into a private scratch directory.

@@ -1,6 +1,7 @@
-import { isAbsolute, join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { createFrontend, resolvePptwiseCli, type Frontend, type ModuleResolver } from '../frontend.ts'
 import { nodeFileSystem, type FileSystemPort } from '../engine/venv.ts'
+import { assertInsideWorkspace } from '../engine/contracts.ts'
 import { spawnRunner, type Runner } from '../engine/runner.ts'
 import { createThemeBridge } from '../bridge/theme.ts'
 import { createMasterEngine } from '../engine/master.ts'
@@ -45,6 +46,48 @@ export function resolveDeckDir(deps: CommandDependencies, target: string): strin
   return isAbsolute(target) ? resolve(target) : resolve(deps.cwd, target)
 }
 
+/**
+ * The package a deck command operates on: an explicit `--file`, else the last
+ * render's `out/manifest.json` entry, else the single pptx in `out/`.
+ *
+ * @param input.dir - absolute deck workspace.
+ * @param input.file - explicit path; deck-relative unless `allowOutside`.
+ * @param input.fs - filesystem port.
+ * @param input.allowOutside - skip the workspace containment check (`--profile` audits their own deck).
+ * @returns the absolute path plus the deck-relative spelling, or null when nothing resolves.
+ * @throws DshPptFailure `PathOutsideWorkspace` when an explicit path leaves the workspace.
+ */
+export function resolveArtifact(input: { dir: string; file: string | undefined; fs: FileSystemPort; allowOutside?: boolean }): { path: string; relative: string } | null {
+  if (input.file !== undefined) {
+    const path =
+      input.allowOutside === true
+        ? isAbsolute(input.file)
+          ? resolve(input.file)
+          : resolve(input.dir, input.file)
+        : assertInsideWorkspace(input.dir, input.file, 'file')
+    if (!input.fs.exists(path)) return null
+    return { path, relative: relative(input.dir, path) }
+  }
+  const manifestText = input.fs.readText(join(input.dir, 'out', 'manifest.json'))
+  if (manifestText !== null) {
+    try {
+      const manifest = JSON.parse(manifestText) as { file?: unknown }
+      if (typeof manifest.file === 'string' && manifest.file.length > 0) {
+        const path = resolve(input.dir, manifest.file)
+        if (input.fs.exists(path)) return { path, relative: manifest.file }
+      }
+    } catch {
+      // A corrupt manifest is not this helper's finding; the single-pptx fallback
+      // below still lets the caller run.
+    }
+  }
+  const outDir = join(input.dir, 'out')
+  if (!input.fs.isDirectory(outDir)) return null
+  const candidates = input.fs.listDir(outDir).filter((name) => name.toLowerCase().endsWith('.pptx')).sort()
+  if (candidates.length !== 1) return null
+  const name = candidates[0] ?? ''
+  return { path: join(outDir, name), relative: `out/${name}` }
+}
 /**
  * @param dir - absolute deck workspace, used as the child process's cwd.
  * @param deps - command dependencies.

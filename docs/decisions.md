@@ -92,6 +92,7 @@ the ADR wins.**
 | 078 | v0.3.4 patch release: the title-clearance fix on both channels |
 | 079 | DSH peer governance: declare the host packages on both runtime lines (V8 Part 0) |
 | 080 | v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0) |
+| 081 | Render snapshots: `renderpages` rasterises through PowerPoint COM and the LibreOffice Kit into a hashed cache |
 
 ---
 
@@ -2388,3 +2389,37 @@ the ADR wins.**
 - **Alternatives rejected:** publishing without the npm 10 fix (the very CI job the release
   announces would stay red); tagging before CI (the release pipeline's ordering rule);
   shipping the parser as a silent local patch instead of a tested helper.
+## ADR-081 — Render snapshots: `renderpages` rasterises through PowerPoint COM and the LibreOffice Kit
+
+- **Date:** 2026-09-25
+- **Context.** Every gate so far judged source XML and SVG; the V10 plan's Part A needs real page
+  images so the audit can see off-page, overflow and overlap defects and the review loop can show a
+  model its own output. DSH 0.1.7 ships the LibreOffice Kit (native engines on Windows/macOS, WASM on
+  Linux) and this machine also has PowerPoint 16.0 COM, so both "real Office" and cross-platform
+  rasterisation are available.
+- **Decision.** Add `dsh-ppt renderpages <dir>`: it rasterises the published pptx with
+  `--engine powerpoint|libreoffice|both`, writes `<deck>/.dsh-ppt/render/<engine>/page-NNNN.png` plus
+  a `manifest.json` (engine version, source sha256, scale/dpi, limits, per-page size and sha256), and
+  rewrites `<deck>/.dsh-ppt/render/pages.json` as the run's summary. The cache key hashes the source
+  bytes, engine id and version, scale and both limits, so the deck's design profile travels inside the
+  pptx digest; a matching manifest whose page files all exist is `cached`. The Kit is discovered as
+  `DSH_PPT_LOKIT_CLI` (+ `DSH_PPT_LOKIT_NODE`) → a Kit beside the plugin (module resolution) or in a
+  DSH runtime under `$HOME` → system `soffice` with `pdftoppm`. PowerPoint COM runs
+  `scripts/win-com-export-pages.ps1`, which opens the deck read-only and headless and never rewrites
+  its bytes. An unavailable engine is `skipped` with a reason and a fix hint; `--required` turns that
+  into a `ContractViolation`.
+- **Evidence.** On this machine the 12-page `reference-quality` deck rendered through both engines:
+  the Kit at 0.1.1 (native) produced `page-0001..0012.png` at 1280×721 in 11 s (5 s with a warm
+  process) and PowerPoint 16.0 at 1280×720 in 24 s; the second run reported both engines `cached` and
+  started no render process; the deck's sha256 was unchanged after the COM pass. `render-pages.test.ts`
+  covers the engine loop, cache reuse/force/invalidation, the scale mapping, the skipped/`--required`
+  contract, the soffice+pdftoppm fallback and the failure codes; `renderpages.test.ts` covers Kit and
+  soffice discovery, the engine-choice mapping and option validation.
+- **Known limits.** The one-pixel height difference between the engines (1280×721 vs 1280×720) is
+  expected rounding, and the parity rule must tolerate it. The PowerPoint path is Windows-only and its
+  COM probe costs a few seconds per run. `soffice` alone cannot export page images — that path needs
+  `pdftoppm`. The Kit's own `maxPages` ceiling is 100; ours defaults to 30.
+- **Alternatives rejected:** `soffice --convert-to png` (exports the first slide only); the Kit's WASM
+  engine on Windows (the native engine is installed); rendering inside `audit` (snapshots must be
+  reusable and cacheable across `audit`, diff and review); writing page images outside the deck (the
+  render directory belongs to the deck).
