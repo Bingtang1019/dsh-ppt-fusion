@@ -91,6 +91,7 @@ the ADR wins.**
 | 077 | Content titles clear the corner mark; pages reserve illustration space |
 | 078 | v0.3.4 patch release: the title-clearance fix on both channels |
 | 079 | DSH peer governance: declare the host packages on both runtime lines (V8 Part 0) |
+| 080 | v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0) |
 
 ---
 
@@ -2355,3 +2356,35 @@ the ADR wins.**
   runtime, and the plugin would silently ride whatever host it lands in); exact pins like
   the first-party extensions (the plugin deliberately supports two lines); testing only
   0.1.7 (0.1.2 remains the documented fallback until the migration is signed off).
+## ADR-080 — v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0)
+
+- **Date:** 2026-09-25
+- **Decision.** v0.4.0 ships V8 Part 0 — the ADR-079 peer declaration, the `dsh-compat`
+  CI job over 0.1.2-rc.1 / 0.1.7-rc.2, the `docs/dsh017-probe.md` record and S30–S32 — on
+  both channels from identical bytes, superseding v0.3.4 as `latest`.
+- **Evidence (dual-channel).** npm (`registry.npmjs.org`): `dsh-ppt-flashmade@0.4.0`,
+  869,114 bytes, 86 files, shasum `033977406693a4889e375ddcd625715bbd919359`,
+  `dist-tags.latest` = 0.4.0; the registry tarball was downloaded back and matched. GitHub:
+  annotated tag `v0.4.0` (tag object `373703d` → commit
+  `02ff31e92e3506a2a5b9f13d41e0f571509f825d`), Release id 396676121 with asset
+  `dsh-ppt-flashmade-0.4.0.tgz` (id 588529435, digest
+  `sha256:f3dc39085c7ce61471aee03dc3faa0070bd0d89cd5acea1a56fcb8caa8e9c4c2`); the asset's
+  downloaded sha1 equals npm's. CI run 36145910213 for `02ff31e` is green on ubuntu,
+  windows and both `dsh-compat` legs.
+- **Fixed on the way.** The `prepack` gate parsed `npm pack --dry-run --json` raw, which
+  breaks on npm 10 (its `pack` still runs the `prepare` build, whose coloured log precedes
+  the payload): `scripts/pack-list.mjs` now strips ANSI escapes and slices the payload
+  between its line-anchored delimiters, covered by `tests/check-pack.test.ts`. The new
+  `dsh-compat` CI legs run the same gate on npm 10, so both npm shapes stay pinned.
+- **Gates.** typecheck/lint, 478 tests / 60 files, `fixtures:verify` fixtureVersion 8,
+  `matrix:verify` 6/6, `prepack`'s 20-file pack check, `skill audit` (25 files,
+  111,756/120,000, 0 error) and `scripts/dsh-compat.mjs` (0.1.7 gate ok) are green; the
+  local web profile moved to the 0.4.0 tarball (backup
+  `dsh-backups/20260925-2215-v040-web-upgrade`).
+- **Known limits.** The profile's third-party plugins still show `missing peer` warnings
+  under `auto-install-peers=false` (host packages live in the runtime, not the profile);
+  the 0.1.2 line has no peer gate, so its CI leg proves install-and-compose only;
+  `@linxin666/dsh-usage@0.4.2` stays outside this plugin's scope.
+- **Alternatives rejected:** publishing without the npm 10 fix (the very CI job the release
+  announces would stay red); tagging before CI (the release pipeline's ordering rule);
+  shipping the parser as a silent local patch instead of a tested helper.
