@@ -4,8 +4,8 @@ import { irRoleAt, loadDeck } from '../deck.ts'
 import { validateDeck } from './validate.ts'
 import { engineFor, frontendFor, resolveArtifact, resolveDeckDir, type CommandDependencies, designRoleMap } from './context.ts'
 import { resolveCompatLevel } from './render.ts'
-import { OpcPackage, auditPackage } from '../bridge/opc.ts'
-import { auditChrome, chromePagesFrom } from '../bridge/chrome.ts'
+import { OpcPackage, auditPackage, listSlides } from '../bridge/opc.ts'
+import { auditChrome, chromePagesFrom, slideSize } from '../bridge/chrome.ts'
 import { designRoleFor } from '../bridge/background.ts'
 import { auditDesignBackgrounds, auditDesignPackage } from '../bridge/design-audit.ts'
 import { officeRecordPath } from './assets.ts'
@@ -13,6 +13,8 @@ import { DESIGN_ROLES, parseDesignProfile, type DesignProfile, type DesignRole }
 import { USER_ASSET_MANIFEST, parseOfficeAssetRecord, parseUserAssetManifest } from '../schema/assets.ts'
 import { inspectCompat } from '../bridge/compat.ts'
 import { collectPixelFindings } from '../bridge/pixels.ts'
+import { shapeGeometry, shapeRuns, simpleLuminance, topLevelShapes } from '../bridge/slide-text.ts'
+import { auditRenderedPages, offPageFindings, overlapFindings, type RenderChromeDeclaration, type RenderSlideGeometry } from '../bridge/render-audit.ts'
 import { runSkillAudit } from './skill.ts'
 import type { FusionPage } from '../schema/fusion.ts'
 import type { FusionAuditReport, FusionFinding } from '../audit.ts'
@@ -33,6 +35,10 @@ export interface AuditOptions {
   readonly profile?: string
   /** 1-based role overrides for a package without a storyboard, e.g. `cover=1;content=2,3`. */
   readonly roles?: string
+  /** Also run the render-level rules over the stored snapshots (V10 Part A). */
+  readonly rendered?: boolean
+  /** Fail when no snapshots exist instead of recording the render source as skipped. */
+  readonly requireRendered?: boolean
   readonly deps: CommandDependencies
 }
 
@@ -49,6 +55,7 @@ const SOURCE_ORDER = [
   'pptx',
   'chrome',
   'design',
+  'render',
   'svg-quality-check',
   'pptx-delivery-check',
   'prompt-audit',
@@ -120,6 +127,7 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
     findings.push(...deepQualityFindings(dir, options.deps, deepPages.length > 0, ran, skipped))
   }
   let compatLevel: string | null = null
+  let auditedPackage: OpcPackage | null = null
   if (artifact === null) {
     findings.push({
       level: 'error',
@@ -139,6 +147,7 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
       skipped.push('opc, pptx-delivery-check, compat-lint: the package is unreadable')
     } else {
       const pkg = await OpcPackage.read(bytes)
+      auditedPackage = pkg
       ran.add('pptx')
       for (const finding of auditPackage(pkg, { requireSingleMaster: true })) {
         findings.push({ level: finding.level, source: 'pptx', rule: finding.rule, message: finding.message })
@@ -189,6 +198,34 @@ export async function auditDeck(options: AuditOptions): Promise<FusionAuditRepor
     findings.push(...(await collectPixelFindings(context.tokens, pages)))
   } else if (options.pixels) {
     skipped.push(packageOnly ? 'pixels: package-only profile audit' : 'pixels: no deep page with an in-sync tokens file to sample')
+  }
+
+  if (options.rendered === true) {
+    if (auditedPackage === null || packageOnly) {
+      skipped.push('render: no package to compare the snapshots against')
+      if (options.requireRendered === true) {
+        findings.push({ level: 'error', source: 'render', rule: 'render-snapshot-missing', message: '--require-rendered was set but no package is available to compare against' })
+      }
+    } else {
+      const slides = renderGeometry(auditedPackage, context)
+      const summary = await auditRenderedPages({
+        renderRoot: join(dir, '.dsh-ppt', 'render'),
+        renderRelative: '.dsh-ppt/render',
+        slideCount: slides.length,
+        slides,
+        chrome: renderChromeDeclaration(context),
+        fs,
+      })
+      findings.push(...summary.findings, ...overlapFindings(slides), ...offPageFindings(slides))
+      if (summary.engines.length === 0) {
+        skipped.push(summary.skipped ?? 'render: no snapshots to inspect')
+        if (options.requireRendered === true) {
+          findings.push({ level: 'error', source: 'render', rule: 'render-snapshot-missing', message: 'no render snapshots exist; run `dsh-ppt renderpages` first' })
+        }
+      } else {
+        ran.add('render')
+      }
+    }
   }
 
   if (packageOnly) {
@@ -421,4 +458,53 @@ function sortFindings(findings: readonly FusionFinding[]): FusionFinding[] {
 /** @param root - deck directory. @param path - absolute path. @returns the workspace-relative path. */
 function relative(root: string, path: string): string {
   return path.startsWith(root) ? path.slice(root.length).replace(/^[\\/]/, '').replace(/\\/g, '/') : path
+}
+/**
+ * Build the slide geometry the render rules scale their samples against: every
+ * top-level shape with text, its EMU box and the storyboard role.
+ *
+ * @param pkg - the published package.
+ * @param context - the loaded deck, when it is available.
+ * @returns one entry per slide, in deck order.
+ */
+function renderGeometry(pkg: OpcPackage, context: ReturnType<typeof loadDeck> | null): RenderSlideGeometry[] {
+  const size = slideSize(pkg)
+  const canvas = { width: size.cx, height: size.cy }
+  const roleByIndex = new Map<number, string>()
+  if (context !== null) {
+    for (const page of chromePagesFrom(context.deck.pages, (index) => irRoleAt(context.ir, index))) roleByIndex.set(page.index, page.role)
+  }
+  return listSlides(pkg).map((part, offset) => {
+    const index = offset + 1
+    const boxes = topLevelShapes(pkg.text(part)).flatMap((shape) => {
+      const geometry = shapeGeometry(shape)
+      const runs = shapeRuns(shape)
+      const text = runs
+        .map((run) => run.text)
+        .join(' ')
+        .trim()
+      if (geometry === null || text === '') return []
+      const sizePt = runs.reduce((largest, run) => Math.max(largest, run.sizePt), 0)
+      // The theme's section watermark is decorative text that intentionally sits
+      // over other boxes, so the tofu/overflow/overlap rules skip it.
+      const watermark = sizePt >= 60 && runs.every((run) => simpleLuminance(run.color) > 0.85)
+      return [{ x: geometry.x, y: geometry.y, w: geometry.w, h: geometry.h, text, sizePt, watermark }]
+    })
+    const role = roleByIndex.get(index)
+    return { index, canvas, boxes, ...(role === undefined ? {} : { role }) }
+  })
+}
+
+/**
+ * @param context - the loaded deck, when it is available.
+ * @returns the chrome declaration the render rules check, or null when the deck has none.
+ */
+function renderChromeDeclaration(context: ReturnType<typeof loadDeck> | null): RenderChromeDeclaration | null {
+  const chrome = context?.deck.chrome
+  if (chrome === undefined) return null
+  return {
+    pageNumber: chrome.pageNumber?.show !== false,
+    metaFooter: chrome.footer !== undefined,
+    sectionMarker: chrome.section !== undefined,
+  }
 }

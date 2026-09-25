@@ -227,7 +227,7 @@ read-only half of the render chain's compatibility step, useful for re-checking 
 against another level. Errors always fail; `--strict` also fails on warnings. `--json`
 prints the occurrences and findings.
 
-### `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--file <pptx>] [--compat <level>] [--profile <file>] [--roles <spec>]`
+### `dsh-ppt audit <dir> [--json] [--strict] [--pixels] [--rendered] [--require-rendered] [--file <pptx>] [--compat <level>] [--profile <file>] [--roles <spec>]`
 
 Runs the unified audit gate (plan §3.8) over a workspace: the `validate` pass, pptwise's own IR
 validation and geometry audit, the deep SVGs' quality gate, the published package's OPC

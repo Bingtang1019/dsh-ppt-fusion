@@ -93,6 +93,7 @@ the ADR wins.**
 | 079 | DSH peer governance: declare the host packages on both runtime lines (V8 Part 0) |
 | 080 | v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0) |
 | 081 | Render snapshots: `renderpages` rasterises through PowerPoint COM and the LibreOffice Kit into a hashed cache |
+| 082 | Render-level gate: `audit --rendered` judges the page images on top of the source audit |
 
 ---
 
@@ -2423,3 +2424,38 @@ the ADR wins.**
   engine on Windows (the native engine is installed); rendering inside `audit` (snapshots must be
   reusable and cacheable across `audit`, diff and review); writing page images outside the deck (the
   render directory belongs to the deck).
+## ADR-082 — Render-level gate: `audit --rendered` judges the page images on top of the source audit
+
+- **Date:** 2026-09-25
+- **Context.** `dsh-ppt renderpages` (ADR-081) stores hashed page images per engine, and the V10 plan
+  wants the audit to see what a reader would see. Source-side rules cannot catch a title hidden behind
+  a panel, a shape dragged past the canvas, a page that renders blank, or text whose colour on the
+  rendered background fails contrast.
+- **Decision.** `dsh-ppt audit <dir> --rendered` runs the render-level rules over the stored snapshots
+  and reports them under the new `render` source, all as ordinary `FusionFinding`s. `--require-rendered`
+  turns a missing snapshot into `render-snapshot-missing` instead of `skipped`. The rules are:
+  `render-page-count` (pages == slides), `render-content-loss` (blank or undecodable page),
+  `render-off-page` (geometry: a non-watermark text box leaves the canvas beyond a 0.5 % tolerance;
+  pixels: more than a quarter of the outer band is inked, warning), `render-overlap` (geometry: two
+  text boxes share more than a fifth of the smaller one), `render-contrast` (the darkest ink covering
+  5 % of a text box against the page's modal background, 4.5:1 for text under 18 pt and 3:1 above),
+  `render-chrome` (the declared page-number band carries a mark when numbers are declared, and no mark
+  when they are not), `render-tofu` (a non-watermark box with text but no ink), `render-overflow`
+  (warning: the box's own colour in the 3 px ring around it) and `render-parity` (warning: PowerPoint
+  and LibreOffice ink shares drift apart). `RENDER_THRESHOLDS` exports every tunable.
+- **Evidence.** On this machine the 12-page `reference-quality` deck runs the pass end to end
+  (`audit --rendered` reports the `render` source with both engines) and the geometry rules reproduce
+  the S27 P2 defect the human review named: page 2's title box has **no ink** on the LibreOffice image
+  (0.00 % over its 1184×54 px box) and the toc cards' text boxes span the full canvas, so left- and
+  right-card boxes overlap 100 %. `render-audit.test.ts` pins the blank/inked/tofu split, the
+  page-count rule, the geometry-only overlap/off-page rules and the chrome band. The default audit
+  path is unchanged: `fixtures:verify` still reports the same canonical artifacts (509 tests,
+  fixtureVersion 8).
+- **Known limits.** Thresholds are calibrated on the reference deck but the toc page still produces
+  findings, which is the point of the gate rather than a calibration failure; the overflow and parity
+  rules stay warnings until a seeded fixture proves their error thresholds; the page-number band and
+  the watermark exclusion are per-profile assumptions reviewed with the design language.
+- **Alternatives rejected:** folding the pixel rules into the source audit (they need snapshots and
+  `sharp`, and the release gate must be able to demand them explicitly); failing the default audit
+  when no renderer exists (render QA is additive, ADR-081); comparing raw pixel grids across engines
+  (fonts and anti-aliasing differ; the ink-share drift keeps the signal cheap).

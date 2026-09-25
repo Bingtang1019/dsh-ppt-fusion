@@ -192,11 +192,13 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--json', 'print the full report as JSON')
     .option('--strict', 'fail on warnings as well as errors')
     .option('--pixels', 'also sample the deep SVGs and compare their colours with the palette')
+    .option('--rendered', 'also run the render-level rules over the .dsh-ppt/render snapshots')
+    .option('--require-rendered', 'fail when no snapshots exist instead of skipping the render source')
     .option('--file <pptx>', 'audit this package instead of the last published render')
     .option('--profile <file>', 'also check the package against a design profile (design-* rules)')
     .option('--roles <spec>', 'role overrides for --profile, e.g. "cover=1;content=2,3"')
     .addOption(new Option('--compat <level>', 'compatibility level for the package lint').choices([...COMPAT_LEVELS]))
-    .action(async (dir: string, options: { json?: boolean; strict?: boolean; pixels?: boolean; file?: string; profile?: string; roles?: string; compat?: string }) => {
+    .action(async (dir: string, options: { json?: boolean; strict?: boolean; pixels?: boolean; rendered?: boolean; requireRendered?: boolean; file?: string; profile?: string; roles?: string; compat?: string }) => {
       const compat = options.compat === undefined ? null : asCompatLevel(options.compat)
       if (options.compat !== undefined && compat === null) {
         throw new DshPptFailure('UsageError', '--compat must be one of ' + COMPAT_LEVELS.join(', '))
@@ -205,6 +207,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         dir,
         strict: options.strict === true,
         pixels: options.pixels === true,
+        rendered: options.rendered === true || options.requireRendered === true,
+        requireRendered: options.requireRendered === true,
         deps,
         ...(options.file === undefined ? {} : { file: options.file }),
         ...(options.profile === undefined ? {} : { profile: options.profile }),
