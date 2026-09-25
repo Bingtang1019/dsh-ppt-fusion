@@ -1,15 +1,15 @@
 {
   "name": "dsh-ppt-flashmade",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "DeepSeek Harness plugin that fuses pptwise's DSH-native front end with ppt-master's native DrawingML engine",
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh": ">=0.1.2-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-client-ui-tool": ">=0.1.2-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 <0.2.0"
+    "@deepseek-ai/dsh": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
+    "@deepseek-ai/dsh-client-ui-tool": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
+    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0"
   },
   "engines": {
     "node": ">=22.19"

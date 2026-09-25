@@ -31,6 +31,11 @@ describe('dsh peer governance (ADR-079)', () => {
       for (const runtime of RUNTIME_LINES) {
         // The runtime gate evaluates prereleases against the range (includePrerelease).
         expect(semver.satisfies(runtime, range ?? '', { includePrerelease: true }), `${String(name)} ${String(range)} rejects dsh ${runtime}`).toBe(true)
+        // npm/pnpm do NOT include prereleases unless a comparator carries the same
+        // major.minor.patch tuple with its own prerelease tag, so the range needs an
+        // explicit branch per supported minor line (awesome-dsh-plugin's rule). A new
+        // supported line must extend the union here or npm installs break.
+        expect(semver.satisfies(runtime, range ?? ''), `${String(name)} ${String(range)} does not admit ${runtime} under npm semantics`).toBe(true)
       }
     }
   })

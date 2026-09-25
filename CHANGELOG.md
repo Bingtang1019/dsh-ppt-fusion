@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## v0.5.0 — 2026-09-26
+
+### 新增（V10 Part A：渲染级 QA）
+
+- **`dsh-ppt renderpages`（ADR-081）**：逐页 PNG 快照 —— PowerPoint COM 与 LibreOffice Kit 双引擎，每引擎写
+  `manifest.json`（引擎版本、源 sha256、scale/dpi、限额、逐页尺寸与 sha256）与顶层 `pages.json` 索引；缓存键 =
+  源字节 + 引擎 + 引擎版本 + scale + 限额，命中 0 重渲；不可用引擎记 `skipped`，`--required` 升级为失败；
+  单引擎重渲不再抹掉另一引擎的索引记录；引擎记录缺字段或页面文件读不到/不是 PNG 会显式失败（不再静默 0×0 或丢页）。
+- **`dsh-ppt text-measure`**：走引擎的 DrawingML 估算器，批量测单行或按盒换行，输出 `fits` / `overflow(x|y)`。
+- **`dsh-ppt audit --rendered`（ADR-082）**：渲染级规则 `render-page-count` / `render-content-loss` / `render-off-page` /
+  `render-overlap` / `render-contrast` / `render-chrome` / `render-tofu` / `render-overflow` / `render-parity`，阈值集中在
+  `RENDER_THRESHOLDS`；`--require-rendered` 把缺快照升级为 `render-snapshot-missing`。
+- **`fixtures/rendered/` 基线与门禁**：`pnpm rendered:record` 记录双引擎逐页基线；`pnpm fixtures:verify --rendered`
+  在有 deck 的机器比对，其他环境显式 `skipped`。
+
+### 新增（V10 Part B：模型看图自评，ADR-083）
+
+- **`dsh_ppt_review` 工具**（scoped `attachments` 注入）：inspect 模式把渲染页图作为图片附件连 rubric 一起交给模型；
+  record 模式校验 findings 并写 `.dsh-ppt/review/review.json`；无附件服务/无法解析路由/模型不声明 image 输入时一律报
+  `image-input-unavailable`，不假装看过图。
+- **SKILL 相位 5.5**：`DSH_PPT_REVIEW=pixel|model|subagent`，≤2 轮收敛，approve 只归用户；subagent critic 可选、默认关（ADR-084）。
+
+### 校准事实
+
+- LibreOffice 对 `wrap="none"` 文本框按其自身锚点绘制（比声明框高 30–100px），PowerPoint 严格按框，渲染门禁按此校准
+  （采样窗口取所属卡片面板、tofu 仅对 PowerPoint、页码带只认暗色小标记）。
+- 本机 reference-quality 基线：双引擎 12 页、二次运行全 `cached`；`audit --rendered` `ok=true` 仅 2 条 parity warning。
+
 ## v0.4.0 — 2026-09-25
 
 ### 变更（V8 Part 0：DSH 兼容治理）

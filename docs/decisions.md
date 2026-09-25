@@ -95,6 +95,7 @@ the ADR wins.**
 | 081 | Render snapshots: `renderpages` rasterises through PowerPoint COM and the LibreOffice Kit into a hashed cache |
 | 082 | Render-level gate: `audit --rendered` judges the page images on top of the source audit |
 | 083 | Model render self-review: the `dsh_ppt_review` tool and SKILL phase 5.5 |
+| 084 | The subagent critic stays optional and off by default (V10 B3) |
 
 ---
 
@@ -2359,6 +2360,15 @@ the ADR wins.**
   runtime, and the plugin would silently ride whatever host it lands in); exact pins like
   the first-party extensions (the plugin deliberately supports two lines); testing only
   0.1.7 (0.1.2 remains the documented fallback until the migration is signed off).
+
+  **Update (2026-09-26):** the original `>=0.1.2-rc.1 <0.2.0` ranges were replaced by a union with one
+  branch per supported minor line — `>=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || … ||
+  >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0`. Under npm/pnpm semantics a prerelease version only
+  satisfies a range when a comparator on the same `major.minor.patch` tuple carries its own prerelease
+  tag, so the broad range silently excluded `0.1.5-rc.3`, `0.1.7-rc.1` and `0.1.7-rc.2` from installs
+  (the runtime gate, which evaluates with `includePrerelease: true`, hid that). `tests/dsh-peers.test.ts`
+  now asserts both semantics for every line in `RUNTIME_LINES`, so supporting a new prerelease line
+  requires extending the union; the awesome-dsh-plugin contributing rules document the same trap.
 ## ADR-080 — v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0)
 
 - **Date:** 2026-09-25
@@ -2498,3 +2508,20 @@ the ADR wins.**
   batching); letting the model write `review.json` with its own file tools (finding validation and a
   stable schema belong in the tool); approving automatically once the loop converges (approval stays
   with the user, as in the worktree decision D3).
+## ADR-084 — The subagent critic stays optional and off by default (V10 B3)
+
+- **Date:** 2026-09-26
+- **Context.** The V10 plan's B3 dispatches one `dsh-tool-subagent` call that reviews the same page
+  images with the same rubric and merges its findings as `critic-disagrees`. The single-agent loop
+  (ADR-083) already produces `review.json`; a critic adds a second model spend and a merge policy.
+- **Decision.** Ship the loop without the critic: phase 5.5 documents `DSH_PPT_REVIEW=subagent` as an
+  opt-in that dispatches an independent critic over the same rubric and marks disagreements, and the
+  tool keeps no critic code path of its own. The switch stays a deployment choice; the default never
+  spends a second model call.
+- **Evidence.** The phase-5.5 text names the mode and its marker; `tests/plugin/review-tool.test.ts`
+  covers the shipped loop (attachments, findings record, refusal paths); no critic code exists to test.
+- **Known limits.** Until a real subagent run is recorded, `subagent` is documented rather than
+  exercised; a deployment that turns it on owns the extra cost and the merge judgement.
+- **Alternatives rejected:** building the critic now (cost and merge policy without a proven need);
+  dropping the mode from the skill (the plan keeps it as a flags-gated增量, and the marker is the
+  contract a future implementation must honour).

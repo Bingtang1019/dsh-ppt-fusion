@@ -42,11 +42,19 @@ runtimeVersion)`:
 
 | Peer | Range | Why |
 |---|---|---|
-| `@deepseek-ai/dsh` | `>=0.1.2-rc.1 <0.2.0` | the runtime the bundle boots in |
+| `@deepseek-ai/dsh` | the union range below | the runtime the bundle boots in |
 | `@deepseek-ai/dsh-skill` | `>=0.1.2-rc.1 <0.2.0` | the `skills` service the plugin registers into |
 | `@deepseek-ai/dsh-tools` | `>=0.1.2-rc.1 <0.2.0` | the `tools` service the preview tool registers into |
 | `@deepseek-ai/dsh-client-ui-tool` | `>=0.1.2-rc.1 <0.2.0` | the web client inject the client half lists |
 | `@deepseek-ai/cordis` | `^4.0.2` | the plugin API shape (`inject`, effects) it is written against |
+
+The ranges are unions with one branch per supported line — `>=0.1.2-rc.1 <0.1.3 || … || >=0.1.7-rc.1
+<0.1.8 || >=0.1.8 <0.2.0-0` — because npm and pnpm only admit a prerelease when a comparator on the
+same `major.minor.patch` tuple carries a prerelease tag: the earlier `>=0.1.2-rc.1 <0.2.0` passed the
+runtime gate (`includePrerelease: true`) but would have failed an install on `0.1.7-rc.2` with
+`ERESOLVE`. The runtime's own gate still reads the union as compatible, and `tests/dsh-peers.test.ts`
+checks both semantics for every line in `RUNTIME_LINES`, so a newly supported line must extend the
+union.
 
 Verified on this machine:
 
