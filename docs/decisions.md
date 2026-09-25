@@ -90,6 +90,7 @@ the ADR wins.**
 | 076 | v0.3.3 patch release: the content-page card layout on both channels |
 | 077 | Content titles clear the corner mark; pages reserve illustration space |
 | 078 | v0.3.4 patch release: the title-clearance fix on both channels |
+| 079 | DSH peer governance: declare the host packages on both runtime lines (V8 Part 0) |
 
 ---
 
@@ -2327,3 +2328,30 @@ the ADR wins.**
   (the deck would fail its own S26 gate); moving the corner mark instead (ADR-077's rejected option);
   bundling the illustration-space guidance into a later feature release (the SKILL budget change belongs
   with the fix that references it).
+## ADR-079 — DSH peer governance: declare the host packages on both runtime lines (V8 Part 0)
+
+- **Date:** 2026-09-25
+- **Context.** The plugin manifest had no `peerDependencies` at all. DSH 0.1.7 added an
+  install-time peer gate in `@deepseek-ai/dsh-app-boot` (`evaluatePluginCompatibility`):
+  it evaluates every `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` peer against the running
+  runtime (prereleases participating) and disables a mismatching plugin unless the profile
+  grants an exact `name@version` exemption in `compatibility.json` (written without a BOM).
+  The 0.1.2-rc.1 line predates the gate. The v9 plan's Part 0 requires the plugin to stay
+  installable on both lines before the render-QA work starts.
+- **Decision.** Declare the five host packages the plugin actually binds to:
+  `@deepseek-ai/dsh`, `@deepseek-ai/dsh-skill`, `@deepseek-ai/dsh-tools` and
+  `@deepseek-ai/dsh-client-ui-tool` at `>=0.1.2-rc.1 <0.2.0`, plus `@deepseek-ai/cordis`
+  at `^4.0.2`. Add `tests/dsh-peers.test.ts` (semver check against both pinned lines),
+  `scripts/dsh-compat.mjs` (runs the installed runtime's own gate, `--allow-missing-gate`
+  on pre-gate lines) and `scripts/dsh-compat-profile.mjs` (packs the plugin, installs it
+  into a scratch profile and asserts the composed tree carries the plugin layer). CI gains
+  a `dsh-compat` job matrixed over `0.1.2-rc.1` and `0.1.7-rc.2`.
+- **Evidence.** On this machine the unit test is green (3 tests); the 0.1.7 gate reports
+  `dsh-compat ok` while a negative control (`@deepseek-ai/dsh: ">=9.0.0"`) fails with the
+  runtime's own `pluginCompatibilityWarning`; the profile smoke composes the packed plugin
+  on both runtimes (`dsh-compat profile ok` 0.1.2-rc.1 and 0.1.7-rc.2). The probe record is
+  `docs/dsh017-probe.md`; acceptance rows S30–S32 are added to `docs/acceptance-report.md`.
+- **Alternatives rejected:** leaving peers empty (the gate cannot catch a future breaking
+  runtime, and the plugin would silently ride whatever host it lands in); exact pins like
+  the first-party extensions (the plugin deliberately supports two lines); testing only
+  0.1.7 (0.1.2 remains the documented fallback until the migration is signed off).

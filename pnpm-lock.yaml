@@ -31,12 +31,18 @@ devDependencies:
   '@types/node':
     specifier: ^22.13.0
     version: 22.20.4
+  '@types/semver':
+    specifier: ^7.8.0
+    version: 7.8.0
   eslint:
     specifier: ^9.20.0
     version: 9.39.5
   js-yaml:
     specifier: 4.1.0
     version: 4.1.0
+  semver:
+    specifier: ^7.8.5
+    version: 7.8.5
   tsup:
     specifier: ^8.3.6
     version: 8.5.1(tsx@4.23.15)(typescript@5.9.3)
@@ -1198,6 +1204,10 @@ packages:
     resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
     dependencies:
       undici-types: 6.21.0
+
+  /@types/semver@7.8.0:
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
+    dev: true
 
   /@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1)(eslint@9.39.5)(typescript@5.9.3):
     resolution: {integrity: sha512-nDNrUQ/4ruSNYbu749TRY7cfrzPtoLHEXSNBI8aaNY32LlZCajixqRf3FqcKC4p5Cam4VOHYx/t+i5+nKXvrqA==}

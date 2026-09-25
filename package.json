@@ -1,9 +1,16 @@
 {
   "name": "dsh-ppt-flashmade",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "type": "module",
   "description": "DeepSeek Harness plugin that fuses pptwise's DSH-native front end with ppt-master's native DrawingML engine",
   "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh": ">=0.1.2-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-client-ui-tool": ">=0.1.2-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 <0.2.0"
+  },
   "engines": {
     "node": ">=22.19"
   },
@@ -75,8 +82,10 @@
     "@eslint/js": "^9.20.0",
     "@types/js-yaml": "4.0.9",
     "@types/node": "^22.13.0",
+    "@types/semver": "^7.8.0",
     "eslint": "^9.20.0",
     "js-yaml": "4.1.0",
+    "semver": "^7.8.5",
     "tsup": "^8.3.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
