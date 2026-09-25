@@ -206,3 +206,50 @@ describe('pages.json index', () => {
     expect(index.engines?.map((entry) => entry.engine)).toEqual(['libreoffice'])
   })
 })
+describe('engine output validation', () => {
+  it('fails on a malformed kit page record instead of shrinking the deck', () => {
+    const fs = fileSystem()
+    const runner = createFakeRunner((call) => {
+      if (call.args[1] === 'capabilities') return ok(JSON.stringify({ runtime: { version: '0.1.1', backend: 'native' } }))
+      return ok(JSON.stringify({ backend: 'native', pageCount: 2, images: [{ index: 1, path: 'C:/tmp/page-0001.png' }, { index: 2, path: 'C:/tmp/page-0002.png' }] }))
+    })
+    expect(() => renderPages(request(fs, runner))).toThrow(/unusable page record/)
+  })
+
+  it('fails when a soffice raster cannot be read or is not a PNG', () => {
+    const unreadable = fileSystem()
+    const unreadableRunner = createFakeRunner((call) => {
+      if (call.command.endsWith('soffice.exe') && call.args[0] === '--version') return ok('LibreOffice 25.2.0.3\n')
+      if (call.command === 'pdftoppm' && call.args[0] === '-v') return ok('pdftoppm version 25.2.0\n')
+      if (call.command.endsWith('soffice.exe')) {
+        const outdir = call.args[call.args.indexOf('--outdir') + 1] ?? ''
+        unreadable.writeBytes(join(outdir, 'deck.pdf'), Buffer.from('%PDF-1.7'))
+        return ok()
+      }
+      if (call.command === 'pdftoppm') {
+        // Listed by listDir but unreadable: the text map is a different store.
+        unreadable.writeText(`${call.args[call.args.length - 1] ?? ''}-1.png`, 'not bytes')
+        return ok()
+      }
+      return {}
+    })
+    expect(() => renderPages(request(unreadable, unreadableRunner, { kit: null, soffice: 'C:/lo/soffice.exe' }))).toThrow(/cannot be read/)
+
+    const notPng = fileSystem()
+    const notPngRunner = createFakeRunner((call) => {
+      if (call.command.endsWith('soffice.exe') && call.args[0] === '--version') return ok('LibreOffice 25.2.0.3\n')
+      if (call.command === 'pdftoppm' && call.args[0] === '-v') return ok('pdftoppm version 25.2.0\n')
+      if (call.command.endsWith('soffice.exe')) {
+        const outdir = call.args[call.args.indexOf('--outdir') + 1] ?? ''
+        notPng.writeBytes(join(outdir, 'deck.pdf'), Buffer.from('%PDF-1.7'))
+        return ok()
+      }
+      if (call.command === 'pdftoppm') {
+        notPng.writeBytes(`${call.args[call.args.length - 1] ?? ''}-1.png`, Buffer.from('not a png at all'))
+        return ok()
+      }
+      return {}
+    })
+    expect(() => renderPages(request(notPng, notPngRunner, { kit: null, soffice: 'C:/lo/soffice.exe' }))).toThrow(/not a PNG/)
+  })
+})

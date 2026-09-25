@@ -442,7 +442,9 @@ function exportWithLibreOffice(engine: RenderEngineId, request: RenderPagesReque
     const path = typeof record.path === 'string' ? record.path : null
     const width = positiveInt(record.width)
     const height = positiveInt(record.height)
-    if (index === null || path === null || width === null || height === null) continue
+    if (index === null || path === null || width === null || height === null) {
+      throw new DshPptFailure('ContractViolation', `${engine} returned an unusable page record: ${JSON.stringify(entry)}`)
+    }
     const file = `page-${String(index).padStart(4, '0')}.png`
     const bytes = request.fs.readBytes(path)
     if (bytes === null) throw new DshPptFailure('OutputMissing', `${engine} reported ${path} but the file is absent`)
@@ -480,9 +482,15 @@ function exportWithSoffice(engine: RenderEngineId, request: RenderPagesRequest, 
   for (const [offset, name] of files.entries()) {
     const index = offset + 1
     const file = `page-${String(index).padStart(4, '0')}.png`
-    if (name !== file) request.fs.writeBytes(join(temp, file), request.fs.readBytes(join(temp, name)) ?? Buffer.alloc(0))
-    const size = pngSize(request.fs.readBytes(join(temp, file)))
-    images.push({ index, file, width: size?.width ?? 0, height: size?.height ?? 0 })
+    // `?? Buffer.alloc(0)` here used to record a 0x0 page instead of failing: an
+    // unreadable raster must stop the run, not become a page-size change downstream.
+    const source = request.fs.readBytes(join(temp, name))
+    if (source === null || source.length === 0) throw new DshPptFailure('OutputMissing', `${engine} wrote ${name} but it cannot be read`)
+    if (name !== file) request.fs.writeBytes(join(temp, file), source)
+    const written = request.fs.readBytes(join(temp, file)) ?? source
+    const size = pngSize(written)
+    if (size === null) throw new DshPptFailure('ContractViolation', `${engine} passed ${name} through as a page image, but it is not a PNG`)
+    images.push({ index, file, width: size.width, height: size.height })
   }
   return images
 }
