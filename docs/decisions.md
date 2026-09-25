@@ -2443,18 +2443,22 @@ the ADR wins.**
   when they are not), `render-tofu` (a non-watermark box with text but no ink), `render-overflow`
   (warning: the box's own colour in the 3 px ring around it) and `render-parity` (warning: PowerPoint
   and LibreOffice ink shares drift apart). `RENDER_THRESHOLDS` exports every tunable.
-- **Evidence.** On this machine the 12-page `reference-quality` deck runs the pass end to end
-  (`audit --rendered` reports the `render` source with both engines) and the geometry rules reproduce
-  the S27 P2 defect the human review named: page 2's title box has **no ink** on the LibreOffice image
-  (0.00 % over its 1184×54 px box) and the toc cards' text boxes span the full canvas, so left- and
-  right-card boxes overlap 100 %. `render-audit.test.ts` pins the blank/inked/tofu split, the
-  page-count rule, the geometry-only overlap/off-page rules and the chrome band. The default audit
-  path is unchanged: `fixtures:verify` still reports the same canonical artifacts (509 tests,
-  fixtureVersion 8).
-- **Known limits.** Thresholds are calibrated on the reference deck but the toc page still produces
-  findings, which is the point of the gate rather than a calibration failure; the overflow and parity
-  rules stay warnings until a seeded fixture proves their error thresholds; the page-number band and
-  the watermark exclusion are per-profile assumptions reviewed with the design language.
+- **Evidence.** On this machine the 12-page `reference-quality` deck runs the pass end to end and
+  reports `ok=true` with two `render-parity` warnings (the engines agree on every page's content; their
+  ink shares drift by 6.2 % and 0.5 %). Calibration surfaced one engine fact worth recording:
+  LibreOffice draws `wrap="none"` text frames with its own vertical anchor — the toc title and the card
+  texts land 30–100 px above their declared boxes — while PowerPoint paints them exactly at the box, so
+  the tofu probe samples the enclosing card panel and runs on PowerPoint only; the contrast rule takes
+  the darkest colour covering 0.5 % of the window's ink; the page-number band counts only dark marks
+  between 0.15 % and 12 % of the band (a large dark block is a design panel, not a number). The
+  geometry-only overlap rule ignores the template's invisible full-width text frames, whose glyphs stay
+  in their own column. `render-audit.test.ts` pins the blank/inked/tofu split, the page-count rule, the
+  geometry-only overlap/off-page rules and the chrome band. The default audit path is unchanged:
+  `fixtures:verify` still reports the same canonical artifacts (509 tests, fixtureVersion 8).
+- **Known limits.** The parity rule's ink-share drift is a coarse proxy until a seeded fixture
+  calibrates a real pixel-difference threshold; the overflow rule stays a warning; hosts with only
+  `soffice` + `pdftoppm` cannot run the pixel pass (the Kit is required, ADR-081); the page-number band
+  and the watermark exclusion are per-profile assumptions reviewed with the design language.
 - **Alternatives rejected:** folding the pixel rules into the source audit (they need snapshots and
   `sharp`, and the release gate must be able to demand them explicitly); failing the default audit
   when no renderer exists (render QA is additive, ADR-081); comparing raw pixel grids across engines

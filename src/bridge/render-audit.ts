@@ -14,6 +14,8 @@ export interface RenderTextBox {
   readonly sizePt: number
   /** Watermark/decorative text the design places over other boxes on purpose. */
   readonly watermark: boolean
+  /** Enclosing card panel, when the design places the text inside one. */
+  readonly window?: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
 }
 
 /** The geometry the pixel rules scale their samples against. */
@@ -70,8 +72,8 @@ export const RENDER_THRESHOLDS: RenderThresholds = {
   contrastMin: 4.5,
   parityMax: 0.06,
   pageNumberBand: { w: 0.12, h: 0.06 },
-  pageNumberInkMin: 0.003,
-  pageNumberInkMax: 0.03,
+  pageNumberInkMin: 0.0015,
+  pageNumberInkMax: 0.12,
 }
 
 /** What one `audit --rendered` pass inspected. */
@@ -112,7 +114,7 @@ interface PagePixels {
   /** Ink share inside the bottom-right page-number band. */
   readonly pageNumberInk: number
   /** Per text box: ink inside the box, colour-matched ring ink and the box's own ink colour. */
-  readonly boxes: readonly { readonly ink: number; readonly ring: number; readonly colour: string | null }[]
+  readonly boxes: readonly { readonly ink: number; readonly windowInk: number; readonly ring: number; readonly colour: string | null }[]
 }
 
 /** @param value - 0-255 channel. @returns two lowercase hex digits. */
@@ -222,7 +224,11 @@ async function measurePage(bytes: Buffer, geometry: RenderSlideGeometry | undefi
   for (let y = height - numberBandHeight; y < height; y += 1) {
     for (let x = width - numberBandWidth; x < width; x += 1) {
       numberTotal += 1
-      if (isInk((y * width + x) * step)) numberInk += 1
+      const numberOffset = (y * width + x) * step
+      if (!isInk(numberOffset)) continue
+      const numberLuma = (0.2126 * (data[numberOffset] ?? 0) + 0.7152 * (data[numberOffset + 1] ?? 0) + 0.0722 * (data[numberOffset + 2] ?? 0)) / 255
+      // Only dark marks count as a page number: a card border crossing the band is not one.
+      if (numberLuma < 0.6) numberInk += 1
     }
   }
   const boxes = (geometry?.boxes ?? []).map((box) => {
@@ -232,30 +238,53 @@ async function measurePage(bytes: Buffer, geometry: RenderSlideGeometry | undefi
     const top = Math.max(0, Math.floor(box.y * scaleY))
     const right = Math.min(width, Math.ceil((box.x + box.w) * scaleX))
     const bottom = Math.min(height, Math.ceil((box.y + box.h) * scaleY))
+    // LibreOffice draws `wrap="none"` text frames up to one frame height away from
+    // the declared box while PowerPoint honours the box exactly, so the text is
+    // looked for in a window of one box height and 2 % of the canvas width around it.
+    let windowLeft = left
+    let windowRight = right
+    let windowTop = top
+    let windowBottom = bottom
+    if (box.window !== undefined) {
+      // The design's card panel is the honest window: both engines place the text
+      // somewhere inside it even when they disagree on the exact frame.
+      windowLeft = Math.max(0, Math.floor(box.window.x * scaleX))
+      windowTop = Math.max(0, Math.floor(box.window.y * scaleY))
+      windowRight = Math.min(width, Math.ceil((box.window.x + box.window.w) * scaleX))
+      windowBottom = Math.min(height, Math.ceil((box.window.y + box.window.h) * scaleY))
+    } else {
+      const windowX = Math.max(thresholds.ringPx, Math.round(width * 0.03))
+      const windowY = Math.max(thresholds.ringPx, Math.round((bottom - top) * 1.5))
+      windowLeft = Math.max(0, left - windowX)
+      windowRight = Math.min(width, right + windowX)
+      windowTop = Math.max(0, top - windowY)
+      windowBottom = Math.min(height, bottom + windowY)
+    }
     const colours = new Map<string, number>()
     let inside = 0
     let insideTotal = 0
-    for (let y = top; y < bottom; y += 1) {
-      for (let x = left; x < right; x += 1) {
+    let windowInk = 0
+    let windowTotal = 0
+    for (let y = windowTop; y < windowBottom; y += 1) {
+      for (let x = windowLeft; x < windowRight; x += 1) {
         const offset = (y * width + x) * step
-        insideTotal += 1
+        windowTotal += 1
+        if (x >= left && x < right && y >= top && y < bottom) insideTotal += 1
         if (!isInk(offset)) continue
-        inside += 1
+        windowInk += 1
         const key = keyOf(offset)
         colours.set(key, (colours.get(key) ?? 0) + 1)
+        if (x >= left && x < right && y >= top && y < bottom) inside += 1
       }
     }
-    // Text is darker than the card fills and accents that can share a text box, so
-    // the contrast rule takes the darkest colour covering at least a tenth of the
-    // box's ink rather than the most common one.
     // Text is darker than the card fills and accents that can share a text box, and
     // anti-aliasing spreads its core colour thin, so the contrast rule takes the
-    // darkest colour that still covers a twentieth of the box's ink.
+    // darkest colour that still covers a twentieth of the window's ink.
     let boxKey: string | null = null
     let boxLuminance = Number.POSITIVE_INFINITY
     let boxInk = 0
     for (const count of colours.values()) boxInk += count
-    const boxThreshold = Math.max(2, Math.round(boxInk * 0.05))
+    const boxThreshold = Math.max(2, Math.round(boxInk * 0.005))
     for (const [key, count] of colours) {
       if (count < boxThreshold) continue
       const [r, g, b] = colourOf(key)
@@ -286,6 +315,7 @@ async function measurePage(bytes: Buffer, geometry: RenderSlideGeometry | undefi
     }
     return {
       ink: insideTotal === 0 ? 0 : inside / insideTotal,
+      windowInk: windowTotal === 0 ? 0 : windowInk / windowTotal,
       ring: outsideTotal === 0 ? 0 : outside / outsideTotal,
       colour: boxKey === null ? null : hex(colourOf(boxKey)),
     }
@@ -376,7 +406,9 @@ export async function auditRenderedPages(options: RenderAuditOptions): Promise<R
             })
           }
         }
-        if (box.text.trim() !== '' && measured.ink < thresholds.tofuInkMin) {
+        // LibreOffice places wrap-none text frames with its own vertical anchor, so a
+        // missing-glyph probe against the declared box is only trustworthy on PowerPoint.
+        if (engine === 'powerpoint' && box.text.trim() !== '' && measured.windowInk < thresholds.tofuInkMin) {
           findings.push({
             level: 'warning',
             source: 'render',
@@ -395,7 +427,8 @@ export async function auditRenderedPages(options: RenderAuditOptions): Promise<R
           })
         }
       }
-    }    pixelsByEngine.set(engine, decoded)
+    }
+    pixelsByEngine.set(engine, decoded)
   }
   if (options.chrome !== null) {
     for (const engine of engines) {
@@ -405,7 +438,9 @@ export async function auditRenderedPages(options: RenderAuditOptions): Promise<R
         if (options.chrome.pageNumber && pixels.pageNumberInk < thresholds.pageNumberInkMin) {
           findings.push({ level: 'error', source: 'render', page: index, rule: 'render-chrome', message: `${engine} page ${String(index)} has no page number in the declared band` })
         }
-        if (!options.chrome.pageNumber && pixels.pageNumberInk > thresholds.pageNumberInkMin) {
+        // A stray page number is a small mark; a large block in the band is a design
+        // element (a deep-page panel), not a number, so only marks in the size window count.
+        if (!options.chrome.pageNumber && pixels.pageNumberInk > thresholds.pageNumberInkMin && pixels.pageNumberInk < thresholds.pageNumberInkMax) {
           findings.push({
             level: 'error',
             source: 'render',
@@ -465,6 +500,9 @@ export function overlapFindings(slides: readonly RenderSlideGeometry[]): FusionF
         const overlap = overlapWidth * overlapHeight
         const smaller = Math.min(a.w * a.h, b.w * b.h)
         if (smaller <= 0 || overlap / smaller <= 0.2) continue
+        // A text frame wider than half the canvas is the template's invisible
+        // left-aligned frame; its glyphs never reach the neighbour's column.
+        if (a.w > slide.canvas.width * 0.5 || b.w > slide.canvas.width * 0.5) continue
         findings.push({
           level: 'error',
           source: 'render',

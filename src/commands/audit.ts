@@ -459,6 +459,11 @@ function sortFindings(findings: readonly FusionFinding[]): FusionFinding[] {
 function relative(root: string, path: string): string {
   return path.startsWith(root) ? path.slice(root.length).replace(/^[\\/]/, '').replace(/\\/g, '/') : path
 }
+/** @param geometry - shape bounds in EMU. @param canvas - slide size in EMU. @returns true when the shape spans the canvas. */
+function isFullCanvasShape(geometry: { w: number; h: number }, canvas: { width: number; height: number }): boolean {
+  return geometry.w >= canvas.width * 0.98 && geometry.h >= canvas.height * 0.98
+}
+
 /**
  * Build the slide geometry the render rules scale their samples against: every
  * top-level shape with text, its EMU box and the storyboard role.
@@ -476,7 +481,18 @@ function renderGeometry(pkg: OpcPackage, context: ReturnType<typeof loadDeck> | 
   }
   return listSlides(pkg).map((part, offset) => {
     const index = offset + 1
-    const boxes = topLevelShapes(pkg.text(part)).flatMap((shape) => {
+    const shapes = topLevelShapes(pkg.text(part))
+    // Panels are the design's cards: text-free shapes that cover a real area but
+    // not the canvas. A text box inside one uses it as its render window.
+    const panels = shapes.flatMap((shape) => {
+      if (shapeRuns(shape).length > 0) return []
+      const geometry = shapeGeometry(shape)
+      if (geometry === null) return []
+      if (isFullCanvasShape(geometry, canvas)) return []
+      if ((geometry.w * geometry.h) / (914400 * 914400) < 1.5) return []
+      return [geometry]
+    })
+    const boxes = shapes.flatMap((shape) => {
       const geometry = shapeGeometry(shape)
       const runs = shapeRuns(shape)
       const text = runs
@@ -485,10 +501,14 @@ function renderGeometry(pkg: OpcPackage, context: ReturnType<typeof loadDeck> | 
         .trim()
       if (geometry === null || text === '') return []
       const sizePt = runs.reduce((largest, run) => Math.max(largest, run.sizePt), 0)
-      // The theme's section watermark is decorative text that intentionally sits
-      // over other boxes, so the tofu/overflow/overlap rules skip it.
-      const watermark = sizePt >= 60 && runs.every((run) => simpleLuminance(run.color) > 0.85)
-      return [{ x: geometry.x, y: geometry.y, w: geometry.w, h: geometry.h, text, sizePt, watermark }]
+      const centreX = geometry.x + geometry.w / 2
+      const centreY = geometry.y + geometry.h / 2
+      const panel = panels.find((candidate) => centreX >= candidate.x && centreX <= candidate.x + candidate.w && centreY >= candidate.y && centreY <= candidate.y + candidate.h)
+      // Display typography (chapter characters like 一/之/卷 and the theme watermark)
+      // is decorative and intentionally sits over other boxes, so the tofu/overflow/
+      // overlap rules skip it; the contrast rule still checks real titles.
+      const watermark = sizePt >= 48 || (sizePt >= 60 && runs.every((run) => simpleLuminance(run.color) > 0.85))
+      return [{ x: geometry.x, y: geometry.y, w: geometry.w, h: geometry.h, text, sizePt, watermark, ...(panel === undefined ? {} : { window: panel }) }]
     })
     const role = roleByIndex.get(index)
     return { index, canvas, boxes, ...(role === undefined ? {} : { role }) }

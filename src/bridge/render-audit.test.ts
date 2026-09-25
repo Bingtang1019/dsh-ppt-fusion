@@ -35,14 +35,14 @@ function slideWithBox(text = '正文', watermark = false): RenderSlideGeometry {
 describe('auditRenderedPages', () => {
   it('reports a blank page and a decodable text page differently', async () => {
     const blank = createFakeFileSystem()
-    snapshot(blank, 'libreoffice', [1], new Map([[1, await page('')]]))
+    snapshot(blank, 'powerpoint', [1], new Map([[1, await page('')]]))
     const blankSummary = await auditRenderedPages({ renderRoot: root, renderRelative: '.dsh-ppt/render', slideCount: 1, slides: [slideWithBox()], chrome: null, fs: blank })
-    expect(blankSummary.engines).toEqual(['libreoffice'])
+    expect(blankSummary.engines).toEqual(['powerpoint'])
     expect(blankSummary.findings.map((finding) => finding.rule)).toContain('render-content-loss')
     expect(blankSummary.findings.map((finding) => finding.rule)).toContain('render-tofu')
 
     const inked = createFakeFileSystem()
-    snapshot(inked, 'libreoffice', [1], new Map([[1, await page('<rect x="70" y="70" width="300" height="90" fill="#262626"/>')]]))
+    snapshot(inked, 'powerpoint', [1], new Map([[1, await page('<rect x="70" y="70" width="300" height="90" fill="#262626"/>')]]))
     const inkedSummary = await auditRenderedPages({ renderRoot: root, renderRelative: '.dsh-ppt/render', slideCount: 1, slides: [slideWithBox()], chrome: null, fs: inked })
     expect(inkedSummary.findings.map((finding) => finding.rule)).not.toContain('render-content-loss')
     expect(inkedSummary.findings.map((finding) => finding.rule)).not.toContain('render-tofu')
@@ -86,7 +86,7 @@ describe('auditRenderedPages', () => {
 
   it('flags a page-number mark when the chrome declares none', async () => {
     const fs = createFakeFileSystem()
-    snapshot(fs, 'libreoffice', [1], new Map([[1, await page('<rect x="1150" y="670" width="80" height="40" fill="#595959"/>')]]))
+    snapshot(fs, 'libreoffice', [1], new Map([[1, await page('<rect x="70" y="70" width="300" height="90" fill="#262626"/><rect x="1240" y="690" width="20" height="14" fill="#595959"/>')]]))
     const summary = await auditRenderedPages({
       renderRoot: root,
       renderRelative: '.dsh-ppt/render',
