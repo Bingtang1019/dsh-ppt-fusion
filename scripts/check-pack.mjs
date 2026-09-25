@@ -19,6 +19,7 @@ const required = [
   'dist/cli.js',
   'dsh/index.js',
   'dsh/preview-tool.js',
+  'dsh/review-tool.js',
   'dsh/client.js',
   'dsh/spawnHidden.js',
   'cordis.patch.yml',

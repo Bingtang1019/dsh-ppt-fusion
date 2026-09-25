@@ -829,3 +829,30 @@ into a single engine call and reports their widths, `wrap` measures one paragrap
 (`{schemaVersion, mode, sizePt, family, weight, box, items[{text, width, lines, height}], fits,
 overflow}`) is the contract the render-level overflow rule consumes: `fits` is false when any line
 is wider than the box (`x`) or the block is taller (`y`).
+## 25. Review record and the `dsh_ppt_review` tool (V10 Part B, ADR-083)
+
+`dsh_ppt_review` is the plugin tool that lets an image-capable model look at its own render. Inspect
+mode runs `renderpages` (cache-first), attaches the selected page PNGs through the `attachments`
+service and returns one text block (the rubric plus the pages and the `review.json` path) and one
+image block per page; record mode takes the same `target` plus `findings` and writes
+`<deck>/.dsh-ppt/review/review.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "deck": "<absolute deck path>",
+  "source": "out/deck.pptx",
+  "sourceSha256": "…",
+  "engine": "libreoffice",
+  "reviewedAt": "<ISO timestamp>",
+  "findings": [{ "page": 2, "severity": "error", "rule": "render-overflow", "message": "…", "fix": "…" }],
+  "counts": { "error": 1, "warning": 0, "info": 0 }
+}
+```
+
+A finding needs `page` (within the inspected pages), `severity` (`error`/`warning`/`info`), a
+non-empty `rule` and a non-empty `message`; `fix` is optional. The tool never invents findings and
+never approves: it writes records only when the model supplies them. Its preconditions are
+contractual too — no attachment service, no resolvable model route, or a route that declares no
+`image` input each raise `image-input-unavailable`, and the run reports that no visual review
+happened instead of returning attachments it cannot hand over.

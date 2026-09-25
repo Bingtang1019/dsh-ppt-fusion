@@ -56,6 +56,14 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 3. `dsh-ppt audit <dir>`: the eight-source gate (optional `--pixels`).
 4. Never degrade quality to pass a gate: no hand-edited binaries, no skipping `--stage final`, no silently demoting a deep page to a standard page.
 
+## 5.5 Phase 5.5 · Render self-review (`DSH_PPT_REVIEW`)
+
+Runs after the phase-6 render; the default is `pixel`:
+
+- **`pixel` (the floor)**: `dsh-ppt renderpages <dir>` → `dsh-ppt audit <dir> --rendered` (add `--require-rendered` for a release gate); fix each `render-*` finding in its owning phase-4 layer, re-render, audit again.
+- **`model` (look before you change)**: on top of pixel, call `dsh_ppt_review`, which hands the page images to the model as attachments; apply the rubric page by page (off-page, overflow, contrast, density, narrative) and record the findings by calling the same tool with `findings`, which writes `.dsh-ppt/review/review.json`. When the tool answers `image-input-unavailable`, record that the visual review did not run — never pretend to have looked.
+- **Convergence**: at most two rounds (`review.maxRounds`); anything still open goes to the user as BLOCKING. Never approve on the user's behalf.
+- **`subagent` (optional)**: dispatch an independent critic over the same rubric and mark disagreements as `critic-disagrees`; off by default.
 ## 6. Phase 6 · Render and post
 - `dsh-ppt render <dir> [-o out.pptx] [--compat safe|standard|max]`: base → deep → merge (single master) → post (the only motion owner) → compat → structural/delivery gates → atomic publish plus `out/manifest.json`/`compat-report.json`.
 - Motion: `post/animations.json` supports `transition` plus `entrance`/`emphasis`/`path` (played in that order); a selector that matches nothing fails the render.
@@ -65,7 +73,8 @@ This SKILL is the authoritative *process*; machine contracts live in `docs/contr
 ## 7. Phase 7 · Review
 - `dsh-ppt audit <dir> --pixels`, `--strict` when warnings must fail.
 - `dsh-ppt preview <dir> --html` (the `dsh_ppt_preview` tool in a DSH session) renders a browsable preview: standard pages via pptwise, deep pages from their authored SVGs.
-- Read `out/manifest.json` and `compat-report.json`; check single master, editable chart/table, palette consistency, complete attribution.
+- Read `out/manifest.json`, `compat-report.json` and `.dsh-ppt/review/review.json` when present; check single master, editable chart/table, palette consistency, complete attribution.
+- Delivery means the user approved it; do not re-render or approve here.
 - Revision round: change only the owning phase, then re-run that phase and the gates after it; never restart the whole chain.
 
 ## checkpoint / resume

@@ -56,6 +56,14 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 3. `dsh-ppt audit <dir>`：八源统一门（`--pixels` 可选）。
 4. **禁止**为过门降低质量：不许手改二进制、跳过 `--stage final` 或把 deep 页降级成标准页。
 
+## 5.5 相位 5.5 · 渲染自评（`DSH_PPT_REVIEW`）
+
+相位 6 渲染完成后执行，默认 `pixel`：
+
+- **`pixel`（地板）**：`dsh-ppt renderpages <dir>` → `dsh-ppt audit <dir> --rendered`（发布门用 `--require-rendered`）；按 `render-*` findings 回相位 4 的对应层修，重渲后再审。
+- **`model`（先看后改）**：在 pixel 之上调用 `dsh_ppt_review`（把页图作为图片附件给模型），按 rubric 逐页找 off-page / overflow / contrast / 密度 / 叙事问题，再用同工具带 `findings` 写入 `.dsh-ppt/review/review.json`。工具报 `image-input-unavailable` 时如实记录"视觉自评未运行"，**不得假装看过图**。
+- **收敛**：最多 2 轮（`review.maxRounds`）；未收敛就把剩余 findings 交用户 BLOCKING，**不要自行 approve**（approve 只归用户）。
+- **`subagent`（可选）**：可派独立子代理跑同一 rubric，冲突项标 `critic-disagrees`，默认关闭。
 ## 6. 相位 6 · 渲染与后处理
 - `dsh-ppt render <dir> [-o out.pptx] [--compat safe|standard|max]`：base → deep → merge（单一母版）→ post（动画唯一 owner）→ compat → 结构/交付门 → 原子发布 + `out/manifest.json`/`compat-report.json`。
 - 动画：`post/animations.json` 支持 `transition` 与 `entrance`/`emphasis`/`path`（顺序 entrance → emphasis → path）；selector 匹配不到是硬失败。
@@ -65,7 +73,8 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 ## 7. 相位 7 · 评审
 - `dsh-ppt audit <dir> --pixels`；必要时 `--strict`（warning 也非零）。
 - `dsh-ppt preview <dir> --html`（DSH 工具 `dsh_ppt_preview`）：标准页走 pptwise，deep 页用作者 SVG。
-- 逐页读 `out/manifest.json` 与 `compat-report.json`：单母版、图表可编辑、配色一致、署名齐全。
+- 逐页读 `out/manifest.json`、`compat-report.json` 与 `.dsh-ppt/review/review.json`（存在时）：单母版、图表可编辑、配色一致、署名齐全。
+- 交付口径 = 用户显式 approve；不要在这里重新渲染或自行批准。
 - Revision Round：只走对应相位并重跑该相位与其后的门，不要整链重来。
 
 ## checkpoint / resume（长链路兜底）

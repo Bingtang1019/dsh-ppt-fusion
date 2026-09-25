@@ -46,8 +46,13 @@ async function loadPlugin(): Promise<{ plugin: PluginModule; tools: ToolRegistra
     injected,
     inject: (services, closure) => {
       injected.push([...services])
-      // The route closure runs against the real webServer in DSH; a bare object
-      // exercises the plugin's failure degradation instead.
+      // The webServer closure runs against the real service in DSH; a bare object
+      // exercises the plugin's failure degradation instead. The attachments scope
+      // gets a registration surface, which is where the review tool must appear.
+      if (services.includes('attachments')) {
+        closure({ tools: { register: (tool: ToolRegistration) => tools.push(tool) }, get: () => undefined })
+        return
+      }
       closure({})
     },
   }
@@ -56,17 +61,17 @@ async function loadPlugin(): Promise<{ plugin: PluginModule; tools: ToolRegistra
 }
 
 describe('dsh plugin entry', () => {
-  it('registers the preview tool and the fusion skill', async () => {
+  it('registers the preview and review tools plus the fusion skill', async () => {
     const { plugin, tools, skills, injected } = await loadPlugin()
 
     expect(plugin.name).toBe('dsh-ppt-fusion')
     expect(plugin.inject).toEqual(['skills', 'tools'])
-    expect(tools.map((tool) => tool.name)).toEqual(['dsh_ppt_preview'])
+    expect(tools.map((tool) => tool.name)).toEqual(['dsh_ppt_preview', 'dsh_ppt_review'])
     expect(skills).toHaveLength(1)
     expect(skills[0]?.name).toBe('dsh-ppt-fusion')
     expect(skills[0]?.source).toBe('bundled')
     expect(skills[0]?.resourceBase?.kind).toBe('directory')
-    expect(injected).toEqual([['webServer']])
+    expect(injected).toEqual([['webServer'], ['attachments']])
   })
 
   it('injects the CLI mapping and the vendored docs base into the skill body', async () => {

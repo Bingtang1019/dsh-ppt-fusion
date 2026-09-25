@@ -94,6 +94,7 @@ the ADR wins.**
 | 080 | v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0) |
 | 081 | Render snapshots: `renderpages` rasterises through PowerPoint COM and the LibreOffice Kit into a hashed cache |
 | 082 | Render-level gate: `audit --rendered` judges the page images on top of the source audit |
+| 083 | Model render self-review: the `dsh_ppt_review` tool and SKILL phase 5.5 |
 
 ---
 
@@ -2463,3 +2464,37 @@ the ADR wins.**
   `sharp`, and the release gate must be able to demand them explicitly); failing the default audit
   when no renderer exists (render QA is additive, ADR-081); comparing raw pixel grids across engines
   (fonts and anti-aliasing differ; the ink-share drift keeps the signal cheap).
+## ADR-083 — Model render self-review: the `dsh_ppt_review` tool and SKILL phase 5.5
+
+- **Date:** 2026-09-26
+- **Context.** The render gate (ADR-082) judges page images with pixels, but composition,
+  information density and narrative need eyes. DSH 0.1.7 can hand images to an image-capable model
+  through `@deepseek-ai/dsh-attachment`; the office skill demonstrates the pattern (a `read_image`
+  tool that commits a file as an attachment, plus the rule to establish that the current model
+  accepts images before rasterising anything).
+- **Decision.** Register `dsh_ppt_review` in the plugin inside a scoped `ctx.inject(['attachments'],
+  …)`, so the tool exists only where the deployment can show images to the model. Its inspect mode
+  renders through the cached `renderpages` snapshots, attaches the selected page PNGs
+  (≤ `REVIEW_MAX_PAGES`, default 12) and returns a rubric with one image block per page; its record
+  mode validates the model's findings and writes `<deck>/.dsh-ppt/review/review.json`
+  (`{schemaVersion, deck, source, sourceSha256, engine, reviewedAt, findings[{page, severity: error|
+  warning|info, rule, message, fix?}], counts}`). Without the attachment service, without a
+  resolvable route, or when the route declares no image input, the tool fails with
+  `image-input-unavailable` and says the visual review did not run. The SKILL gains phase 5.5
+  (`DSH_PPT_REVIEW=pixel|model|subagent`): `pixel` runs `renderpages` + `audit --rendered` and fixes
+  the findings in their owning phase-4 layer; `model` adds the tool; at most two rounds; anything
+  open goes to the user as BLOCKING and approval stays user-only; the subagent critic is optional and
+  off by default.
+- **Evidence.** `tests/plugin/review-tool.test.ts` pins the attached page count, the rubric text and
+  the image blocks in `output.render`, the page selection and cap, both `image-input-unavailable`
+  refusal paths, finding validation (severity, page range, empty rule/message), the written
+  `review.json` counts, and that a failing render surfaces instead of reviewing a stale index. The
+  skill audit stays green with the raised ceilings (SKILL.md 3000, SKILL.en.md 2750, `generate.quick`
+  3750; 25 files, 112,405/120,000 tokens).
+- **Known limits.** `review.json` is a record, not an approval; the two-round cap and the
+  `DSH_PPT_REVIEW` policy are enforced by the skill text and the agent, not by the CLI; a text-only
+  route keeps the tool hidden and the loop reports itself as not run (S37's honest-degradation case).
+- **Alternatives rejected:** having the tool call `read_image` once per page (extra round trips and no
+  batching); letting the model write `review.json` with its own file tools (finding validation and a
+  stable schema belong in the tool); approving automatically once the loop converges (approval stays
+  with the user, as in the worktree decision D3).

@@ -13,8 +13,8 @@
     "max_tokens": 120000
   },
   "file_budgets": {
-    "skills/dsh-ppt-fusion/SKILL.md": 2500,
-    "skills/dsh-ppt-fusion/SKILL.en.md": 2250,
+    "skills/dsh-ppt-fusion/SKILL.md": 3000,
+    "skills/dsh-ppt-fusion/SKILL.en.md": 2750,
     "skills/dsh-ppt-fusion/references/design-language.md": 2250,
     "python-assets/vendor/ppt-master/docs/advanced-image-motion-smoke.md": 3750,
     "python-assets/vendor/ppt-master/docs/chart-recall.md": 500,
@@ -46,7 +46,7 @@
       "files": [
         "skills/dsh-ppt-fusion/SKILL.md"
       ],
-      "max_tokens": 2500
+      "max_tokens": 3000
     },
     "generate.core.en": {
       "description": "English session entry: the seven-phase workflow.",
@@ -54,7 +54,7 @@
       "files": [
         "skills/dsh-ppt-fusion/SKILL.en.md"
       ],
-      "max_tokens": 2250
+      "max_tokens": 2750
     },
     "generate.deep-authoring": {
       "description": "Deep-page authoring contract and the SVG pipeline.",
@@ -110,7 +110,7 @@
         "skills/dsh-ppt-fusion/SKILL.md",
         "python-assets/vendor/ppt-master/docs/troubleshooting.md"
       ],
-      "max_tokens": 3250
+      "max_tokens": 3750
     }
   },
   "duplicates": {
