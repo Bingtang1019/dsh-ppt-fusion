@@ -17,6 +17,7 @@ import {
   qualityCheck,
   stampFallbacks,
   svgToPptx,
+  textMeasure,
   assertInsideWorkspace,
   toWorkspaceRelative,
   type ApplyTemplateParams,
@@ -35,6 +36,7 @@ import {
   type QualityCheckParams,
   type StampFallbacksParams,
   type SvgToPptxParams,
+  type TextMeasureParams,
   type EngineInvocation,
 } from './contracts.ts'
 import { DshPptFailure } from './errors.ts'
@@ -163,6 +165,15 @@ export function createMasterEngine(options: MasterEngineOptions) {
     deliveryCheck(params: DeliveryCheckParams): MasterCall {
       const invocation = deliveryCheck({ file: relative(params.file, 'file') })
       return execute(invocation)
+    },
+
+    /**
+     * @see textMeasure
+     * @param params - mode, texts and font attributes; no paths reach argv, so the
+     *   measurement runs in the workspace without touching deck files.
+     */
+    textMeasure(params: TextMeasureParams): MasterCall {
+      return execute(textMeasure(params))
     },
 
     /** @see stampFallbacks */

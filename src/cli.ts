@@ -26,6 +26,7 @@ import { formatImagesGenerate, formatImagesSearch, imagesGenerate, imagesSearch 
 import { postAnimate } from './commands/post.ts'
 import { narrate, narrationVoices } from './commands/narrate.ts'
 import { DEFAULT_MAX_PAGES, DEFAULT_MAX_PIXELS, engineOption, formatRenderPagesResult, positiveOption, renderPagesCommand, scaleOption } from './commands/renderpages.ts'
+import { formatTextMeasureResult, parseBoxOption, textMeasureCommand } from './commands/text-measure.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
@@ -719,6 +720,36 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       })
       if (options.json === true) printJson(result)
       else process.stdout.write(`${formatRenderPagesResult(result)}\n`)
+    })
+
+  program
+    .command('text-measure')
+    .description('measure text with the engine\'s DrawingML estimator (single lines, or wrapped inside a box)')
+    .argument('[text...]', 'text to measure')
+    .option('--dir <dir>', 'workspace whose engine venv and logs are used', '.')
+    .option('--size <pt>', 'font size in points')
+    .option('--family <font>', 'font family')
+    .addOption(new Option('--weight <weight>', 'font weight').choices(['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900']))
+    .option('--letter-spacing <px>', 'letter spacing in px')
+    .option('--box <WxH>', 'wrap the text inside this box (px) and report overflow')
+    .option('--line-height <px>', 'line advance for --box; defaults to 1.2 x size')
+    .option('--json', 'print the result as JSON')
+    .action((texts: string[], options: { dir: string; size?: string; family?: string; weight?: string; letterSpacing?: string; box?: string; lineHeight?: string; json?: boolean }) => {
+      const sizePt = Number(options.size)
+      if (options.size === undefined || !Number.isFinite(sizePt) || sizePt <= 0) throw new DshPptFailure('UsageError', '--size must be a positive number of points')
+      const result = textMeasureCommand({
+        texts,
+        dir: options.dir,
+        sizePt,
+        ...(options.family === undefined ? {} : { family: options.family }),
+        ...(options.weight === undefined ? {} : { weight: options.weight }),
+        ...(options.letterSpacing === undefined ? {} : { letterSpacing: Number(options.letterSpacing) }),
+        ...(options.box === undefined ? {} : { box: parseBoxOption(options.box) }),
+        ...(options.lineHeight === undefined ? {} : { lineHeight: Number(options.lineHeight) }),
+        deps,
+      })
+      if (options.json === true) printJson(result)
+      else process.stdout.write(`${formatTextMeasureResult(result)}\n`)
     })
 
   const compat = program.command('compat').description('inspect a rendered package against the compatibility registry')

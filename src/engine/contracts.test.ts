@@ -13,6 +13,7 @@ import {
   qualityCheck,
   registerTemplate,
   stampFallbacks,
+  textMeasure,
   svgToPptx,
   toWorkspaceRelative,
   PPTX_STRUCTURES,
@@ -179,5 +180,26 @@ describe('imageGenerate', () => {
     )
     expect(imageGenCredentials('openai-compatible')).not.toContain('GEMINI_API_KEY')
     expect([...imageGenCredentials('gemini'), ...imageGenCredentials('openai-compatible')]).not.toContain('IMAGE_API_KEY')
+  })
+})
+describe('textMeasure', () => {
+  it('batches single lines with the font attributes and JSON switch', () => {
+    const invocation = textMeasure({ mode: 'measure', texts: ['alpha', 'beta'], sizePt: 24, family: 'MiSans', weight: 'bold', letterSpacing: 0.5 })
+    expect(invocation.id).toBe('text-measure')
+    expect(invocation.argv).toEqual(['text-measure', 'measure', 'alpha', 'beta', '--size', '24', '--family', 'MiSans', '--weight', 'bold', '--letter-spacing', '0.5', '--json'])
+    expect(invocation.outputFiles).toEqual([])
+  })
+
+  it('wraps exactly one paragraph inside the given box', () => {
+    const invocation = textMeasure({ mode: 'wrap', texts: ['one paragraph'], sizePt: 14, maxWidth: 300, dy: 17, x: 0 })
+    expect(invocation.argv).toEqual(['text-measure', 'wrap', 'one paragraph', '--max-width', '300', '--x', '0', '--dy', '17', '--size', '14', '--json'])
+  })
+
+  it('refuses empty text, a multi-paragraph wrap and missing wrap numbers', () => {
+    expect(() => textMeasure({ mode: 'measure', texts: [], sizePt: 14 })).toThrowError(/at least one non-empty text/)
+    expect(() => textMeasure({ mode: 'measure', texts: ['  '], sizePt: 14 })).toThrowError(/at least one non-empty text/)
+    expect(() => textMeasure({ mode: 'measure', texts: ['x'], sizePt: 0 })).toThrowError(/size must be positive/)
+    expect(() => textMeasure({ mode: 'wrap', texts: ['a', 'b'], sizePt: 14, maxWidth: 1, dy: 1, x: 0 })).toThrowError(/exactly one paragraph/)
+    expect(() => textMeasure({ mode: 'wrap', texts: ['a'], sizePt: 14 })).toThrowError(/needs maxWidth, dy and x/)
   })
 })

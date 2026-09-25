@@ -59,6 +59,7 @@ anything redistributed. `docs/licensing.md` is the release-time full/minimal che
 | `src/audit.ts` (M2/M4 ✅) | the unified report types and the palette pass behind `dsh-ppt audit`; the command aggregates eight sources (plan §3.8) | swallow a failing gate, or pass without a package |
 | `src/logging.ts` | per-run diagnostics under `<deck>/.dsh-ppt/logs/` | delete or rewrite deck data |
 | `src/bridge/render-pages.ts` + `src/commands/renderpages.ts` (V10 A ✅) | page-image snapshots: the engine adapters (PowerPoint COM, LibreOffice Kit, soffice+pdftoppm), the hashed cache, per-engine manifests and `pages.json` | write outside the deck's `.dsh-ppt/render`, or rewrite the source deck |
+| `src/bridge/text-measure.ts` + `src/commands/text-measure.ts` (V10 A ✅) | pre-render text measurement over `ppt-master text-measure` (batched single lines, wrapped boxes, fits/overflow verdicts) | invent its own width estimator instead of using the engine's DrawingML one |
 
 ## Boundaries
 

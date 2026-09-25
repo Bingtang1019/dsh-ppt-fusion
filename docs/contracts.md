@@ -823,3 +823,9 @@ scale, maxPages, maxPixels}` and a cache entry is reused only while every page f
 An engine that cannot run is `skipped` with a reason and a fix hint (exit stays 0) unless `--required`
 is passed, which raises `ContractViolation`. Neither engine rewrites the source deck: the COM script
 opens it read-only and the Kit copies it into a private scratch directory.
+`dsh-ppt text-measure` owns the pre-render measurement: `measure` batches one or more single lines
+into a single engine call and reports their widths, `wrap` measures one paragraph inside a box
+(`--max-width`, `--x`, `--dy`) and reports its lines, per-line widths and block height. The report
+(`{schemaVersion, mode, sizePt, family, weight, box, items[{text, width, lines, height}], fits,
+overflow}`) is the contract the render-level overflow rule consumes: `fits` is false when any line
+is wider than the box (`x`) or the block is taller (`y`).

@@ -27,6 +27,7 @@ export const ENGINE_TIMEOUTS = {
   deliveryCheck: 300_000,
   stampFallbacks: 300_000,
   promptAudit: 120_000,
+  textMeasure: 60_000,
 } as const
 
 /** One fully validated engine invocation: argv to run, budget, files it must produce. */
@@ -819,4 +820,60 @@ export function designProfileExtract(params: DesignProfileExtractParams): Engine
   if (params.roles !== undefined) argv.push('--roles', params.roles)
   if (params.copyMedia !== undefined) argv.push('--copy-media', params.copyMedia)
   return { id: 'design-profile', argv, timeoutMs: POST_TIMEOUTS.design, outputFiles: [params.output] }
+}
+
+/** Parameters for `ppt-master text-measure` (the engine's DrawingML width estimator). */
+export interface TextMeasureParams {
+  /** `measure` for one or more single lines, `wrap` for one paragraph inside a box. */
+  readonly mode: 'measure' | 'wrap'
+  /** Text to measure; `wrap` accepts exactly one entry. */
+  readonly texts: readonly string[]
+  /** Font size in points, as the SVG/DrawingML authoring surface uses them. */
+  readonly sizePt: number
+  readonly family?: string
+  readonly weight?: string
+  /** Letter spacing in px, when the authoring style sets it. */
+  readonly letterSpacing?: number
+  /** `wrap` only: maximum line width in px. */
+  readonly maxWidth?: number
+  /** `wrap` only: line advance in px. */
+  readonly dy?: number
+  /** `wrap` only: left edge in px. */
+  readonly x?: number
+}
+
+/**
+ * Build the argv for `ppt-master text-measure`.
+ *
+ * `measure` batches many lines into one spawn, which is what the pre-render
+ * overflow check uses; `wrap` measures one paragraph against a box and reports
+ * its lines and block height.
+ *
+ * @param params - mode, texts, font attributes and the wrap box.
+ * @returns the validated invocation; the command reports through stdout only.
+ * @throws DshPptFailure `ContractViolation` when the texts or wrap numbers are unusable.
+ */
+export function textMeasure(params: TextMeasureParams): EngineInvocation {
+  if (params.texts.length === 0 || params.texts.every((text) => text.trim() === '')) {
+    throw new DshPptFailure('ContractViolation', 'text-measure needs at least one non-empty text', { detail: { mode: params.mode } })
+  }
+  if (!Number.isFinite(params.sizePt) || params.sizePt <= 0) {
+    throw new DshPptFailure('ContractViolation', `text-measure size must be positive, got ${String(params.sizePt)}`, { detail: { mode: params.mode } })
+  }
+  const argv = ['text-measure', params.mode]
+  if (params.mode === 'wrap') {
+    if (params.texts.length !== 1) throw new DshPptFailure('ContractViolation', 'text-measure wrap measures exactly one paragraph', { detail: { texts: params.texts.length } })
+    if (params.maxWidth === undefined || params.dy === undefined || params.x === undefined) {
+      throw new DshPptFailure('ContractViolation', 'text-measure wrap needs maxWidth, dy and x', { detail: { maxWidth: params.maxWidth ?? null, dy: params.dy ?? null, x: params.x ?? null } })
+    }
+    argv.push(params.texts[0] ?? '', '--max-width', String(params.maxWidth), '--x', String(params.x), '--dy', String(params.dy))
+  } else {
+    argv.push(...params.texts)
+  }
+  argv.push('--size', String(params.sizePt))
+  if (params.family !== undefined) argv.push('--family', params.family)
+  if (params.weight !== undefined) argv.push('--weight', params.weight)
+  if (params.letterSpacing !== undefined) argv.push('--letter-spacing', String(params.letterSpacing))
+  argv.push('--json')
+  return { id: 'text-measure', argv, timeoutMs: ENGINE_TIMEOUTS.textMeasure, outputFiles: [] }
 }
