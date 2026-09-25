@@ -6,6 +6,9 @@
 // their own times, so byte equality is reported for orientation but only required
 // of the base deck, which M0 measured to be byte-stable (ADR-014).
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { readRenderedBaseline, verifyRenderedBaseline } from './rendered-baseline.ts'
 import { auditDeck } from '../src/commands/audit.ts'
 import { defaultDependencies } from '../src/commands/context.ts'
 import { narrationTimings, showTimingsEnabled } from '../src/bridge/post.ts'
@@ -94,3 +97,32 @@ if (paletteFindings.length > 0) {
   process.exit(1)
 }
 console.log(`fixtures:verify: pixels clean (${String(pixelReport.sources.length)} audit source(s), ${String(pixelReport.findings.length)} finding(s) total)`)
+// Rendered page baselines (ADR-082): the reference deck's page images are a local
+// artifact, so this half only runs where the deck exists; everywhere else it reports
+// `skipped` and exits 0, the same shape as design:verify.
+if (process.argv.includes('--rendered')) {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const baselineFile = join(root, 'fixtures', 'rendered', 'reference-quality.json')
+  const baseline = readRenderedBaseline(baselineFile)
+  if (baseline === null) {
+    console.error(`fixtures:verify: no rendered baseline at ${baselineFile}; run pnpm rendered:record`)
+    process.exit(1)
+  }
+  const deckDir = process.env.DSH_PPT_REFERENCE_DECK_DIR ?? ''
+  if (deckDir === '') {
+    console.log('fixtures:verify: --rendered skipped (set DSH_PPT_REFERENCE_DECK_DIR to the reference deck workspace)')
+  } else {
+    const drifts = verifyRenderedBaseline(baseline, deckDir)
+    for (const drift of drifts) {
+      console.error(`  ${drift.engine}${drift.page === null ? '' : ` page ${String(drift.page)}`}: ${drift.detail}`)
+    }
+    if (drifts.length > 0) {
+      console.error('fixtures:verify: the rendered page baseline drifted; if the change is intended, run pnpm rendered:record and explain it')
+      process.exit(1)
+    }
+    const engines = Object.entries(baseline.engines)
+      .map(([engine, entry]) => `${engine} ${entry?.version ?? '?'} ${String(entry?.pages.length ?? 0)}p`)
+      .join(', ')
+    console.log(`fixtures:verify: rendered baseline equal (${engines}; source ${baseline.source.sha256.slice(0, 12)}…)`)
+  }
+}

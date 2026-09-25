@@ -66,3 +66,22 @@ node --import tsx src/cli.ts preview <deck> --html
 
 The demo copy of the package, its audit JSON, manifest, compat report and preview live under
 `tmp/quality-demo/` (ignored: the deck itself never enters the repository or the package).
+## V10 Part A baseline: render snapshots and the render-level gate (v0.5.0 line)
+
+Recorded 2026-09-25 on this machine against the local `reference-quality` deck
+(`out/food-safety-internship-report.pptx`, sha256 `736fbecc…`, 12 slides).
+
+| Item | Result |
+|---|---|
+| `dsh-ppt renderpages` | PowerPoint COM 16.0: 12 pages at 1280×720 in 24 s; LibreOffice Kit 0.1.1 (native): 12 pages at 1280×721 in 11 s (5 s warm); a second run reports both `cached` and starts no renderer |
+| `dsh-ppt text-measure` | 36 pt MiSans title measures 572.4 px; `--box 644x80` wraps to one 40.8 px line and reports `fits`; `--box 200x30` reports `overflow: [x, y]` |
+| `dsh-ppt audit --rendered` | `ok=true`, only two `render-parity` warnings (engine ink shares drift 6.2 % / 0.5 %); page-count, content-loss, off-page, overlap, contrast, chrome and tofu are clean |
+| Rendered baseline | `fixtures/rendered/reference-quality.json` (schemaVersion 1, fixtureVersion 8, both engines with per-page dimensions and sha256); `pnpm fixtures:verify --rendered` with `DSH_PPT_REFERENCE_DECK_DIR` reports "rendered baseline equal", without it reports `skipped` |
+| Engine fact worth keeping | LibreOffice draws `wrap="none"` text frames with its own vertical anchor (30–100 px above the declared boxes); PowerPoint paints them exactly at the box, which is why the gate samples text through its enclosing card panel and runs the tofu probe on PowerPoint only (ADR-082) |
+
+S27: the human score for the 12 pages is still the 2026-09-24 review (mean 3.58,
+P2 = 2); Part A did not change any page, it made the render state measurable, and
+the P2 wording ("text hidden behind the cards") is **not** reproducible in
+PowerPoint or LibreOffice — both render the toc title and card texts inside their
+cards (see ADR-082's evidence), so the remaining P2 score needs a fresh look with
+the user.

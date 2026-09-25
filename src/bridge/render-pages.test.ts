@@ -184,3 +184,25 @@ describe('renderpages engine loop', () => {
     expect(renderCacheKey(parts)).not.toBe(renderCacheKey({ ...parts, engineVersion: '0.2.0' }))
   })
 })
+describe('pages.json index', () => {
+  it('keeps a previous engine entry when a later run asks for one engine only', () => {
+    const fs = fileSystem()
+    const runner = kitRunner(fs)
+    const first = renderPages(request(fs, runner, { engines: ['libreoffice'] }))
+    expect(first.engines.map((entry) => entry.engine)).toEqual(['libreoffice'])
+    const index = JSON.parse(fs.readText(join(outputRoot, 'pages.json')) ?? '{}') as { engines?: { engine: string }[] }
+    expect(index.engines?.map((entry) => entry.engine)).toEqual(['libreoffice'])
+  })
+
+  it('drops engine entries recorded for a different source digest', () => {
+    const fs = fileSystem()
+    fs.writeText(
+      join(outputRoot, 'pages.json'),
+      JSON.stringify({ schemaVersion: 1, source: 'out/other.pptx', sourceSha256: 'stale', scale: 1, maxPages: 30, maxPixels: 1, engines: [{ engine: 'powerpoint', status: 'cached', version: '16.0', directory: 'powerpoint', cacheKey: 'k', pages: [] }], pagesFile: null, skipped: [] }),
+    )
+    const runner = kitRunner(fs)
+    renderPages(request(fs, runner, { engines: ['libreoffice'] }))
+    const index = JSON.parse(fs.readText(join(outputRoot, 'pages.json')) ?? '{}') as { engines?: { engine: string }[] }
+    expect(index.engines?.map((entry) => entry.engine)).toEqual(['libreoffice'])
+  })
+})

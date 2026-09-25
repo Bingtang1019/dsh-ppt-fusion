@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "fixtureVersion": 8,
+  "name": "reference-quality",
+  "recordedAt": "2026-09-25",
+  "source": {
+    "file": "out/food-safety-internship-report.pptx",
+    "sha256": "736fbecc5efc17b269271c262b7f8e7928bad6e532f4fc3b17c3a0ab6a6a51c9",
+    "slides": 12
+  },
+  "engines": {
+    "powerpoint": {
+      "version": "16.0",
+      "dpi": 96,
+      "pages": [
+        {
+          "index": 1,
+          "file": "page-0001.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 11727,
+          "sha256": "a5e447d882ea7eca30737ef0ce79818d4a9d8b2d5948a156039c2fd7fcfc5180"
+        },
+        {
+          "index": 2,
+          "file": "page-0002.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 13310,
+          "sha256": "af4b352d7d633c2e11a0b903d15b6ae2b9d8c13204681cd79a1a52c8dab77468"
+        },
+        {
+          "index": 3,
+          "file": "page-0003.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 8438,
+          "sha256": "938cf4104f64914cbd8f927840818e879e519d819f0a3bd3d984f7e72b38e681"
+        },
+        {
+          "index": 4,
+          "file": "page-0004.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 19243,
+          "sha256": "4c7d9832711d43deed67284a96e53284de0e09d102df06bae80bb749fd740bb1"
+        },
+        {
+          "index": 5,
+          "file": "page-0005.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 7827,
+          "sha256": "4725805832e4652c1a49ca442709c7a46a339f5b1307070314d6eed16d2fc72f"
+        },
+        {
+          "index": 6,
+          "file": "page-0006.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 19531,
+          "sha256": "937c5bb03a3ae32aedad2f0d2e9fcfe1c7cf445b1c8de47c3c9da4b79c538323"
+        },
+        {
+          "index": 7,
+          "file": "page-0007.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 8545,
+          "sha256": "9f3e9df7de7034b5cbf9081cb2ebc663f90c402e77410c98ae0dcfb9b6445354"
+        },
+        {
+          "index": 8,
+          "file": "page-0008.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 19561,
+          "sha256": "1349c1284da77e14d2c1905016aae960a4f5ce007e86689e088421bd8f96fbdb"
+        },
+        {
+          "index": 9,
+          "file": "page-0009.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 8058,
+          "sha256": "db9922939e47da7fe501cce04dc71529bc5b70293616f2a53b367056d61220d5"
+        },
+        {
+          "index": 10,
+          "file": "page-0010.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 12932,
+          "sha256": "ef268702a19eacaca5cc6da3bf78bb798ff1bcb7d2a94c3b9de5208324dd4765"
+        },
+        {
+          "index": 11,
+          "file": "page-0011.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 17272,
+          "sha256": "dd06b8f9c23730fc028b6d5225da156bea73a1293423aef2c2a32caf7d57fe50"
+        },
+        {
+          "index": 12,
+          "file": "page-0012.png",
+          "width": 1280,
+          "height": 720,
+          "bytes": 6948,
+          "sha256": "0d63eccea0bff386b0f5d2fe445ffde14e43ab2e5a1fb4f61ca56efb4c8e0be3"
+        }
+      ]
+    },
+    "libreoffice": {
+      "version": "0.1.1",
+      "dpi": 96,
+      "pages": [
+        {
+          "index": 1,
+          "file": "page-0001.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 26987,
+          "sha256": "462aaaa6cef9af3a36a405fc5dc43e385dc8af75a234ae5d9450694d79ed043b"
+        },
+        {
+          "index": 2,
+          "file": "page-0002.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 33077,
+          "sha256": "5a748c3d43f1c05288c04d67db622a90eba7af7e75a23570ade5ab26adfb360f"
+        },
+        {
+          "index": 3,
+          "file": "page-0003.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 19995,
+          "sha256": "ce85dddcb0671de93616e34bb1b86ce16a5c73643ad89908b382ee62a77e107b"
+        },
+        {
+          "index": 4,
+          "file": "page-0004.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 45710,
+          "sha256": "aad401ec197dc751efeb514a8727c8754a6e898039edc6483d729ba652a70499"
+        },
+        {
+          "index": 5,
+          "file": "page-0005.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 18704,
+          "sha256": "64dfbe4059626669e982d54f204718dc1ea475c8dd1ff3e1f01117a5b66af9f9"
+        },
+        {
+          "index": 6,
+          "file": "page-0006.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 44183,
+          "sha256": "f8c875ade7157ebd1ac84fa0a6d8bd44c7e7b1308f9ab9fe76531ecf0b2e2d51"
+        },
+        {
+          "index": 7,
+          "file": "page-0007.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 19447,
+          "sha256": "873931907c41c47f6ed3562d3715f03ca52be4aefcd48a48b2678fecc31fa66d"
+        },
+        {
+          "index": 8,
+          "file": "page-0008.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 44095,
+          "sha256": "4b5091a7b19d45271cdcd15b4288a7fc44d1cccb703f19057c1f7929f1a0b5ea"
+        },
+        {
+          "index": 9,
+          "file": "page-0009.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 18218,
+          "sha256": "d2ea942b717dd2ad81f7f0343b2e507d00a25e7484124a6a9528a9f80eaee0a0"
+        },
+        {
+          "index": 10,
+          "file": "page-0010.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 29376,
+          "sha256": "3e1036b8513d168a80779b80e5339ae9961ae9a6df0a56c35dd8b8630591bee5"
+        },
+        {
+          "index": 11,
+          "file": "page-0011.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 39697,
+          "sha256": "f05f44474e8697f1ef5364b2ff7a1740fea54fa6c8ca5842c049f7649182f022"
+        },
+        {
+          "index": 12,
+          "file": "page-0012.png",
+          "width": 1280,
+          "height": 721,
+          "bytes": 21259,
+          "sha256": "409443de03a263afa4d7c1b91b11eee46b36f98dace2d0133e4cc53cb3d8ee77"
+        }
+      ]
+    }
+  }
+}

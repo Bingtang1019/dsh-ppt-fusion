@@ -185,6 +185,13 @@ export function renderPages(request: RenderPagesRequest): RenderPagesReport {
     if (report.status === 'skipped') skipped.push(`${engine}: ${report.detail ?? 'unavailable'}`)
   }
   const pagesFile = reports.some((report) => report.status !== 'skipped') ? join(request.outputRelative, 'pages.json') : null
+  // `pages.json` is the deck's snapshot index, not just this run's receipt: keep the
+  // engines of a previous run for the same source so `--engine libreoffice` does not
+  // erase the PowerPoint half of the index.
+  const previous = readPagesReport(request.fs, request.outputRoot)
+  const engines = previous !== null && previous.sourceSha256 === sourceSha256
+    ? [...reports, ...previous.engines.filter((entry) => !reports.some((report) => report.engine === entry.engine))]
+    : reports
   const report: RenderPagesReport = {
     schemaVersion: RENDER_PAGES_SCHEMA_VERSION,
     source: request.sourceRelative,
@@ -192,7 +199,7 @@ export function renderPages(request: RenderPagesRequest): RenderPagesReport {
     scale: request.scale,
     maxPages: request.maxPages,
     maxPixels: request.maxPixels,
-    engines: reports,
+    engines,
     pagesFile,
     skipped,
   }
@@ -485,4 +492,21 @@ function pngSize(bytes: Buffer | null): { width: number; height: number } | null
   if (bytes === null || bytes.length < 24) return null
   if (bytes.readUInt32BE(0) !== 0x89504e47 || bytes.readUInt32BE(4) !== 0x0d0a1a0a) return null
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
+}
+
+/**
+ * @param fs - filesystem port.
+ * @param outputRoot - absolute render root.
+ * @returns the previous `pages.json` summary, or null when it is absent or unreadable.
+ */
+function readPagesReport(fs: FileSystemPort, outputRoot: string): RenderPagesReport | null {
+  const text = fs.readText(join(outputRoot, 'pages.json'))
+  if (text === null) return null
+  try {
+    const parsed = JSON.parse(text) as Partial<RenderPagesReport>
+    if (parsed.schemaVersion !== RENDER_PAGES_SCHEMA_VERSION || !Array.isArray(parsed.engines) || typeof parsed.sourceSha256 !== 'string') return null
+    return parsed as RenderPagesReport
+  } catch {
+    return null
+  }
 }
