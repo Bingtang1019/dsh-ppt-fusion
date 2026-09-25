@@ -438,7 +438,7 @@ recorded as `skipped` with its reason and a fix hint, unless `--required` turns 
 `ContractViolation`.
 ### `dsh-ppt text-measure [text...] --size <pt> [--dir <dir>] [--family <font>] [--weight <w>] [--letter-spacing <px>] [--box <WxH>] [--line-height <px>] [--json]`
 
-Measures text with the engine's DrawingML estimator (`ppt-master text-measure`, ADR-082), so
+Measures text with the engine's DrawingML estimator (`ppt-master text-measure`, V10 Part A), so
 "will this fit?" becomes a number before any SVG is written. Without `--box` every argument is
 measured as a single line in one engine call; with `--box` the arguments join into one paragraph
 that is wrapped against the box, and the report says whether it fits or overflows on either axis
