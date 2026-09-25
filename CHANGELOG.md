@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v0.4.0 — 2026-09-25
+
+### 变更（V8 Part 0：DSH 兼容治理）
+
+- **peerDependencies 治理（ADR-079）**：`package.json` 声明 5 个 host peer —— `@deepseek-ai/dsh`、
+  `@deepseek-ai/dsh-skill`、`@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-client-ui-tool`（均 `>=0.1.2-rc.1 <0.2.0`）
+  与 `@deepseek-ai/cordis ^4.0.2`；0.1.7 线的官方 peer 门禁（`dsh-app-boot` 的 `evaluatePluginCompatibility`）
+  必须通过，0.1.2 线（无门禁）以"装进 scratch profile 并 compose"作为兼容证据。
+- **双 DSH 版本 CI**：新增 `dsh-compat` job（0.1.2-rc.1 / 0.1.7-rc.2 矩阵）跑 `scripts/dsh-compat.mjs` +
+  `scripts/dsh-compat-profile.mjs`；新增 `tests/dsh-peers.test.ts`（3 用例）钉住两条线的 semver 区间。
+- **0.1.7 探针**：`docs/dsh017-probe.md` 记录两版运行时矩阵、peer 门禁语义（只查 `@deepseek-ai/dsh*`、
+  预发布参与匹配、`compatibility.json` 精确豁免与 BOM 坑）以及 V9 三杠杆（LibreOffice Kit CLI / 图片附件 / 子代理）可用性。
+- 验收报告补 S30–S32；devDependencies 增 `semver` + `@types/semver`。
+
 ## v0.3.4 — 2026-09-24
 
 ### 修复 / 变更
