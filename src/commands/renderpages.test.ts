@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { createFakeFileSystem } from '../../tests/support/fake-runner.ts'
 import { engineOption, enginesOf, resolveLibreOfficeKit, resolveSoffice, scaleOption } from './renderpages.ts'
 
-const home = join('C:', 'Users', 'tester')
+const home = join(process.cwd(), 'tmp', 'renderpages-home')
 
 describe('renderpages discovery', () => {
   it('prefers DSH_PPT_LOKIT_CLI and its node override', () => {
@@ -27,7 +27,7 @@ describe('renderpages discovery', () => {
   })
 
   it('resolves a kit beside the plugin through the module resolver', () => {
-    const packageDir = join('C:', 'profile', 'node_modules', '@deepseek-ai', 'libreoffice-kit')
+    const packageDir = join(process.cwd(), 'tmp', 'kit-profile', 'node_modules', '@deepseek-ai', 'libreoffice-kit')
     const fs = createFakeFileSystem({ files: { [join(packageDir, 'lib', 'cli.js')]: '// cli' } })
     const kit = resolveLibreOfficeKit({
       env: {},
