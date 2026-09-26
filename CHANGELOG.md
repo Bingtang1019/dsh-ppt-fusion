@@ -15,6 +15,13 @@
   `/dsh-ppt-propose/<id>/page-N.png`（草稿页图）随预览路由同 scope 注册并带 `x-dsh-ppt-propose` 戳；卡片展示 diff 摘要、
   页面变化、finding 增删、缩略图与**由人执行的 approve/discard 命令**（工具没有 approve 参数、也从不调用），历史折叠。
 - 会话卡片的浏览器半在 `dsh/client.js`（第二个 toolview：`dsh_ppt_propose`），宿主半在 `dsh/propose-tool.js`。
+- **文件树 `.pptx` 右侧栏 viewer（Part D，ADR-087）**：客户端注册外部 `documentPreviews` 实现（后缀 `pptx/pptm/potx/ppsx`，
+  `priority = extension`，`loading = renderer`）并把 body 注册进 keyed `sidebar.right.tab.document`；body 用 `useResource`
+  拿到绝对路径，交给新路由 `/dsh-ppt-pptx/view`（自包含分页视图）与 `/dsh-ppt-pptx/page`（页图）。
+- **`dsh-ppt renderpages` 新增 `--outside` 与 `--output-dir <dir>`**：允许栅格化工作区之外的 `.pptx` 并写到绝对输出目录
+  （`--output-dir` 必须与 `--outside` 同用）；viewer 依赖它，把页图缓存在 `<plugin home>/pptx-cache/<sha256>/`。
+- viewer 引擎按 `libreoffice → powerpoint → both` 逐个尝试，避免每次打开都付 PowerPoint 探测成本；自己的侧栏已经能渲染
+  deck 的部署设 `window.__DSH_PPT_DISABLE_SIDEBAR_VIEWER__ = true` 即可让本实现让位。
 
 ## v0.5.0 — 2026-09-26
 

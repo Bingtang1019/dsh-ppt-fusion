@@ -74,7 +74,7 @@ describe('dsh plugin entry', () => {
     expect(skills[0]?.source).toBe('bundled')
     expect(skills[0]?.resourceBase?.kind).toBe('directory')
     expect(injected).toEqual([['webServer'], ['attachments']])
-    expect(routes).toEqual(['/dsh-ppt/preview', '/dsh-ppt-propose'])
+    expect(routes).toEqual(['/dsh-ppt/preview', '/dsh-ppt-propose', '/dsh-ppt-pptx'])
   })
 
   it('injects the CLI mapping and the vendored docs base into the skill body', async () => {

@@ -912,3 +912,25 @@ The route serves `GET <PROPOSE_ROUTE>/<id>` (the payload) and `GET <PROPOSE_ROUT
 payload is 404 `unknown-proposal`, a missing page 404 `unknown-page`, an id that is not
 `^[A-Za-z0-9._-]{1,64}$` is 400 `invalid-id`, and a page path outside a `.dsh-ppt/versions/` directory is
 refused rather than read.
+## 27. Side-bar deck viewer route (V10 Part D, ADR-087)
+
+The client half registers a document preview for the deck suffixes (`pptx`, `pptm`, `potx`, `ppsx`),
+`loading: 'renderer'`, and the host half serves it:
+
+```
+GET <PPTX_VIEWER_ROUTE>/view?path=<absolute deck path>[&refresh=1]   → text/html paging view
+GET <PPTX_VIEWER_ROUTE>/page?path=<absolute deck path>&index=N[&refresh=1] → image/png
+```
+
+Every answer carries `x-dsh-ppt-pptx: dsh-ppt-pptx`. Preconditions and failures are explicit: a path
+that is not one of the deck suffixes is 400 `unsupported-file`, an unknown sub-route is 404
+`unknown-route`, an index the deck does not have is 404 `unknown-page`, a deck larger than
+`PPTX_VIEWER_MAX_BYTES` or one no engine can render is 502 `render-failed`. Pages are rendered through
+`dsh-ppt renderpages <cache>/<sha256> --file <path> --outside --output-dir <cache>/<sha256>` and cached
+there, so a second open of the same file reuses the snapshot keyed by the file's own digest. Engines are
+tried one at a time in the order `libreoffice`, `powerpoint`, `both`, which stops an open from paying
+both probes.
+
+`renderpages` gained the two flags this needs: `--outside` allows `--file` to name a package outside the
+deck workspace (and then records the absolute path as the source), and `--output-dir <dir>` sets an
+absolute output root and is refused without `--outside`.

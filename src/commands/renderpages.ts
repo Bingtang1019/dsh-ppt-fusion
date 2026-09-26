@@ -24,6 +24,16 @@ export interface RenderPagesCommandOptions {
   readonly file?: string
   /** Output root, deck-relative; defaults to `.dsh-ppt/render`. */
   readonly output: string
+  /**
+   * Absolute output root outside the workspace. Requires `outside`; the side-bar
+   * viewer renders arbitrary `.pptx` files into its own cache directory (ADR-087).
+   */
+  readonly outputDir?: string
+  /**
+   * Allow `--file` to name a package outside the workspace. Off by default: a deck
+   * command reads its own workspace unless the caller says otherwise (plan §3.12).
+   */
+  readonly outside?: boolean
   readonly engine: RenderEngineChoice
   readonly scale: number
   readonly maxPages: number
@@ -144,12 +154,16 @@ export function enginesOf(choice: RenderEngineChoice): readonly RenderEngineId[]
 export function renderPagesCommand(options: RenderPagesCommandOptions): RenderPagesReport {
   const deps = options.deps
   const dir = resolveDeckDir(deps, options.dir)
-  const artifact = resolveArtifact({ dir, file: options.file, fs: deps.fs })
+  const outside = options.outside === true
+  if (options.outputDir !== undefined && !outside) {
+    throw new DshPptFailure('UsageError', '--output-dir needs --outside: a workspace render writes inside the deck')
+  }
+  const artifact = resolveArtifact({ dir, file: options.file, fs: deps.fs, ...(outside ? { allowOutside: true } : {}) })
   if (artifact === null) {
     throw new DshPptFailure('OutputMissing', 'no rendered pptx found; run `dsh-ppt render` first or pass --file')
   }
-  const outputRoot = assertInsideWorkspace(dir, options.output, 'output')
-  const outputRelative = options.output.replace(/\\/g, '/')
+  const outputRoot = options.outputDir ?? assertInsideWorkspace(dir, options.output, 'output')
+  const outputRelative = (options.outputDir ?? options.output).replace(/\\/g, '/')
   const home = deps.env.USERPROFILE ?? deps.env.HOME ?? deps.cwd
   const kit = resolveLibreOfficeKit({ env: deps.env, home, cwd: deps.cwd, fs: deps.fs, resolveModule: deps.resolveModule })
   const engines = enginesOf(options.engine)
@@ -157,7 +171,9 @@ export function renderPagesCommand(options: RenderPagesCommandOptions): RenderPa
   return renderPages({
     dir,
     sourcePath: artifact.path,
-    sourceRelative: artifact.relative.replace(/\\/g, '/'),
+    // Outside the workspace there is no deck-relative spelling to record, so the
+    // report and the manifest carry the absolute path the caller asked for.
+    sourceRelative: (outside ? artifact.path : artifact.relative).replace(/\\/g, '/'),
     outputRoot,
     outputRelative,
     engines,

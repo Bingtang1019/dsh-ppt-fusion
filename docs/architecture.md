@@ -64,6 +64,7 @@ anything redistributed. `docs/licensing.md` is the release-time full/minimal che
 | `src/bridge/worktree.ts` (V10 C ✅) | the file-level review worktree: immutable proposal records, `status.json`, atomic publish into `out/`, the trunk record, prune and the append-only history | rewrite a published version in place, publish without a record, or touch `out/` from anything but `approve` |
 | `src/bridge/deck-diff.ts` + `src/bridge/canonical.ts` (V10 C ✅) | the three diff answers — canonicalised pages with per-page part ownership, recorded audit findings, page-image rates | invent a difference from producer metadata, or hide a missing input instead of reporting it as skipped |
 | `src/commands/propose.ts` + `src/commands/diff.ts` (V10 C ✅) | `propose` renders into a version directory, `approve`/`discard`/`versions`/`diff` read it | let a draft reach `out/` without an explicit approve, or approve from a model turn |
+| `dsh/pptx-viewer.js` + `dsh/client.js` (V10 D ✅) | the file-tree deck viewer: an external `documentPreviews` implementation for the deck suffixes whose body is an iframe over `/dsh-ppt-pptx`, backed by `renderpages --outside --output-dir` | render in the browser, own the file address space, or serve a document the engine did not produce |
 
 ## Boundaries
 

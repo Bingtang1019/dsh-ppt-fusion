@@ -21,6 +21,7 @@ const required = [
   'dsh/preview-tool.js',
   'dsh/review-tool.js',
   'dsh/propose-tool.js',
+  'dsh/pptx-viewer.js',
   'dsh/client.js',
   'dsh/spawnHidden.js',
   'cordis.patch.yml',

@@ -98,6 +98,7 @@ the ADR wins.**
 | 084 | The subagent critic stays optional and off by default (V10 B3) |
 | 085 | v0.5.0 release: render QA and the model self-review loop on both channels |
 | 086 | Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff |
+| 087 | File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside` |
 
 ---
 
@@ -2623,3 +2624,61 @@ the ADR wins.**
   `--render` snapshots (at most eight). Evidence: `tests/plugin/propose-tool.test.ts` (5) covers the
   payload and marker, the payload route, page images, unknown id and page, the render-off case, a failing
   CLI, and id validation; `tests/plugin/plugin.test.ts` asserts the third tool and both card routes.
+
+## ADR-087 — File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside`
+
+- **Date:** 2026-09-27
+- **Context.** Part D of the v10 plan wants a right-sidebar viewer so a `.pptx` in the workspace
+  file tree opens as a preview instead of "open in another app". The plan's D4 assumed a private
+  address protocol plus a `dsh-better-sidebar` fallback, so the first task was a spike over the
+  0.1.7 runtime.
+- **Spike findings (0.1.7-rc.2, this machine).** The runtime ships a client **slot catalogue** inside
+  `@deepseek-ai/dsh-cordis-client-runner/lib/client.js` that documents every client slot. Relevant
+  entries: `sidebar.right.pane.tab` / `sidebar.right.pane.tab.title` / `sidebar.right.tab.document.action`
+  for right-sidebar tabs, and the keyed `sidebar.right.tab.document` for a document body. Files travel
+  as `dsh-resource://file/<scope>/<path>` addresses (`scope` = `session/<sessionId>` or `absolute`)
+  opened by a **resource provider** registered into `ctx.resources` as
+  `{protocol: 'file', async *open(address, {signal})}`; `@deepseek-ai/dsh-api-workspace-files` owns the
+  `file` protocol and streams stat frames plus change notices. Which implementation draws a file is
+  decided by `ctx.documentPreviews.register({id, extensions, binaryExtensions?, priority?, title,
+  loading, wrap?})` in `@deepseek-ai/dsh-client-ui-sidebar-documentpreview`: matching ranks external
+  implementations above builtins, then longest suffix, then registration order, and the body component
+  registers into `sidebar.right.tab.document` under the same `id` with owner props
+  `{useTabInfo, useResource, content: {kind: 'renderer', revision, loaded, failed, reload},
+  resourceAddress, wrap, scrollportRef, addResource, setResources}`. `pptx` is on the product's
+  unviewable-binary list and the builtin `OfficeBody` needs a host document-preview service, so an
+  external implementation for the deck suffixes is the intended extension point. `dsh-better-sidebar`
+  is not installed in this profile, so its path could not be observed.
+- **Decision.** Register an external document preview (`id: dsh-ppt-fusion/pptx`, suffixes
+  `pptx/pptm/potx/ppsx`, `priority: extension`, `loading: renderer`, `wrap: false`) whose body is an
+  iframe over a new host route `/dsh-ppt-pptx/{view,page}`; a body resolves the file's host path from
+  `useResource(...).value.absolutePath` and hands it to the route. The route renders through the
+  packaged CLI with the two flags this change adds to `renderpages`: `--outside` (a source package
+  outside the deck workspace) and `--output-dir <abs>` (an absolute output root, refused without
+  `--outside`). Pages cache under `<plugin home>/pptx-cache/<sha256>/`, and `ensurePages` tries
+  `libreoffice`, then `powerpoint`, then `both`, so an open costs one engine probe instead of two —
+  measured 58 s → 6 s cold and 24 s → 1 s warm for a 12-page deck on this machine. A deployment whose
+  own sidebar renders decks sets `window.__DSH_PPT_DISABLE_SIDEBAR_VIEWER__ = true` and this
+  implementation steps aside.
+- **Evidence.** `tests/plugin/pptx-viewer.test.ts` (6) covers the view page and page image, the
+  `refresh=1` force path, non-deck/unknown-route/unknown-page rejections, a render failure surfaced as
+  502, `ensurePages` refusing an unsupported or missing file, and suffix matching; the plugin entry test
+  now asserts three routes (`/dsh-ppt/preview`, `/dsh-ppt-propose`, `/dsh-ppt-pptx`). Real smoke on a
+  copied standalone 12-page deck: `ensurePages` → `libreoffice`, 12 pages, digest `736fbecc…`, 6 s cold
+  and 1 s warm; `/view` → 200 `text/html` 4,386 B; `/page?index=1` → 200 `image/png` 26,987 B; a `.txt`
+  path → 400. `renderpages --outside --output-dir` has its own tests in
+  `src/commands/renderpages.test.ts` (renders from outside into an absolute root, and refuses both
+  `--output-dir` without `--outside` and an outside source without it).
+- **Known limits.** The viewer does not reuse the preview store's `preview.html`: a file-tree path may
+  have no deck workspace, and the honest answer there is the page images the same CLI produces (for a
+  deck-owned file the bytes are the same ones the snapshot cache holds, keyed by the same digest). It
+  renders; it does not annotate, and it has no approve/discard actions (those stay with the worktree
+  card). The client half cannot be exercised from this repository's tests, so the sidebar entry itself
+  is verified by the user in a browser after the release; `dsh-better-sidebar` remains an
+  unobserved degrade target behind the documented flag.
+- **Alternatives rejected:** a private `dsh-resource://` protocol of our own (the shell already routes
+  deck suffixes through `documentPreviews`, and a second address space would not be reachable from the
+  file tree); reusing the builtin `OfficeBody` (it needs the host document-preview service and shows
+  pptx as unviewable without it); rendering inside the client (a second renderer in the UI, which the
+  preview card's design already rejects); `--engine both` for every open (it pays the PowerPoint probe
+  even when the engine only reports `skipped`).

@@ -436,6 +436,13 @@ runtime under `$HOME` → system `soffice` with `pdftoppm`. `--scale 2` exports 
 `--max-pages` defaults to 30 and `--max-pixels` to 16777216 per page. An engine that cannot run is
 recorded as `skipped` with its reason and a fix hint, unless `--required` turns it into a
 `ContractViolation`.
+### `renderpages --outside` and `--output-dir` (V10 Part D)
+
+`dsh-ppt renderpages <dir> --file <abs> --outside --output-dir <abs>` rasterises a package that lives
+outside the deck workspace and writes the pages under an absolute output root. `--output-dir` is refused
+without `--outside`, and an outside source without it is refused as a path outside the workspace. The
+side-bar viewer (ADR-087) is the caller: it caches each file's pages under
+`<plugin home>/pptx-cache/<sha256>/`.
 ### `dsh-ppt text-measure [text...] --size <pt> [--dir <dir>] [--family <font>] [--weight <w>] [--letter-spacing <px>] [--box <WxH>] [--line-height <px>] [--json]`
 
 Measures text with the engine's DrawingML estimator (`ppt-master text-measure`, V10 Part A), so

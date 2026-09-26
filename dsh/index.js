@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { createPreviewService, TOOL_NAME } from './preview-tool.js'
 import { REVIEW_TOOL_NAME, createReviewService } from './review-tool.js'
 import { PROPOSE_TOOL_NAME, createProposeService } from './propose-tool.js'
+import { PPTX_VIEWER_ROUTE, createPptxViewerService } from './pptx-viewer.js'
 
 const SKILL_FILE_URL = new URL('../skills/dsh-ppt-fusion/SKILL.md', import.meta.url)
 const SKILL_DIR = fileURLToPath(new URL('../skills/dsh-ppt-fusion/', import.meta.url))
@@ -26,7 +27,7 @@ export const inject = ['skills', 'tools']
 
 export const SKILL_NAME = 'dsh-ppt-fusion'
 export const PREVIEW_TOOL_NAME = TOOL_NAME
-export { REVIEW_TOOL_NAME, PROPOSE_TOOL_NAME }
+export { REVIEW_TOOL_NAME, PROPOSE_TOOL_NAME, PPTX_VIEWER_ROUTE }
 
 /**
  * Split SKILL.md into { description, body }.
@@ -114,6 +115,7 @@ export function apply(ctx) {
   // and never runs where it does not, leaving headless untouched.
   if (typeof ctx.inject === 'function') {
     const propose = createProposeService(CLI_PATH)
+    const viewer = createPptxViewerService(CLI_PATH)
     try {
       ctx.tools.register(propose.tool)
     } catch (error) {
@@ -129,6 +131,11 @@ export function apply(ctx) {
         propose.registerRoute(scope)
       } catch (error) {
         console.error(`[dsh-ppt-fusion] propose route skipped: ${error}`)
+      }
+      try {
+        viewer.registerRoute(scope)
+      } catch (error) {
+        console.error(`[dsh-ppt-fusion] pptx viewer route skipped: ${error}`)
       }
     })
     // The review tool exists only where the deployment can show images to the

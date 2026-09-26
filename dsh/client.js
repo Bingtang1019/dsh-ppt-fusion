@@ -1537,6 +1537,107 @@ window.__ModuleLoader__.load({
         )
       }
     }
+    /** Deck suffixes the sidebar viewer claims; the host half refuses anything else. */
+    var PPTX_EXTENSIONS = ['pptx', 'pptm', 'potx', 'ppsx']
+    /** Implementation id, which is also the document slot key. */
+    var PPTX_BODY_ID = 'dsh-ppt-fusion/pptx'
+    /** Host route that renders a deck file on demand. */
+    var PPTX_ROUTE = '/dsh-ppt-pptx'
+
+    /**
+     * The right-sidebar deck viewer: a document preview implementation registered
+     * for the deck suffixes, whose body is an iframe over the host route.
+     *
+     * `pptx` is on the product's unviewable-binary list, so without this the file
+     * tree offers a deck no preview at all. The body owns nothing but the frame: the
+     * host half renders through the packaged CLI (LibreOffice or PowerPoint COM),
+     * which keeps a second renderer out of the UI. A deployment whose own sidebar
+     * already renders decks sets `window.__DSH_PPT_DISABLE_SIDEBAR_VIEWER__ = true`
+     * before the client loads, and this plugin steps aside (ADR-087).
+     */
+    function registerPptxViewer(ctx) {
+      if (typeof window !== 'undefined' && window.__DSH_PPT_DISABLE_SIDEBAR_VIEWER__ === true) {
+        console.info('[dsh-ppt-fusion] sidebar deck viewer skipped: another viewer is configured')
+        return
+      }
+      if (typeof ctx.inject !== 'function') {
+        console.error('[dsh-ppt-fusion] sidebar deck viewer skipped: no scoped inject on this context')
+        return
+      }
+      var react
+      try {
+        react = require('react')
+      } catch (error) {
+        console.error('[dsh-ppt-fusion] sidebar deck viewer skipped: ' + error)
+        return
+      }
+      var Body = PptxViewerBody(react)
+      ctx.inject(['documentPreviews'], function (scope) {
+        try {
+          scope.effect(function () {
+            return scope.documentPreviews.register({
+              id: PPTX_BODY_ID,
+              extensions: PPTX_EXTENSIONS,
+              binaryExtensions: PPTX_EXTENSIONS,
+              // External implementations outrank the product's office viewer, which
+              // announces pptx as unviewable when no document service is enabled.
+              priority: 'extension',
+              title: function () {
+                return 'dsh-ppt'
+              },
+              loading: 'renderer',
+              wrap: false,
+            })
+          })
+          scope.effect(function () {
+            return scope.slots.register({ name: 'sidebar.right.tab.document', key: PPTX_BODY_ID }, Body)
+          })
+        } catch (error) {
+          console.error('[dsh-ppt-fusion] sidebar deck viewer registration skipped: ' + error)
+        }
+      })
+    }
+
+    /** The document body: resolve the file's host path, then show the rendered deck. */
+    function PptxViewerBody(react) {
+      var h = react.createElement
+      return function DshPptPptxBody(props) {
+        var tabInfo = props.useTabInfo()
+        var resource = props.useResource(tabInfo.tab.contentId)
+        var content = props.content || {}
+        var absolutePath = resource && resource.value && resource.value.absolutePath ? resource.value.absolutePath : null
+        var version = resource && resource.value ? resource.value.version : undefined
+        var revision = content.kind === 'renderer' ? content.revision : 0
+        react.useEffect(
+          function () {
+            if (content.kind !== 'renderer') return
+            if (absolutePath === null) content.failed()
+            else content.loaded(version === undefined ? '' : String(version))
+          },
+          [absolutePath, version, revision, content],
+        )
+        if (absolutePath === null) {
+          return h(
+            'div',
+            { style: { padding: 12, fontSize: 12, color: 'var(--dsw-alias-label-tertiary, rgba(127,127,127,0.85))' } },
+            'reading the deck…',
+          )
+        }
+        var src =
+          PPTX_ROUTE +
+          '/view?path=' +
+          encodeURIComponent(absolutePath) +
+          (version === undefined ? '' : '&v=' + encodeURIComponent(String(version))) +
+          '&r=' +
+          String(revision)
+        return h('iframe', {
+          key: src,
+          src: src,
+          title: 'deck preview',
+          style: { width: '100%', height: '100%', border: '0', display: 'block', background: 'transparent' },
+        })
+      }
+    }
     function registerCard(ctx) {
       // `slots` is a declared dependency (see `exports.inject` below), so
       // cordis does not apply this plugin until the service exists. The guard
@@ -1573,6 +1674,13 @@ window.__ModuleLoader__.load({
       } catch (error) {
         console.error('[dsh-ppt-fusion] preview card registration skipped: ' + error)
       }
+      // The sidebar viewer is optional: a shell without the document preview service
+      // keeps the card, and a deployment with its own deck viewer sets the flag above.
+      try {
+        registerPptxViewer(ctx)
+      } catch (error) {
+        console.error('[dsh-ppt-fusion] sidebar deck viewer skipped: ' + error)
+      }
     }
 
     exports.apply = apply
@@ -1605,6 +1713,9 @@ window.__ModuleLoader__.load({
       TOOL_NAME: TOOL_NAME,
       PROPOSE_TOOL_NAME: PROPOSE_TOOL_NAME,
       PROPOSE_ROUTE: PROPOSE_ROUTE,
+      PPTX_BODY_ID: PPTX_BODY_ID,
+      PPTX_EXTENSIONS: PPTX_EXTENSIONS,
+      PPTX_ROUTE: PPTX_ROUTE,
       proposeIdOf: proposeIdOf,
       proposePayloadOf: proposePayloadOf,
     }

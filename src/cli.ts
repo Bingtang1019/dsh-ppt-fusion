@@ -704,6 +704,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .argument('<dir>', 'deck directory')
     .option('-o, --output <dir>', 'output root, deck-relative', '.dsh-ppt/render')
     .option('--file <pptx>', 'deck to rasterise; defaults to the last render recorded in out/manifest.json')
+    .option('--outside', 'allow --file to name a package outside the workspace')
+    .option('--output-dir <dir>', 'absolute output root outside the workspace (requires --outside)')
     .addOption(new Option('--engine <engine>', 'rasteriser to run').choices(['powerpoint', 'libreoffice', 'both']).default('both'))
     .addOption(new Option('--scale <factor>', 'page scale factor').choices(['1', '2']).default('1'))
     .option('--max-pages <n>', 'page ceiling per engine', String(DEFAULT_MAX_PAGES))
@@ -711,11 +713,13 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--required', 'fail instead of recording `skipped` when an engine is unavailable')
     .option('--force', 'ignore a matching cache entry and re-render')
     .option('--json', 'print the result as JSON')
-    .action((dir: string, options: { output: string; file?: string; engine: string; scale: string; maxPages: string; maxPixels: string; required?: boolean; force?: boolean; json?: boolean }) => {
+    .action((dir: string, options: { output: string; file?: string; outside?: boolean; outputDir?: string; engine: string; scale: string; maxPages: string; maxPixels: string; required?: boolean; force?: boolean; json?: boolean }) => {
       const result = renderPagesCommand({
         dir,
         ...(options.file === undefined ? {} : { file: options.file }),
         output: options.output,
+        ...(options.outputDir === undefined ? {} : { outputDir: options.outputDir }),
+        ...(options.outside === true ? { outside: true } : {}),
         engine: engineOption(options.engine),
         scale: scaleOption(options.scale),
         maxPages: positiveOption(Number(options.maxPages), '--max-pages'),
