@@ -97,6 +97,7 @@ the ADR wins.**
 | 083 | Model render self-review: the `dsh_ppt_review` tool and SKILL phase 5.5 |
 | 084 | The subagent critic stays optional and off by default (V10 B3) |
 | 085 | v0.5.0 release: render QA and the model self-review loop on both channels |
+| 086 | Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff |
 
 ---
 
@@ -2560,3 +2561,51 @@ the ADR wins.**
   as both, and the tool plus skill text are testable without a vision model); uploading only the
   versioned asset (a `latest/download/` link would rot at the next release); keeping the broad peer
   range (install-time `ERESOLVE` for every 0.1.5+/0.1.7 prerelease).
+## ADR-086 — Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff
+
+- **Date:** 2026-09-27
+- **Context.** Part C of the v10 plan borrows the draft/worktree review model from
+  `dsh-univer-office` (U5/U7): every edit lands in an isolated draft, the user approves or discards it,
+  and a diff shows what changed. Our artifacts are files — a rendered `.pptx` plus its manifest,
+  compat report, audit findings and page snapshots — and the deck must never enter git, so a
+  git-worktree implementation is out. D2 fixes the shape (file-level versions, `canonicalize` for the
+  semantic diff, `renderpages` for the render diff) and D3 fixes the authority (propose/approve/discard
+  are user actions; a model's self-review produces findings only).
+- **Decision.** A draft lives in `<deck>/.dsh-ppt/versions/<proposalId>/` and holds an immutable
+  `proposal.json` (id, createdAt, message, source sha256/bytes/slides, deck-relative `files`) beside a
+  mutable `status.json`; `approve` copies the package and its records into `out/` through a sibling
+  temporary file and a rename per artifact, writing `out/.publish.json` as the intent trace and
+  `.dsh-ppt/trunk.json` as the record of what the trunk holds. `discard` removes a draft directory and
+  appends to `.dsh-ppt/versions/history.jsonl`; a draft that is the published trunk cannot be discarded.
+  `propose` prunes to the newest `PROPOSAL_KEEP` (10) versions and never prunes the trunk. The diff has
+  three modes over two references (`trunk`/`out` or an id): **semantic** canonicalises both packages and
+  attributes each slide the parts it owns through the relationship graph (added/removed/modified pages,
+  shape-count deltas, chart data versus formatting, parts outside every slide), **audit** diffs the
+  recorded findings, and **render** compares the page images per page as the share of differing pixels;
+  a mode without inputs on both sides is reported as skipped. `canonicalize` moved from
+  `tests/support/canonicalize.ts` to `src/bridge/canonical.ts` (the test-support file re-exports it) so
+  production code and the fixture gate share one implementation.
+- **Evidence.** 26 new tests: `src/bridge/worktree.test.ts` (9) covers registration, listing, the
+  publish copy and manifest rewrite, idempotent re-approval, trunk continuity across two approvals,
+  discard leaving `out/` untouched, refusing to discard the trunk, pruning, and an unreadable record;
+  `src/bridge/deck-diff.test.ts` (10) proves two exports of the same deck compare equal, a modified page
+  names its part and shape delta, added/removed pages, chart data versus formatting, a theme change
+  attributed to the page that depends on it, a shared part outside every slide, the audit delta, and
+  render rates (0.00 for identical pages, >0.40 for a half-black page, `onlyRight` for an extra page);
+  `src/commands/propose.test.ts` (7) covers the id guards, approve/discard through the commands, listing,
+  a trunk-versus-draft diff (page change, one added finding, render skipped), an unknown reference, and
+  a side without a package. The suite is 544 tests over 69 files; `pnpm fixtures:verify` and the CLI
+  surface test (which requires `--json` and a description on every leaf) stay green.
+- **Known limits.** Publishing is atomic per artifact, not across the whole set: a crash between renames
+  leaves `out/.publish.json` behind and can pair a new package with an older manifest, which is why the
+  intent file exists and the trunk record names the version that was published. Ownership of a part is
+  computed per page, so a theme change appears on every page that reaches it rather than as a single
+  global entry (the `globalParts` list holds only parts no page reaches). The render diff needs
+  snapshots on both sides (`propose --render`, or `renderpages` for the trunk). `approve` is a CLI action
+  in this change; the session tool that will call `propose` (C4) never calls it.
+- **Alternatives rejected:** a git worktree (the deck must not enter git); object-level diffs (we operate
+  on files, and the canonicalizer already answers the file question); moving the package instead of
+  copying it on approve (the version would lose the bytes its own diff compares); keeping only `out/`
+  and overwriting it per draft (that is the silent overwrite D3 forbids); auto-approving after a clean
+  audit (approval stays with the user); deleting a discarded draft without a history line (the
+  append-only log is what makes a removal explainable).

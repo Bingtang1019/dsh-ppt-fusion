@@ -27,6 +27,8 @@ import { postAnimate } from './commands/post.ts'
 import { narrate, narrationVoices } from './commands/narrate.ts'
 import { DEFAULT_MAX_PAGES, DEFAULT_MAX_PIXELS, engineOption, formatRenderPagesResult, positiveOption, renderPagesCommand, scaleOption } from './commands/renderpages.ts'
 import { formatTextMeasureResult, parseBoxOption, textMeasureCommand } from './commands/text-measure.ts'
+import { approveProposal, discardProposalById, listVersions, proposeDeck } from './commands/propose.ts'
+import { diffVersions } from './commands/diff.ts'
 import { COMPAT_LEVELS, asCompatLevel } from './compat/registry.ts'
 import { DshPptFailure, formatFailure } from './engine/errors.ts'
 import { formatFindings } from './audit.ts'
@@ -726,6 +728,106 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       else process.stdout.write(`${formatRenderPagesResult(result)}\n`)
     })
 
+  program
+    .command('propose')
+    .description('render into an isolated version directory and register it as a review draft (`out/` is untouched)')
+    .argument('<dir>', 'deck directory')
+    .option('--id <id>', 'fixed proposal id; defaults to a timestamped one')
+    .option('--message <text>', 'note recorded with the draft')
+    .option('--render', 'also snapshot the draft pages into <version>/pages')
+    .addOption(new Option('--engine <engine>', 'rasteriser used by --render').choices(['powerpoint', 'libreoffice', 'both']).default('both'))
+    .addOption(new Option('--scale <factor>', 'page scale used by --render').choices(['1', '2']).default('1'))
+    .option('--max-pages <n>', 'page ceiling per engine for --render', String(DEFAULT_MAX_PAGES))
+    .option('--max-pixels <n>', 'per-page pixel ceiling for --render', String(DEFAULT_MAX_PIXELS))
+    .option('--json', 'print the result as JSON')
+    .action(async (dir: string, options: { id?: string; message?: string; render?: boolean; engine: string; scale: string; maxPages: string; maxPixels: string; json?: boolean }) => {
+      const result = await proposeDeck({
+        dir,
+        engine: engineOption(options.engine),
+        scale: scaleOption(options.scale),
+        maxPages: positiveOption(Number(options.maxPages), '--max-pages'),
+        maxPixels: positiveOption(Number(options.maxPixels), '--max-pixels'),
+        render: options.render === true,
+        deps,
+        ...(options.id === undefined ? {} : { id: options.id }),
+        ...(options.message === undefined ? {} : { message: options.message }),
+      })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
+      process.stdout.write(`proposed ${result.view.id}: ${String(result.view.record.source.slides)} slide(s), sha256 ${result.view.record.source.sha256.slice(0, 12)}… -> ${result.view.record.files.pptx}\n`)
+      process.stdout.write('  out/ untouched; `dsh-ppt approve <dir> <id>` publishes it, `dsh-ppt discard <dir> <id>` removes it\n')
+      if (result.pruned.length > 0) process.stdout.write(`  pruned: ${result.pruned.join(', ')}\n`)
+      if (result.pages !== undefined) {
+        const engines = result.pages.engines.map((engine) => `${engine.engine} ${engine.status} ${String(engine.pages)}p`).join(', ')
+        process.stdout.write(`  pages: ${engines}${result.pages.skipped.length === 0 ? '' : ` (skipped ${result.pages.skipped.join('; ')})`}\n`)
+      }
+    })
+
+  program
+    .command('approve')
+    .description('publish one draft version into out/ (the only command that changes the trunk)')
+    .argument('<dir>', 'deck directory')
+    .argument('<id>', 'proposal id from `dsh-ppt versions`')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, id: string, options: { json?: boolean }) => {
+      const result = approveProposal({ dir, id, deps })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
+      process.stdout.write(`approved ${id}: ${result.trunk.file} (${String(result.trunk.bytes)} B, sha256 ${result.trunk.sha256.slice(0, 12)}…)\n`)
+    })
+
+  program
+    .command('discard')
+    .description('remove one draft version; the published trunk is never affected')
+    .argument('<dir>', 'deck directory')
+    .argument('<id>', 'proposal id from `dsh-ppt versions`')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, id: string, options: { json?: boolean }) => {
+      const result = discardProposalById({ dir, id, deps })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
+      process.stdout.write(`discarded ${id}${result.trunk === null ? ' (no trunk published yet)' : `; trunk stays ${result.trunk.id}`}\n`)
+    })
+
+  program
+    .command('versions')
+    .description('list the deck draft versions and the published trunk')
+    .argument('<dir>', 'deck directory')
+    .option('--json', 'print the result as JSON')
+    .action((dir: string, options: { json?: boolean }) => {
+      const result = listVersions({ dir, deps })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
+      process.stdout.write(`${result.formatted}\n`)
+      if (result.trunk !== null) process.stdout.write(`trunk: ${result.trunk.file} from ${result.trunk.id} (${result.trunk.at})\n`)
+    })
+
+  program
+    .command('diff')
+    .description('compare two versions, or a version against the trunk (semantic pages, audit findings, page images)')
+    .argument('<dir>', 'deck directory')
+    .argument('<left>', '`trunk`/`out` or a proposal id')
+    .argument('<right>', '`trunk`/`out` or a proposal id')
+    .option('--semantic', 'compare canonicalised pages only')
+    .option('--render', 'compare page snapshots only')
+    .option('--audit', 'compare recorded audit findings only')
+    .option('--json', 'print the result as JSON')
+    .action(async (dir: string, left: string, right: string, options: { semantic?: boolean; render?: boolean; audit?: boolean; json?: boolean }) => {
+      const result = await diffVersions({ dir, left, right, semantic: options.semantic === true, render: options.render === true, audit: options.audit === true, deps })
+      if (options.json === true) {
+        printJson(result)
+        return
+      }
+      process.stdout.write(`${result.summary}\n`)
+    })
   program
     .command('text-measure')
     .description('measure text with the engine\'s DrawingML estimator (single lines, or wrapped inside a box)')

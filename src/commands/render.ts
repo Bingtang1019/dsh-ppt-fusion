@@ -26,6 +26,12 @@ export interface RenderOptions {
   readonly dir: string
   /** Output pptx; resolved against the deck. Defaults to `<deck>/out/<name>.pptx`. */
   readonly output?: string
+  /**
+   * Deck-relative directory for `manifest.json` and `compat-report.json`; defaults
+   * to `out`. The worktree `propose` step renders into a version directory and
+   * needs those records beside the artifact they describe (ADR-086).
+   */
+  readonly manifestDir?: string
   /** `--compat` level; overrides the manifest's field, which overrides `standard`. */
   readonly compat?: CompatLevel
   /**
@@ -217,7 +223,7 @@ export async function renderDeck(options: RenderOptions): Promise<RenderResult> 
         }
   const backgroundPages: readonly BackgroundPage[] = chromePages.map((page) => ({ index: page.index, role: designRoleFor(page.role) }))
 
-  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps, design, backgroundPages, ...(designProfile === undefined ? {} : { profile: designProfile }) })
+  return finalize({ pkg, dir, stagedRoot, staged, postConfig, chrome, compat, output: options.output, manifestDir: options.manifestDir, name: context.deck.name, merge, postflight, runDelivery: deepIndices.length > 0, deps: options.deps, design, backgroundPages, ...(designProfile === undefined ? {} : { profile: designProfile }) })
 }
 
 /** Publish path, staged artifacts and the shared gate tail. */
@@ -230,6 +236,7 @@ async function finalize(input: {
   chrome: ChromeOptions | null
   compat: CompatChoice
   output: string | undefined
+  manifestDir: string | undefined
   name: string
   merge: MergeReport
   postflight: { deep?: PostflightReceipt }
@@ -295,6 +302,7 @@ async function finalize(input: {
     fs,
     dir,
     outputFile,
+    manifestDir: input.manifestDir,
     bytes,
     slides: countSlides(pkg),
     merge: input.merge,
@@ -376,6 +384,7 @@ function publish(input: {
   fs: CommandDependencies['fs']
   dir: string
   outputFile: string
+  manifestDir: string | undefined
   bytes: Buffer
   slides: number
   merge: MergeReport
@@ -391,16 +400,17 @@ function publish(input: {
   compat: { report: CompatReport; source: CompatChoice['source'] }
 }): RenderResult {
   const { fs, dir, outputFile, bytes } = input
-  fs.mkdirp(join(dir, 'out'))
+  const manifestDir = join(dir, input.manifestDir ?? 'out')
+  fs.mkdirp(manifestDir)
   const temporary = `${outputFile}.tmp`
   fs.writeBytes(temporary, bytes)
   fs.rename(temporary, outputFile)
   const sha256 = createHash('sha256').update(bytes).digest('hex')
-  const reportFile = join(dir, 'out', 'compat-report.json')
+  const reportFile = join(manifestDir, 'compat-report.json')
   fs.writeText(reportFile, serializeCompatReport(input.compat.report))
   const reportSha256 = compatReportHash(input.compat.report)
   fs.writeText(
-    join(dir, 'out', 'manifest.json'),
+    join(manifestDir, 'manifest.json'),
     toJsonDocument({
       name: outputFile.replace(/^.*[\\/]/, '').replace(/\.pptx$/, ''),
       file: outputFile.replace(dir, '').replace(/^[\\/]/, '').replace(/\\/g, '/'),

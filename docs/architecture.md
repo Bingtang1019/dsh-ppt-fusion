@@ -61,6 +61,9 @@ anything redistributed. `docs/licensing.md` is the release-time full/minimal che
 | `src/bridge/render-pages.ts` + `src/commands/renderpages.ts` (V10 A ✅) | page-image snapshots: the engine adapters (PowerPoint COM, LibreOffice Kit, soffice+pdftoppm), the hashed cache, per-engine manifests and `pages.json` | write outside the deck's `.dsh-ppt/render`, or rewrite the source deck |
 | `src/bridge/text-measure.ts` + `src/commands/text-measure.ts` (V10 A ✅) | pre-render text measurement over `ppt-master text-measure` (batched single lines, wrapped boxes, fits/overflow verdicts) | invent its own width estimator instead of using the engine's DrawingML one |
 | `dsh/review-tool.js` (V10 B ✅) | the `dsh_ppt_review` tool: cached `renderpages` snapshots → page attachments + rubric; validated `.dsh-ppt/review/review.json` records | draw pages itself, invent findings, or approve on the user's behalf |
+| `src/bridge/worktree.ts` (V10 C ✅) | the file-level review worktree: immutable proposal records, `status.json`, atomic publish into `out/`, the trunk record, prune and the append-only history | rewrite a published version in place, publish without a record, or touch `out/` from anything but `approve` |
+| `src/bridge/deck-diff.ts` + `src/bridge/canonical.ts` (V10 C ✅) | the three diff answers — canonicalised pages with per-page part ownership, recorded audit findings, page-image rates | invent a difference from producer metadata, or hide a missing input instead of reporting it as skipped |
+| `src/commands/propose.ts` + `src/commands/diff.ts` (V10 C ✅) | `propose` renders into a version directory, `approve`/`discard`/`versions`/`diff` read it | let a draft reach `out/` without an explicit approve, or approve from a model turn |
 
 ## Boundaries
 

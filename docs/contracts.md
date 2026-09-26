@@ -856,3 +856,43 @@ never approves: it writes records only when the model supplies them. Its precond
 contractual too — no attachment service, no resolvable model route, or a route that declares no
 `image` input each raise `image-input-unavailable`, and the run reports that no visual review
 happened instead of returning attachments it cannot hand over.
+## 26. Worktree versions, the trunk, and the diff (V10 Part C, ADR-086)
+
+A draft version lives in `<deck>/.dsh-ppt/versions/<proposalId>/`:
+
+```json
+// proposal.json — written once, never rewritten
+{
+  "schemaVersion": 1,
+  "id": "p-20260927-020304-abcdef",
+  "createdAt": "2026-09-27T02:03:04.000Z",
+  "message": "shorter title on page 3",
+  "source": { "file": ".dsh-ppt/versions/p-…/demo.pptx", "sha256": "…", "bytes": 93104, "slides": 12 },
+  "files": {
+    "pptx": ".dsh-ppt/versions/p-…/demo.pptx",
+    "manifest": ".dsh-ppt/versions/p-…/manifest.json",
+    "compat": ".dsh-ppt/versions/p-…/compat-report.json",
+    "audit": ".dsh-ppt/versions/p-…/audit.json",
+    "review": ".dsh-ppt/versions/p-…/review.json",
+    "pages": ".dsh-ppt/versions/p-…/pages"
+  }
+}
+```
+
+```json
+// status.json — the mutable half: lifecycle only
+{ "schemaVersion": 1, "status": "draft", "updatedAt": "…", "trunk": { "at": "…", "file": "out/demo.pptx", "sha256": "…" } }
+```
+
+Every path inside `files` is deck-relative; `approve` resolves it against the workspace and copies it into
+`out/` (the package as bytes, the manifest and compat report as text, with the manifest's `file` rewritten
+to `out/<name>.pptx`). `.dsh-ppt/trunk.json` records what the trunk holds
+(`{schemaVersion, id, at, file, sha256, bytes, slides}`), and `.dsh-ppt/versions/history.jsonl` appends one
+line per approval or discard. `PROPOSAL_KEEP` versions survive `propose`; the trunk is never pruned and
+never discarded.
+
+`dsh-ppt diff <dir> <left> <right>` accepts `trunk`, `out`, or a proposal id per side and reports what
+each requested mode could compare. Mode inputs are the package (semantic), the recorded findings (audit)
+and a page-image directory (render); a side missing one is named in `skipped` instead of being guessed at.
+The audit findings for the trunk come from the version it published, and are recomputed with `auditDeck`
+only when that version recorded none.

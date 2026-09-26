@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## Unreleased — worktree 审查工作台（V10 Part C）
+
+- **`dsh-ppt propose`（ADR-086）**：把一次渲染登记为隔离草稿 `.dsh-ppt/versions/<id>/`（包 + manifest + compat + 该草稿的
+  audit.json + review.json + 可选 `--render` 页图），**不写 `out/`**；草稿记录不可变，生命周期在 `status.json`。
+- **`dsh-ppt approve <dir> <id>`**：逐产物"临时文件 + rename"原子发布到 `out/`，写 `.dsh-ppt/trunk.json` 与
+  `.dsh-ppt/versions/history.jsonl`；trunk 版本不可 discard，草稿默认保留最近 10 个。
+- **`dsh-ppt discard <dir> <id>` / `versions <dir>`**：删草稿不留残卡、列出草稿与 trunk。
+- **`dsh-ppt diff <dir> <a> <b> [--semantic|--render|--audit]`**：T1 canonicalize 页级 part diff（新增/删除/修改页、
+  shape 计数、图表 data vs formatting、每页可达 part 归属）+ audit finding 增删 + 页图差异率；缺输入记 `skipped`。
+- `canonicalize` 从测试支持目录移入 `src/bridge/canonical.ts`（测试侧 re-export），生产与夹具门共用一份实现。
+- 会话审查卡（`dsh_ppt_propose` 工具）为 Part C 的 C4，尚未实现。
+
 ## v0.5.0 — 2026-09-26
 
 ### 新增（V10 Part A：渲染级 QA）

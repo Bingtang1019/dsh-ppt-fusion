@@ -446,6 +446,37 @@ that is wrapped against the box, and the report says whether it fits or overflow
 taller than it). `--size` is mandatory; `--family`/`--weight`/`--letter-spacing` mirror the
 authoring style, and `--line-height` defaults to `1.2 × size`. The measurement itself is
 deck-independent; `--dir` only chooses the workspace whose engine venv and log directory are used.
+## Implemented (V10 Part C)
+
+### `dsh-ppt propose <dir> [--id <id>] [--message <text>] [--render] [--engine both|powerpoint|libreoffice] [--scale 1|2] [--max-pages N] [--max-pixels N] [--json]`
+
+Render into an isolated version directory and register it as a review draft; `out/` is untouched. Writes
+`.dsh-ppt/versions/<id>/` with the package, `manifest.json`, `compat-report.json`, `audit.json` (for that
+draft), `review.json` when a review record exists, and `pages/` with `--render`. The id defaults to
+`p-YYYYMMDD-HHMMSS-xxxxxx`; older drafts beyond the newest ten are pruned, the published trunk never is.
+
+### `dsh-ppt approve <dir> <id>`
+
+Publish one draft into `out/` — the only command that changes the trunk — and record it in
+`.dsh-ppt/trunk.json`. Each artifact is copied to a sibling temporary file and renamed into place, so a
+crash leaves the old trunk or the new one, never a half-written package.
+
+### `dsh-ppt discard <dir> <id>`
+
+Remove a draft version; `out/` is never touched. A draft that is the published trunk is refused (render a
+new draft instead), and the removal is appended to `.dsh-ppt/versions/history.jsonl`.
+
+### `dsh-ppt versions <dir> [--json]`
+
+List the deck's drafts (id, status, created, slides, sha256, bytes, message) and the trunk record.
+
+### `dsh-ppt diff <dir> <left> <right> [--semantic] [--render] [--audit] [--json]`
+
+Compare two references — `trunk`/`out` or a proposal id. `--semantic` compares canonicalised pages part by
+part (added/removed/modified slides, shape-count deltas, chart data versus formatting, parts outside every
+slide); `--audit` diffs the recorded findings; `--render` compares page images as the share of differing
+pixels. With no mode flag all three run; a mode whose inputs are missing on a side is reported in `skipped`
+rather than guessed at (`--render` needs snapshots on both sides).
 ## JSON output
 
 Every leaf command accepts `--json` and prints one JSON document on stdout (exit codes are
