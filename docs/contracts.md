@@ -896,3 +896,19 @@ each requested mode could compare. Mode inputs are the package (semantic), the r
 and a page-image directory (render); a side missing one is named in `skipped` instead of being guessed at.
 The audit findings for the trunk come from the version it published, and are recomputed with `auditDeck`
 only when that version recorded none.
+
+### The review card (`dsh_ppt_propose`)
+
+The tool writes one payload to `<plugin home>/proposals/<id>.json` and returns
+`presentationMeta = { card: "dsh-ppt-propose", proposeId, payload }` plus a text result ending in
+`dsh-ppt-propose:<id>`. The payload carries `{schemaVersion, id, deck, deckName, message, createdAt,
+slides, sha256, pptx, trunk, pruned, diff: {summary, semantic: {summary, equal, pages, globalParts},
+audit: {summary, added, removed}, skipped}, pages: [{index, engine, path, url}], commands: {approve,
+discard, diff}, history: [{id, status, createdAt, message}]}`. Lists are capped
+(`PROPOSE_CARD_FINDINGS`, `PROPOSE_CARD_PAGES`) so a card cannot grow with the deck.
+
+The route serves `GET <PROPOSE_ROUTE>/<id>` (the payload) and `GET <PROPOSE_ROUTE>/<id>/page-<n>.png`
+(one draft page image) and stamps every answer with `x-dsh-ppt-propose: dsh-ppt-propose`. A missing
+payload is 404 `unknown-proposal`, a missing page 404 `unknown-page`, an id that is not
+`^[A-Za-z0-9._-]{1,64}$` is 400 `invalid-id`, and a page path outside a `.dsh-ppt/versions/` directory is
+refused rather than read.

@@ -35,11 +35,12 @@ interface FakeContext {
 }
 
 /** @returns the plugin module plus the registrations a fake context captured. */
-async function loadPlugin(): Promise<{ plugin: PluginModule; tools: ToolRegistration[]; skills: SkillRegistration[]; injected: string[][] }> {
+async function loadPlugin(): Promise<{ plugin: PluginModule; tools: ToolRegistration[]; skills: SkillRegistration[]; injected: string[][]; routes: string[] }> {
   const plugin = (await import(new URL('../../dsh/index.js', import.meta.url).href)) as PluginModule
   const tools: ToolRegistration[] = []
   const skills: SkillRegistration[] = []
   const injected: string[][] = []
+  const routes: string[] = []
   const ctx: FakeContext = {
     tools: { register: (tool) => tools.push(tool) },
     skills: { register: (skill) => skills.push(skill) },
@@ -53,25 +54,27 @@ async function loadPlugin(): Promise<{ plugin: PluginModule; tools: ToolRegistra
         closure({ tools: { register: (tool: ToolRegistration) => tools.push(tool) }, get: () => undefined })
         return
       }
-      closure({})
+      // The webServer closure gets a route recorder so both card routes register.
+      closure({ webServer: { register: (route: { path: string }) => routes.push(route.path) } })
     },
   }
   plugin.apply(ctx)
-  return { plugin, tools, skills, injected }
+  return { plugin, tools, skills, injected, routes }
 }
 
 describe('dsh plugin entry', () => {
   it('registers the preview and review tools plus the fusion skill', async () => {
-    const { plugin, tools, skills, injected } = await loadPlugin()
+    const { plugin, tools, skills, injected, routes } = await loadPlugin()
 
     expect(plugin.name).toBe('dsh-ppt-fusion')
     expect(plugin.inject).toEqual(['skills', 'tools'])
-    expect(tools.map((tool) => tool.name)).toEqual(['dsh_ppt_preview', 'dsh_ppt_review'])
+    expect(tools.map((tool) => tool.name)).toEqual(['dsh_ppt_preview', 'dsh_ppt_propose', 'dsh_ppt_review'])
     expect(skills).toHaveLength(1)
     expect(skills[0]?.name).toBe('dsh-ppt-fusion')
     expect(skills[0]?.source).toBe('bundled')
     expect(skills[0]?.resourceBase?.kind).toBe('directory')
     expect(injected).toEqual([['webServer'], ['attachments']])
+    expect(routes).toEqual(['/dsh-ppt/preview', '/dsh-ppt-propose'])
   })
 
   it('injects the CLI mapping and the vendored docs base into the skill body', async () => {

@@ -306,6 +306,29 @@ window.__ModuleLoader__.load({
       return text
     }
 
+    var PROPOSE_TOOL_NAME = 'dsh_ppt_propose'
+    var PROPOSE_ROUTE = '/dsh-ppt-propose'
+
+    /** The proposal id the worktree tool stamped into its own result text. */
+    function proposeIdOf(block) {
+      var m = /dsh-ppt-propose:([A-Za-z0-9._-]+)/.exec(resultTextOf(block))
+      return m ? m[1] : null
+    }
+
+    /**
+     * The card payload the host half put on `presentationMeta`, when this call ran
+     * top level. Code Mode sub-calls never get it, which is why the route exists.
+     */
+    function proposePayloadOf(block) {
+      if (!block) return null
+      var candidates = [block.meta, block.resultView, block.result && block.result.meta, block.presentationMeta]
+      for (var i = 0; i < candidates.length; i++) {
+        var c = candidates[i]
+        if (c && c.card === 'dsh-ppt-propose' && c.payload) return c
+      }
+      return null
+    }
+
     /** The preview id the tool stamped into its own result text. */
     function previewIdOf(block) {
       var m = /dsh-ppt-preview:([A-Za-z0-9-]+)/.exec(resultTextOf(block))
@@ -1329,6 +1352,191 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /**
+     * The proposal card: what the worktree tool put in a draft, and the two commands
+     * a person runs about it.
+     *
+     * It has no approve button on purpose. Approval is the one action that changes
+     * what the deck is, and the host half deliberately registers no tool that can
+     * take it (ADR-086); a card that offered one would hand the decision back to
+     * whoever can call a route. So the card prints the commands, and the same
+     * payload stays readable in the transcript after the process has gone.
+     */
+    function ProposeCard(react) {
+      var h = react.createElement
+      var useState = react.useState
+      var useEffect = react.useEffect
+
+      var COLORS = {
+        line: 'var(--dsw-alias-separator, rgba(127,127,127,0.28))',
+        dim: 'var(--dsw-alias-label-tertiary, rgba(127,127,127,0.85))',
+        text: 'var(--dsw-alias-label-primary, inherit)',
+        stage: 'var(--dsw-alias-fill-quaternary, rgba(127,127,127,0.12))',
+        bad: 'var(--dsw-alias-label-error, #c0392b)',
+      }
+
+      /** One finding line, shaped like the transcript's audit rows. */
+      function Finding(props) {
+        return h(
+          'div',
+          { style: { display: 'flex', gap: 6, fontSize: 12, color: props.level === 'error' ? COLORS.bad : COLORS.dim } },
+          h('span', { style: { fontWeight: 600 } }, (props.sign || '') + (props.page === null ? 'all' : 'p' + props.page)),
+          h('span', null, props.rule),
+          h('span', { style: { color: COLORS.dim } }, props.message),
+        )
+      }
+
+      /** The diff body: what changed, what the audit gained or lost, what could not run. */
+      function DiffBody(props) {
+        var diff = props.diff || {}
+        var semantic = diff.semantic
+        var audit = diff.audit
+        return h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          h('div', { style: { fontSize: 12, fontWeight: 600, color: COLORS.text } }, diff.summary || 'no diff recorded'),
+          semantic && semantic.pages && semantic.pages.length > 0
+            ? h(
+                'div',
+                { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+                semantic.pages.map(function (page) {
+                  return h(
+                    'div',
+                    { key: 'p' + page.index, style: { fontSize: 12, color: COLORS.dim } },
+                    h('span', { style: { color: COLORS.text, fontWeight: 600 } }, 'page ' + page.index + ' ' + page.status),
+                    page.changedParts && page.changedParts.length > 0 ? ' · ' + page.changedParts.join(', ') : '',
+                    page.notes && page.notes.length > 0 ? ' · ' + page.notes.join('; ') : '',
+                  )
+                }),
+              )
+            : null,
+          semantic && semantic.globalParts && semantic.globalParts.length > 0
+            ? h('div', { style: { fontSize: 12, color: COLORS.dim } }, 'shared parts: ' + semantic.globalParts.join(', '))
+            : null,
+          audit && (audit.added.length > 0 || audit.removed.length > 0)
+            ? h(
+                'div',
+                { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+                audit.added.map(function (finding, index) {
+                  return h(Finding, { key: 'a' + index, sign: '+ ', page: finding.page, level: finding.level, rule: finding.rule, message: finding.message })
+                }),
+                audit.removed.map(function (finding, index) {
+                  return h(Finding, { key: 'r' + index, sign: '- ', page: finding.page, level: 'info', rule: finding.rule, message: finding.message })
+                }),
+              )
+            : null,
+          diff.skipped && diff.skipped.length > 0
+            ? h('div', { style: { fontSize: 11, color: COLORS.dim } }, 'not compared: ' + diff.skipped.join('; '))
+            : null,
+        )
+      }
+
+      return function DshPptProposeCard(props) {
+        var block = props && (props.block || props.call || props)
+        var id = proposeIdOf(block)
+        var meta = proposePayloadOf(block)
+        var fetched = useState(null)
+        var payload = fetched[0]
+        var setPayload = fetched[1]
+        var failure = useState(null)
+        var error = failure[0]
+        var setError = failure[1]
+
+        useEffect(
+          function () {
+            if (payload || meta || !id) return undefined
+            var live = true
+            fetch(PROPOSE_ROUTE + '/' + id)
+              .then(function (response) {
+                if (!response.ok) throw new Error('the draft payload is gone (' + response.status + ')')
+                return response.json()
+              })
+              .then(function (body) {
+                if (live) setPayload(body)
+              })
+              .catch(function (problem) {
+                if (live) setError(problem && problem.message ? problem.message : String(problem))
+              })
+            return function () {
+              live = false
+            }
+          },
+          [id, meta, payload],
+        )
+
+        if (!id && !meta) return null
+        var card = meta && meta.payload ? meta.payload : payload
+        var title = card ? card.deckName || card.deck || 'deck' : 'draft'
+        return h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: 8, padding: '2px 0 6px' } },
+          h(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: COLORS.dim, flexWrap: 'wrap' } },
+            h('span', { style: { color: COLORS.text, fontWeight: 600 } }, title),
+            h(
+              'span',
+              {
+                style: {
+                  border: '1px solid ' + COLORS.line,
+                  borderRadius: 5,
+                  padding: '0 6px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  fontSize: 10,
+                  letterSpacing: '0.04em',
+                },
+              },
+              'draft',
+            ),
+            card ? h('span', null, card.slides + ' pages') : null,
+            card && card.sha256 ? h('span', null, card.sha256.slice(0, 12) + '…') : null,
+            h('span', null, id),
+          ),
+          card && card.message ? h('div', { style: { fontSize: 12, color: COLORS.dim } }, card.message) : null,
+          error ? h('div', { style: { fontSize: 12, color: COLORS.bad } }, error) : null,
+          !card && !error ? h('div', { style: { fontSize: 12, color: COLORS.dim } }, 'reading the draft record…') : null,
+          card ? h(DiffBody, { diff: card.diff }) : null,
+          card && card.pages && card.pages.length > 0
+            ? h(
+                'div',
+                { style: { display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 0' } },
+                card.pages.map(function (page) {
+                  return h('img', {
+                    key: 'i' + page.index,
+                    src: page.url,
+                    alt: 'page ' + page.index,
+                    style: { height: 76, border: '1px solid ' + COLORS.line, borderRadius: 6, background: COLORS.stage },
+                  })
+                }),
+              )
+            : h('div', { style: { fontSize: 11, color: COLORS.dim } }, 'no page snapshots for this draft (propose ran without render)'),
+          card
+            ? h(
+                'div',
+                { style: { display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, background: COLORS.stage, borderRadius: 6, padding: '8px 10px' } },
+                h('div', { style: { color: COLORS.dim } }, 'a person runs these — this card cannot approve a draft'),
+                h('code', { style: { color: COLORS.text } }, card.commands.approve),
+                h('code', { style: { color: COLORS.text } }, card.commands.discard),
+              )
+            : null,
+          card && card.history && card.history.length > 1
+            ? h(
+                'details',
+                { style: { fontSize: 11, color: COLORS.dim } },
+                h('summary', null, card.history.length + ' drafts in this deck\u2019s history'),
+                h(
+                  'div',
+                  { style: { display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 } },
+                  card.history.map(function (entry) {
+                    return h('div', { key: entry.id }, entry.id + ' · ' + entry.status + ' · ' + (entry.createdAt || ''))
+                  }),
+                ),
+              )
+            : null,
+        )
+      }
+    }
     function registerCard(ctx) {
       // `slots` is a declared dependency (see `exports.inject` below), so
       // cordis does not apply this plugin until the service exists. The guard
@@ -1349,8 +1557,10 @@ window.__ModuleLoader__.load({
         return
       }
       var Card = PreviewCard(react)
+      var ProposalCard = ProposeCard(react)
       ctx.slots.inject('tool.call.toolview', function* () {
         yield ctx.slots.register({ name: 'tool.call.toolview', key: TOOL_NAME }, Card)
+        yield ctx.slots.register({ name: 'tool.call.toolview', key: PROPOSE_TOOL_NAME }, ProposalCard)
       })
     }
 
@@ -1393,6 +1603,10 @@ window.__ModuleLoader__.load({
       previewBundleUrl: previewBundleUrl,
       STRIP_PAGES: STRIP_PAGES,
       TOOL_NAME: TOOL_NAME,
+      PROPOSE_TOOL_NAME: PROPOSE_TOOL_NAME,
+      PROPOSE_ROUTE: PROPOSE_ROUTE,
+      proposeIdOf: proposeIdOf,
+      proposePayloadOf: proposePayloadOf,
     }
     return module.exports
   },

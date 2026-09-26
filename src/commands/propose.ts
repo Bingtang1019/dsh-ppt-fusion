@@ -61,7 +61,7 @@ export interface ProposeResult {
   /** Older drafts this call pruned. */
   readonly pruned: readonly string[]
   /** Page snapshot report when `--render` ran. */
-  readonly pages?: { readonly engines: readonly { readonly engine: string; readonly status: string; readonly pages: number }[]; readonly skipped: readonly string[] }
+  readonly pages?: { readonly engines: readonly { readonly engine: string; readonly status: string; readonly pages: readonly { readonly index: number; readonly file: string }[] }[]; readonly skipped: readonly string[] }
 }
 
 /** The recorded audit of one version. */
@@ -141,7 +141,9 @@ export async function proposeDeck(options: ProposeOptions): Promise<ProposeResul
       deps: options.deps,
     } satisfies RenderPagesCommandOptions)
     pages = {
-      engines: report.engines.map((engine) => ({ engine: engine.engine, status: engine.status, pages: engine.pages.length })),
+      // The entries, not just the count: the session card serves these files by index,
+      // and a count only tells it how many thumbnails it cannot draw.
+      engines: report.engines.map((engine) => ({ engine: engine.engine, status: engine.status, pages: engine.pages.map((page) => ({ index: page.index, file: page.file })) })),
       skipped: report.skipped,
     }
   }

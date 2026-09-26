@@ -64,6 +64,7 @@ Runs after the phase-6 render; the default is `pixel`:
 - **`model` (look before you change)**: on top of pixel, call `dsh_ppt_review`, which hands the page images to the model as attachments; apply the rubric page by page (off-page, overflow, contrast, density, narrative) and record the findings by calling the same tool with `findings`, which writes `.dsh-ppt/review/review.json`. When the tool answers `image-input-unavailable`, record that the visual review did not run — never pretend to have looked.
 - **Convergence**: at most two rounds (`review.maxRounds`); anything still open goes to the user as BLOCKING. Never approve on the user's behalf.
 - **`subagent` (optional)**: dispatch an independent critic over the same rubric and mark disagreements as `critic-disagrees`; off by default.
+- **Worktree before delivery (`dsh_ppt_propose`)**: to change a deck that is already shipped, register this render as a draft with that tool and open the session review card (diff trunk vs draft, page thumbnails, approve/discard commands). The model must not approve — approve/discard are user actions (`dsh-ppt approve` / `dsh-ppt discard`).
 ## 6. Phase 6 · Render and post
 - `dsh-ppt render <dir> [-o out.pptx] [--compat safe|standard|max]`: base → deep → merge (single master) → post (the only motion owner) → compat → structural/delivery gates → atomic publish plus `out/manifest.json`/`compat-report.json`.
 - Motion: `post/animations.json` supports `transition` plus `entrance`/`emphasis`/`path` (played in that order); a selector that matches nothing fails the render.

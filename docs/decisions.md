@@ -2609,3 +2609,17 @@ the ADR wins.**
   and overwriting it per draft (that is the silent overwrite D3 forbids); auto-approving after a clean
   audit (approval stays with the user); deleting a discarded draft without a history line (the
   append-only log is what makes a removal explainable).
+
+  **Update (2026-09-27): the session card landed (C4).** `dsh_ppt_propose` runs `propose`, asks for
+  `diff trunk <id>`, reads `versions --json` for the deck's draft history, and writes one card payload to
+  `<plugin home>/proposals/<id>.json`; the tool's text result carries a `dsh-ppt-propose:<id>` marker and
+  `presentationMeta` carries the payload, so the card works both top-level (meta) and under Code Mode
+  (the route). The plugin registers `/dsh-ppt-propose/<id>` (payload JSON) and
+  `/dsh-ppt-propose/<id>/page-N.png` (a draft page image) inside the same `webServer` scope as the
+  preview route, stamping every answer with `x-dsh-ppt-propose` so the card can tell this route's 404
+  from a proxy's. The card prints the approve and discard commands and says who runs them; the tool has
+  no approve parameter and never calls the command, which is D3 made structural rather than promised.
+  Draft history is folded into one `<details>` row set, and `pages` come from the draft's own
+  `--render` snapshots (at most eight). Evidence: `tests/plugin/propose-tool.test.ts` (5) covers the
+  payload and marker, the payload route, page images, unknown id and page, the render-off case, a failing
+  CLI, and id validation; `tests/plugin/plugin.test.ts` asserts the third tool and both card routes.

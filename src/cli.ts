@@ -760,7 +760,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
       process.stdout.write('  out/ untouched; `dsh-ppt approve <dir> <id>` publishes it, `dsh-ppt discard <dir> <id>` removes it\n')
       if (result.pruned.length > 0) process.stdout.write(`  pruned: ${result.pruned.join(', ')}\n`)
       if (result.pages !== undefined) {
-        const engines = result.pages.engines.map((engine) => `${engine.engine} ${engine.status} ${String(engine.pages)}p`).join(', ')
+        const engines = result.pages.engines.map((engine) => `${engine.engine} ${engine.status} ${String(engine.pages.length)}p`).join(', ')
         process.stdout.write(`  pages: ${engines}${result.pages.skipped.length === 0 ? '' : ` (skipped ${result.pages.skipped.join('; ')})`}\n`)
       }
     })

@@ -10,7 +10,11 @@
 - **`dsh-ppt diff <dir> <a> <b> [--semantic|--render|--audit]`**：T1 canonicalize 页级 part diff（新增/删除/修改页、
   shape 计数、图表 data vs formatting、每页可达 part 归属）+ audit finding 增删 + 页图差异率；缺输入记 `skipped`。
 - `canonicalize` 从测试支持目录移入 `src/bridge/canonical.ts`（测试侧 re-export），生产与夹具门共用一份实现。
-- 会话审查卡（`dsh_ppt_propose` 工具）为 Part C 的 C4，尚未实现。
+- **`dsh_ppt_propose` 会话审查卡（C4）**：工具跑 `propose` + `diff trunk <id>` + `versions`，把卡片 payload 落到插件 home；
+  文本带 `dsh-ppt-propose:<id>` 标记、`presentationMeta.card = "dsh-ppt-propose"`；路由 `/dsh-ppt-propose/<id>`（payload）与
+  `/dsh-ppt-propose/<id>/page-N.png`（草稿页图）随预览路由同 scope 注册并带 `x-dsh-ppt-propose` 戳；卡片展示 diff 摘要、
+  页面变化、finding 增删、缩略图与**由人执行的 approve/discard 命令**（工具没有 approve 参数、也从不调用），历史折叠。
+- 会话卡片的浏览器半在 `dsh/client.js`（第二个 toolview：`dsh_ppt_propose`），宿主半在 `dsh/propose-tool.js`。
 
 ## v0.5.0 — 2026-09-26
 

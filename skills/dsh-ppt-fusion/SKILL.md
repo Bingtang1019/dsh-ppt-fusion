@@ -64,6 +64,7 @@ description: 用 DSH-native 前端（pptwise）+ 原生 DrawingML 深度引擎�
 - **`model`（先看后改）**：在 pixel 之上调用 `dsh_ppt_review`（把页图作为图片附件给模型），按 rubric 逐页找 off-page / overflow / contrast / 密度 / 叙事问题，再用同工具带 `findings` 写入 `.dsh-ppt/review/review.json`。工具报 `image-input-unavailable` 时如实记录"视觉自评未运行"，**不得假装看过图**。
 - **收敛**：最多 2 轮（`review.maxRounds`）；未收敛就把剩余 findings 交用户 BLOCKING，**不要自行 approve**（approve 只归用户）。
 - **`subagent`（可选）**：可派独立子代理跑同一 rubric，冲突项标 `critic-disagrees`，默认关闭。
+- **交付前的工作树（`dsh_ppt_propose`）**：要改已交付的 deck 时，用该工具把这一版登记成草稿并开会话审查卡（diff trunk ↔ 草稿 + 页缩略图 + approve/discard 命令）；**模型不得 approve**——approve/discard 只由用户执行 `dsh-ppt approve/discard`。
 ## 6. 相位 6 · 渲染与后处理
 - `dsh-ppt render <dir> [-o out.pptx] [--compat safe|standard|max]`：base → deep → merge（单一母版）→ post（动画唯一 owner）→ compat → 结构/交付门 → 原子发布 + `out/manifest.json`/`compat-report.json`。
 - 动画：`post/animations.json` 支持 `transition` 与 `entrance`/`emphasis`/`path`（顺序 entrance → emphasis → path）；selector 匹配不到是硬失败。

@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createPreviewService, TOOL_NAME } from './preview-tool.js'
 import { REVIEW_TOOL_NAME, createReviewService } from './review-tool.js'
+import { PROPOSE_TOOL_NAME, createProposeService } from './propose-tool.js'
 
 const SKILL_FILE_URL = new URL('../skills/dsh-ppt-fusion/SKILL.md', import.meta.url)
 const SKILL_DIR = fileURLToPath(new URL('../skills/dsh-ppt-fusion/', import.meta.url))
@@ -25,7 +26,7 @@ export const inject = ['skills', 'tools']
 
 export const SKILL_NAME = 'dsh-ppt-fusion'
 export const PREVIEW_TOOL_NAME = TOOL_NAME
-export { REVIEW_TOOL_NAME }
+export { REVIEW_TOOL_NAME, PROPOSE_TOOL_NAME }
 
 /**
  * Split SKILL.md into { description, body }.
@@ -112,11 +113,22 @@ export function apply(ctx) {
   // it rides a scoped `ctx.inject`: the closure runs when the service appears
   // and never runs where it does not, leaving headless untouched.
   if (typeof ctx.inject === 'function') {
+    const propose = createProposeService(CLI_PATH)
+    try {
+      ctx.tools.register(propose.tool)
+    } catch (error) {
+      console.error(`[dsh-ppt-fusion] propose tool registration skipped: ${error}`)
+    }
     ctx.inject(['webServer'], (scope) => {
       try {
         preview.registerRoute(scope)
       } catch (error) {
         console.error(`[dsh-ppt-fusion] preview route skipped: ${error}`)
+      }
+      try {
+        propose.registerRoute(scope)
+      } catch (error) {
+        console.error(`[dsh-ppt-fusion] propose route skipped: ${error}`)
       }
     })
     // The review tool exists only where the deployment can show images to the
