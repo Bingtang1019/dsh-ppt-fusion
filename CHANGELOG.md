@@ -35,6 +35,10 @@
 - **场景 rubric 覆盖 v0.6.0 面（Part F2 一半）**：新增 `worktree`（error，草稿记录与 trunk/out 一致）、`review-record`（warning，
   `review.json` 形态与 severity 合法）、`render-snapshots`（warning，`pages.json` 指向的页文件存在）三条检查；`observeDeck` 收集
   这些事实，`fixtures/scenarios/rubric.json` 同步目录。
+- **0.1.7 实体 runtime 四场景重跑（F2 实测，2026-09-27）**：topic-only / doc-to-deck / branded-template 三场景 17/17 通过；
+  reference-quality 16/17，唯一失败为 `design-profile` 的 `design-background-mode`（profile 声明 photo 背景，交付为纯色）。
+  测具修复：Windows 安装版 `dsh.cmd` 需经 `cmd.exe /d /s /c` 启动；session 日志 `session.v4.jsonl.zstd` 命名下指标读取为 0，
+  `--rejudge` 现从 attempt 目录重推导 metrics。
 
 ## v0.5.0 — 2026-09-26
 

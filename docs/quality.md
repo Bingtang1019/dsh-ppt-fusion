@@ -85,3 +85,24 @@ the P2 wording ("text hidden behind the cards") is **not** reproducible in
 PowerPoint or LibreOffice — both render the toc title and card texts inside their
 cards (see ADR-082's evidence), so the remaining P2 score needs a fresh look with
 the user.
+## v0.6.0 实测基线：0.1.7 上四场景重跑（2026-09-27，F2）
+
+环境：DSH **0.1.7-rc.2**（安装 runtime，`dsh.cmd`），headless profile，每场景 **1 次尝试**，模型 key 来自
+`~/.dsh/.credentials.yaml`。四场景合计约 100 分钟（topic-only 27 min、doc-to-deck 与 branded-template 各约 20 min、
+reference-quality 约 31 min）。
+
+| 场景 | 结果 | 页数 | 说明 |
+|---|---|---|---|
+| topic-only | **PASS 17/17** | 5 | 首次通过 |
+| doc-to-deck | **PASS 17/17** | 6 | 原生图表 + 表格齐全 |
+| branded-template | **PASS 17/17** | 4 | 品牌主题绑定通过 |
+| reference-quality | **FAIL 16/17** | 12 | 唯一失败项 `design-profile`：`design-background-mode: background images are flat but the profile says photo; the flat colour stays until the mode's asset is attached` |
+
+`reference-quality` 的失败是**交付门失败而非测具失败**：该 deck 的 design profile 声明 `photo` 背景模式，这次生成用纯色背景
+把页面交付了，profile 审计因此报一条 design error（其余 16 条检查全绿：单母版、页页有文字、原生图表/表格、chrome、
+storyboard、role-layout、budget、渲染与 worktree 记录一致）。2026-09-24 的 S27 记录中该场景首次尝试即通过，因此这次是
+**模型侧方差**（背景资产未接上）而不是 C/D/E 引入的回归——C/D/E 只动审查工作台、右侧栏 viewer 与素材缓存。
+
+测具侧在本次重跑中修了两处并加了单测：Windows 上安装版 launcher 需经 `cmd.exe /d /s /c` 启动（`spawnSync dsh.cmd`
+直接报 EINVAL），以及 session 日志名带格式版本（`session.v4.jsonl.zstd`）导致 turns/toolCalls 全为 0；`--rejudge`
+现在会从 attempt 目录重新推导这些指标。

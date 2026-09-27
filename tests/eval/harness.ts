@@ -322,12 +322,27 @@ function resolveAgentLaunch(root: string, launcher: string, patch: string, task:
       env,
     }
   }
-  return {
-    command: process.platform === 'win32' ? 'dsh.cmd' : 'dsh',
-    args: ['--profile', 'headless', '--patch', patch, task],
-    cwd: workspace,
-    env,
+  const installedArgs = ['--profile', 'headless', '--patch', patch, task]
+  if (process.platform === 'win32') {
+    // `spawnSync` cannot execute a `.cmd` directly on Windows (it fails with EINVAL),
+    // so the installed launcher runs through `cmd.exe /d /s /c` with each argument
+    // quoted: without the quoting a task containing `|`, `(`, `)` or a space would be
+    // split into operators and extra arguments.
+    const line = ['dsh.cmd', ...installedArgs].map(quoteForCmd).join(' ')
+    return { command: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/s', '/c', line], cwd: workspace, env }
   }
+  return { command: 'dsh', args: installedArgs, cwd: workspace, env }
+}
+
+/**
+ * @param value - one argv element for the Windows launcher.
+ * @returns the element, quoted when `cmd.exe` would otherwise interpret it.
+ * @throws Error when the element contains a double quote, which `cmd.exe` cannot
+ *   carry through this form; a scenario task would have to be rewritten.
+ */
+export function quoteForCmd(value: string): string {
+  if (value.includes('"')) throw new Error(`the Windows launcher cannot pass an argument containing a double quote: ${value.slice(0, 60)}`)
+  return /[\s^&|<>()%!]/.test(value) ? `"${value}"` : value
 }
 
 /** @returns the credential environment the headless profile needs, when it is not already exported. */
@@ -416,7 +431,15 @@ export function readSessionMetrics(home: string): SessionMetrics {
   }
 }
 
-/** @returns the newest session log under `dir`, or null. */
+/**
+ * @param dir - the attempt's sessions directory.
+ * @returns the newest session log under `dir`, or null.
+ *
+ * The log's name carries the session-format version (`session.v4.jsonl.zstd` on the
+ * 0.1.7 line), so matching the two exact names the earlier line wrote left every
+ * metric at zero. The extension is what identifies a log; the modification time is
+ * what picks the newest, because a run can leave more than one behind.
+ */
 function findSessionLog(dir: string): string | null {
   if (!existsSync(dir)) return null
   const found: string[] = []
@@ -424,11 +447,11 @@ function findSessionLog(dir: string): string | null {
     for (const name of readdirSync(current)) {
       const path = join(current, name)
       if (statSync(path).isDirectory()) walk(path)
-      else if (name === 'session.jsonl' || name === 'session.jsonl.zstd') found.push(path)
+      else if (/^session.*\.jsonl(\.zstd)?$/u.test(name)) found.push(path)
     }
   }
   walk(dir)
-  found.sort()
+  found.sort((left, right) => statSync(left).mtimeMs - statSync(right).mtimeMs)
   return found[found.length - 1] ?? null
 }
 
@@ -746,12 +769,18 @@ export function rejudgeReport(root: string): { json: string; markdown: string; s
     const normalized = attempts.map((attempt) => {
       const record = attempt as { attempt?: number; checks?: readonly RubricCheckResult[]; infrastructure?: unknown; metrics?: SessionMetrics }
       const checks = (record.checks ?? []).map((check) => ({ ...check, level: check.level ?? CHECK_SEVERITY[check.id as CheckId] ?? 'error' }))
-      const stderrFile = join(root, EVAL_DIR, String(entry.name), `attempt-${String(record.attempt ?? 0)}`, 'agent.stderr.txt')
+      const attemptDir = join(root, EVAL_DIR, String(entry.name), `attempt-${String(record.attempt ?? 0)}`)
+      const stderrFile = join(attemptDir, 'agent.stderr.txt')
+      // Rejudging re-derives what is still on disk: the session log carries the turn
+      // and tool metrics, so a reader fix reaches attempts that already ran instead of
+      // forcing another model run to fill the numbers in.
+      const home = join(attemptDir, 'home')
+      const metrics = existsSync(home) ? readSessionMetrics(home) : (record.metrics ?? emptyMetrics(null))
       const infrastructure =
         typeof record.infrastructure === 'string'
           ? record.infrastructure
-          : detectInfrastructure(existsSync(stderrFile) ? readFileSync(stderrFile, 'utf8') : '', record.metrics ?? emptyMetrics(null))
-      return { ...record, checks, infrastructure, passed: attemptPassed(checks) }
+          : detectInfrastructure(existsSync(stderrFile) ? readFileSync(stderrFile, 'utf8') : '', metrics)
+      return { ...record, metrics, checks, infrastructure, passed: attemptPassed(checks) }
     })
     return { ...entry, attempts: normalized, passed: normalized.some((attempt) => attempt.passed) }
   })
