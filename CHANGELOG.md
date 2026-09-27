@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## Unreleased — worktree 审查工作台（V10 Part C）
+## v0.6.0 — 2026-09-27
+
+审查工作台（V10 Part C/D/E）：渲染产物先进隔离草稿，用户 approve 才发布到 `out/`；同一天落地文件树右侧栏
+`.pptx` viewer 与素材缓存/发现缓存；场景 rubric 增加 worktree / review / 快照三条检查。
+
 
 - **`dsh-ppt propose`（ADR-086）**：把一次渲染登记为隔离草稿 `.dsh-ppt/versions/<id>/`（包 + manifest + compat + 该草稿的
   audit.json + review.json + 可选 `--render` 页图），**不写 `out/`**；草稿记录不可变，生命周期在 `status.json`。
