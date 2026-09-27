@@ -28,6 +28,9 @@
   `assets discover --cache-dir [--force]` 复用 `office-discovery.json`，`--force` 重扫。
 - **`images search` / `images generate --timeout <ms>`（Part E）**：覆盖引擎调用的子进程超时，超时以引擎自身的
   `EngineTimeout` 报出具体毫秒数；下载与搜索仍在 ppt-master 引擎内完成。
+- **场景 rubric 覆盖 v0.6.0 面（Part F2 一半）**：新增 `worktree`（error，草稿记录与 trunk/out 一致）、`review-record`（warning，
+  `review.json` 形态与 severity 合法）、`render-snapshots`（warning，`pages.json` 指向的页文件存在）三条检查；`observeDeck` 收集
+  这些事实，`fixtures/scenarios/rubric.json` 同步目录。
 
 ## v0.5.0 — 2026-09-26
 

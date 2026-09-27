@@ -70,6 +70,21 @@
       "id": "design-profile",
       "description": "`audit --profile` reports no error-level `design-*` finding against the deck's design profile",
       "severity": "error"
+    },
+    {
+      "id": "worktree",
+      "description": "every draft under `.dsh-ppt/versions/` is readable and `.dsh-ppt/trunk.json` agrees with the published `out/` package",
+      "severity": "error"
+    },
+    {
+      "id": "review-record",
+      "description": "`.dsh-ppt/review/review.json`, when present, parses and carries schemaVersion 1 with valid severities",
+      "severity": "warning"
+    },
+    {
+      "id": "render-snapshots",
+      "description": "`.dsh-ppt/render/pages.json`, when present, names page files that exist under the snapshot directory",
+      "severity": "warning"
     }
   ],
   "metrics": [

@@ -37,6 +37,10 @@ const good: DeckObservation = {
   chromeProblems: [],
   designProfileOk: true,
   designProfileProblems: [],
+  proposalCount: 0,
+  worktreeProblems: [],
+  reviewProblems: [],
+  renderSnapshotProblems: [],
 }
 
 /** @returns the check with `id`, or undefined. */
@@ -133,5 +137,27 @@ describe('evaluateRubric', () => {
     const drift = check({ ...good, designProfileOk: false, designProfileProblems: ['design-role-title-font: content title is 45 pt but the profile says 36 ±1 pt'] }, strict, 'design-profile')
     expect(drift?.passed).toBe(false)
     expect(drift?.message).toContain('45 pt')
+  })
+})
+describe('v0.6.0 process checks', () => {
+  it('fails the worktree check when a trunk record disagrees with the package', () => {
+    const result = check({ ...good, proposalCount: 1, worktreeProblems: ['trunk.json sha256 disagrees with the published package'] }, strict, 'worktree')
+    expect(result?.passed).toBe(false)
+    expect(result?.level).toBe('error')
+    expect(result?.message).toContain('disagrees')
+  })
+
+  it('passes the worktree check for a deck that never used the worktree', () => {
+    expect(check(good, strict, 'worktree')?.passed).toBe(true)
+    expect(check(good, strict, 'worktree')?.message).toContain('0 draft(s)')
+  })
+
+  it('reports a malformed review record and a missing snapshot page as warnings', () => {
+    const review = check({ ...good, reviewProblems: ['review.json severity "fatal" is not error/warning/info'] }, strict, 'review-record')
+    expect(review?.passed).toBe(false)
+    expect(review?.level).toBe('warning')
+    const snapshots = check({ ...good, renderSnapshotProblems: ['libreoffice: page-0004.png is missing'] }, strict, 'render-snapshots')
+    expect(snapshots?.passed).toBe(false)
+    expect(snapshots?.level).toBe('warning')
   })
 })

@@ -6,6 +6,7 @@
  * session log, inspecting the package) and keeps the pass/fail rules in
  * `rubric.ts`. It is a development tool: nothing here is imported by the package.
  */
+import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -567,6 +568,64 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
     }
   }
 
+  // V10 Part C/D: the worktree, the review record and the snapshot index are records
+  // *about* the deck. The eval reads them the way the commands do — parse, then check
+  // the files they name — so a report cannot claim a draft that was never written.
+  const versionsDir = join(deckDir, '.dsh-ppt', 'versions')
+  const worktreeProblems: string[] = []
+  let proposalCount = 0
+  if (existsSync(versionsDir)) {
+    for (const entry of readdirSync(versionsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const record = readJson(join(versionsDir, entry.name, 'proposal.json')) as { files?: { pptx?: unknown } } | null
+      if (record === null) {
+        worktreeProblems.push(`${entry.name}: proposal.json is missing or unparsable`)
+        continue
+      }
+      proposalCount += 1
+      const pptx = typeof record.files?.pptx === 'string' ? join(deckDir, record.files.pptx) : null
+      if (pptx === null || !existsSync(pptx)) worktreeProblems.push(`${entry.name}: the recorded package is missing`)
+      const status = readJson(join(versionsDir, entry.name, 'status.json')) as { status?: unknown } | null
+      if (status === null || typeof status.status !== 'string') worktreeProblems.push(`${entry.name}: status.json is missing or unparsable`)
+    }
+  }
+  const trunk = readJson(join(deckDir, '.dsh-ppt', 'trunk.json')) as { file?: unknown; sha256?: unknown } | null
+  if (trunk !== null) {
+    const file = typeof trunk.file === 'string' ? join(deckDir, trunk.file) : null
+    if (file === null || !existsSync(file)) worktreeProblems.push('trunk.json names a package that is not on disk')
+    else if (typeof trunk.sha256 === 'string' && createHash('sha256').update(readFileSync(file)).digest('hex') !== trunk.sha256) worktreeProblems.push('trunk.json sha256 disagrees with the published package')
+  }
+  const reviewProblems: string[] = []
+  const reviewFile = join(deckDir, '.dsh-ppt', 'review', 'review.json')
+  if (existsSync(reviewFile)) {
+    const review = readJson(reviewFile) as { schemaVersion?: unknown; findings?: unknown } | null
+    if (review === null) reviewProblems.push('review.json is not JSON')
+    else {
+      if (review.schemaVersion !== 1) reviewProblems.push(`review.json schemaVersion is ${String(review.schemaVersion)}`)
+      if (!Array.isArray(review.findings)) reviewProblems.push('review.json has no findings array')
+      else {
+        for (const finding of review.findings as { severity?: unknown }[]) {
+          if (!['error', 'warning', 'info'].includes(String(finding?.severity))) reviewProblems.push(`review.json severity "${String(finding?.severity)}" is not error/warning/info`)
+        }
+      }
+    }
+  }
+  const renderSnapshotProblems: string[] = []
+  const pagesIndex = join(deckDir, '.dsh-ppt', 'render', 'pages.json')
+  if (existsSync(pagesIndex)) {
+    const index = readJson(pagesIndex) as { engines?: unknown } | null
+    if (index === null || !Array.isArray(index.engines)) renderSnapshotProblems.push('pages.json is not a snapshot index')
+    else {
+      for (const engine of index.engines as { engine?: unknown; pages?: unknown }[]) {
+        if (typeof engine?.engine !== 'string') continue
+        for (const page of Array.isArray(engine.pages) ? (engine.pages as { file?: unknown }[]) : []) {
+          const file = typeof page?.file === 'string' ? join(deckDir, '.dsh-ppt', 'render', engine.engine, page.file) : null
+          if (file === null || !existsSync(file)) renderSnapshotProblems.push(`${engine.engine}: ${String(page?.file)} is missing`)
+        }
+      }
+    }
+  }
+
   return {
     auditOk,
     auditErrorCount,
@@ -589,6 +648,10 @@ export async function observeDeck(workspace: string, deckDir: string): Promise<D
     chromeDeclared,
     designProfileOk,
     designProfileProblems,
+    proposalCount,
+    worktreeProblems,
+    reviewProblems,
+    renderSnapshotProblems,
   }
 }
 

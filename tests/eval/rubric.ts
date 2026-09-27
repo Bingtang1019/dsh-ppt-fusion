@@ -80,6 +80,14 @@ export interface DeckObservation {
   readonly designProfileOk: boolean | null
   /** Error-level `design-*` findings, as `rule: message`. */
   readonly designProfileProblems: readonly string[]
+  /** Readable drafts under `.dsh-ppt/versions/`. */
+  readonly proposalCount: number
+  /** Problems in the worktree records: a draft whose package is missing, a trunk that disagrees with `out/`. */
+  readonly worktreeProblems: readonly string[]
+  /** Problems in `.dsh-ppt/review/review.json`, when that record exists. */
+  readonly reviewProblems: readonly string[]
+  /** Problems in the `.dsh-ppt/render/pages.json` snapshot index, when it exists. */
+  readonly renderSnapshotProblems: readonly string[]
 }
 
 /** One evaluated check, before the catalog supplies its severity. */
@@ -107,6 +115,9 @@ export const CHECK_IDS = [
   'budget',
   'chrome',
   'design-profile',
+  'worktree',
+  'review-record',
+  'render-snapshots',
 ] as const
 
 export type CheckId = (typeof CHECK_IDS)[number]
@@ -130,6 +141,12 @@ export const CHECK_SEVERITY: Readonly<Record<CheckId, 'error' | 'warning'>> = {
   chrome: 'error',
   // V7.2 B5/S26: the profile audit is the quality-alignment delivery gate.
   'design-profile': 'error',
+  // V10 S41: a trunk record that disagrees with out/ is a broken invariant, so this one
+  // is a gate; a deck that never used the worktree passes with no drafts.
+  worktree: 'error',
+  // V10 S37/S43: the review and snapshot records are process signals, not delivery gates.
+  'review-record': 'warning',
+  'render-snapshots': 'warning',
 }
 
 /**
@@ -243,6 +260,29 @@ export function evaluateRubric(rubric: ScenarioRubric, observation: DeckObservat
         : observation.designProfileProblems.length === 0
           ? 'the package follows the design profile inside tolerance'
           : observation.designProfileProblems.join('; '),
+    ),
+    // V10 Part C: a draft whose package is gone, or a trunk record that disagrees with
+    // out/, is exactly the silent overwrite the worktree exists to prevent.
+    worktree: pass(
+      'worktree',
+      observation.worktreeProblems.length === 0,
+      observation.worktreeProblems.length === 0
+        ? `${String(observation.proposalCount)} draft(s), trunk consistent with out/`
+        : observation.worktreeProblems.join('; '),
+    ),
+    // V10 Part B: a recorded review is a claim about the pages, so a malformed one is
+    // reported rather than ignored.
+    'review-record': pass(
+      'review-record',
+      observation.reviewProblems.length === 0,
+      observation.reviewProblems.length === 0 ? 'review record, when present, is well formed' : observation.reviewProblems.join('; '),
+    ),
+    // V10 Part A: a snapshot index that names pages which are not on disk would make
+    // the render gate read a stale deck.
+    'render-snapshots': pass(
+      'render-snapshots',
+      observation.renderSnapshotProblems.length === 0,
+      observation.renderSnapshotProblems.length === 0 ? 'snapshot index, when present, points at the pages on disk' : observation.renderSnapshotProblems.join('; '),
     ),
   }
   return CHECK_IDS.map((id) => results[id])
