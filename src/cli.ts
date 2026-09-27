@@ -471,6 +471,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--from-url <url>', 'download one directly selected URL (recorded as manual)')
     .option('--purpose <text>', 'purpose recorded in the manifest')
     .option('--slide <n>', 'slide number recorded in the manifest', (value: string) => Number.parseInt(value, 10))
+    .option('--timeout <ms>', 'child timeout in milliseconds; overrides the engine default')
     .option('--json', 'print the result as JSON')
     .action(async (query: string | undefined, options: Record<string, string | number | boolean | undefined>) => {
       const result = await imagesSearch({
@@ -490,6 +491,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.fromUrl === undefined ? {} : { fromUrl: String(options.fromUrl) }),
         ...(options.purpose === undefined ? {} : { purpose: String(options.purpose) }),
         ...(options.slide === undefined ? {} : { slide: Number(options.slide) }),
+        ...(options.timeout === undefined ? {} : { timeoutMs: positiveOption(Number(options.timeout), '--timeout') }),
       })
       if (options.json === true) printJson(result)
       else process.stdout.write(`${formatImagesSearch(result)}\n`)
@@ -506,11 +508,12 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--image-size <size>', 'engine size preset, e.g. 1K')
     .option('--purpose <text>', 'purpose recorded in image_sources.json')
     .option('--slide <n>', 'slide number recorded in the manifest', (value: string) => Number.parseInt(value, 10))
+    .option('--timeout <ms>', 'child timeout in milliseconds; overrides the engine default')
     .option('--json', 'print the result as JSON')
     .action(
       async (
         prompt: string,
-        options: { provider: string; dir: string; output?: string; filename?: string; aspectRatio?: string; imageSize?: string; purpose?: string; slide?: number; json?: boolean },
+        options: { provider: string; dir: string; output?: string; filename?: string; aspectRatio?: string; imageSize?: string; purpose?: string; slide?: number; timeout?: string; json?: boolean },
       ) => {
         const result = await imagesGenerate({
           dir: options.dir,
@@ -523,6 +526,7 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
           ...(options.imageSize === undefined ? {} : { imageSize: options.imageSize }),
           ...(options.purpose === undefined ? {} : { purpose: options.purpose }),
           ...(options.slide === undefined ? {} : { slide: options.slide }),
+          ...(options.timeout === undefined ? {} : { timeoutMs: positiveOption(Number(options.timeout), '--timeout') }),
         })
         if (options.json === true) printJson(result)
         else process.stdout.write(`${formatImagesGenerate(result)}\n`)
@@ -536,8 +540,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .requiredOption('--source <source>', 'library to discover (office)')
     .option('--dir <dir>', 'directory a relative --output resolves against', '.')
     .option('-o, --output <file>', 'record path; defaults to $DSH_HOME/ppt-fusion/assets/office-assets.json')
+    .option('--cache-dir <dir>', 'discovery cache root; defaults under $DSH_HOME')
+    .option('--force', 'ignore the cached discovery and walk the roots again')
     .option('--json', 'print the record as JSON')
-    .action((options: { source: string; dir: string; output?: string; json?: boolean }) => {
+    .action((options: { source: string; dir: string; output?: string; cacheDir?: string; force?: boolean; json?: boolean }) => {
       if (options.source !== 'office') {
         throw new DshPptFailure('UsageError', `--source must be office, got "${options.source}"`, { detail: { source: options.source } })
       }
@@ -545,8 +551,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         dir: options.dir,
         deps,
         ...(options.output === undefined ? {} : { output: options.output }),
+        ...(options.cacheDir === undefined ? {} : { cacheDir: options.cacheDir }),
+        ...(options.force === true ? { force: true } : {}),
       })
-      if (options.json === true) printJson({ recordFile: result.recordFile, record: result.record })
+      if (options.json === true) printJson({ recordFile: result.recordFile, record: result.record, ...(result.cachedFrom === undefined ? {} : { cachedFrom: result.cachedFrom }) })
       else process.stdout.write(`${formatOfficeDiscovery(result)}\n`)
     })
   assets
@@ -580,8 +588,10 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
     .option('--as <file>', 'target file name; defaults to <id>.<format>')
     .option('--force', 'replace an existing file with different bytes')
     .option('--record <file>', 'office discovery record override')
+    .option('--cache-dir <dir>', 'payload cache root; defaults under $DSH_HOME')
+    .option('--verify-cache', 'check every cached payload against its digest')
     .option('--json', 'print the result as JSON')
-    .action((id: string, options: { source: string; dir: string; output: string; as?: string; force?: boolean; record?: string; json?: boolean }) => {
+    .action((id: string, options: { source: string; dir: string; output: string; as?: string; force?: boolean; record?: string; cacheDir?: string; verifyCache?: boolean; json?: boolean }) => {
       const result = copyAsset({
         id,
         source: assetSource(options.source, 'copy'),
@@ -591,6 +601,8 @@ export function buildProgram(deps: CommandDependencies = defaultDependencies()):
         ...(options.as === undefined ? {} : { as: options.as }),
         ...(options.force === true ? { force: true } : {}),
         ...(options.record === undefined ? {} : { record: options.record }),
+        ...(options.cacheDir === undefined ? {} : { cacheDir: options.cacheDir }),
+        ...(options.verifyCache === true ? { verifyCache: true } : {}),
       })
       if (options.json === true) printJson(result)
       else process.stdout.write(`${formatAssetCopy(result)}\n`)

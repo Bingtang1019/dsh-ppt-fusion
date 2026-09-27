@@ -22,6 +22,12 @@
   （`--output-dir` 必须与 `--outside` 同用）；viewer 依赖它，把页图缓存在 `<plugin home>/pptx-cache/<sha256>/`。
 - viewer 引擎按 `libreoffice → powerpoint → both` 逐个尝试，避免每次打开都付 PowerPoint 探测成本；自己的侧栏已经能渲染
   deck 的部署设 `window.__DSH_PPT_DISABLE_SIDEBAR_VIEWER__ = true` 即可让本实现让位。
+- **素材缓存与发现缓存（Part E，ADR-088）**：`assets copy --cache-dir [--verify-cache]` 把 payload 缓存在
+  `<cacheDir>/manifest.json` + `blobs/`（key = `source:id:format`，entry 记录 sha256/bytes/sourceBytes），重复 copy 走缓存并在
+  库文件不可读时仍可用；索引损坏以 `ContractViolation` 拒绝（不静默重建），payload 损坏按 miss 处理并由下次 copy 修复。
+  `assets discover --cache-dir [--force]` 复用 `office-discovery.json`，`--force` 重扫。
+- **`images search` / `images generate --timeout <ms>`（Part E）**：覆盖引擎调用的子进程超时，超时以引擎自身的
+  `EngineTimeout` 报出具体毫秒数；下载与搜索仍在 ppt-master 引擎内完成。
 
 ## v0.5.0 — 2026-09-26
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { join } from 'node:path'
 import { formatImagesGenerate, formatImagesSearch, imagesGenerate, imagesSearch } from './images.ts'
 import { defaultDependencies } from './context.ts'
-import { createFakeFileSystem, createFakeRunner, ok, type FakeFileSystem, type FakeRunner } from '../../tests/support/fake-runner.ts'
+import { createFakeFileSystem, createFakeRunner, ok, timedOut, type FakeFileSystem, type FakeRunner } from '../../tests/support/fake-runner.ts'
 import { installFakeVenv } from '../../tests/support/fake-venv.ts'
 
 const workspace = join(process.cwd(), 'tmp', 'images-deck')
@@ -247,5 +247,37 @@ describe('imagesGenerate', () => {
     const { fs, deps } = buildGenerate()
     fs.writeText(join(workspace, 'assets', 'image_sources.json'), 'not json')
     await expect(imagesGenerate({ dir: workspace, prompt: 'a cat', provider: 'openai-compatible', deps })).rejects.toMatchObject({ code: 'ContractViolation' })
+  })
+})
+describe('images --timeout', () => {
+  it('passes a per-call timeout to the engine child', async () => {
+    const { runner, deps } = build()
+    await imagesSearch({ dir: workspace, query: 'mountain', deps, timeoutMs: 1234 })
+    expect(runner.callsWith('image-search')[0]?.options.timeoutMs).toBe(1234)
+  })
+
+  it('refuses a non-positive timeout before reaching the engine', async () => {
+    const { runner, deps } = build()
+    await expect(imagesSearch({ dir: workspace, query: 'mountain', deps, timeoutMs: 0 })).rejects.toThrow(/--timeout must be a positive integer/)
+    expect(runner.callsWith('image-search')).toHaveLength(0)
+  })
+
+  it('reports the engine timeout with the value the caller asked for', async () => {
+    const fs = createFakeFileSystem({ directories: [workspace] })
+    installFakeVenv(fs, { dshHome })
+    const runner = createFakeRunner((call) => (call.args.includes('image-search') ? timedOut() : ok()))
+    const deps = defaultDependencies({ fs, cwd: workspace, env: { DSH_HOME: dshHome }, runner })
+    await expect(imagesSearch({ dir: workspace, query: 'mountain', deps, timeoutMs: 250 })).rejects.toThrow(/image-search exceeded 250 ms/)
+  })
+
+  it('passes the timeout to a generation too', async () => {
+    const { fs, runner, deps } = build()
+    fs.writeBytes(join(workspace, 'assets', 'ai-mountain.png'), Buffer.from('png-bytes'))
+    deps.env.DSH_PPT_ENABLE_IMAGE_GEN = '1'
+    deps.env.OPENAI_API_KEY = 'test-key'
+    runner.callsWith('image-gen')
+    await imagesGenerate({ dir: workspace, prompt: 'a mountain', provider: 'openai-compatible', deps, filename: 'ai-mountain.png', timeoutMs: 4321 })
+    const call = runner.calls.find((entry) => entry.args.some((argument) => argument.includes('image-gen')))
+    expect(call?.options.timeoutMs).toBe(4321)
   })
 })

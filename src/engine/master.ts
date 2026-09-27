@@ -214,8 +214,8 @@ export function createMasterEngine(options: MasterEngineOptions) {
      *   read; only names listed here reach the child, so a stock-photo key never
      *   leaks into an unrelated call.
      */
-    imageSearch(params: ImageSearchParams, options: { credentials?: readonly string[] } = {}): MasterCall {
-      return execute(imageSearch(params), options.credentials)
+    imageSearch(params: ImageSearchParams, options: { credentials?: readonly string[]; timeoutMs?: number } = {}): MasterCall {
+      return execute({ ...imageSearch(params), ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }) }, options.credentials)
     },
 
     /**
@@ -224,8 +224,8 @@ export function createMasterEngine(options: MasterEngineOptions) {
      * @param options.credentials - parent environment variables this provider may
      *   read; the command layer passes exactly the enabled provider's knobs.
      */
-    imageGenerate(params: ImageGenerateParams, options: { credentials?: readonly string[] } = {}): MasterCall {
-      return execute(imageGenerate(params), options.credentials)
+    imageGenerate(params: ImageGenerateParams, options: { credentials?: readonly string[]; timeoutMs?: number } = {}): MasterCall {
+      return execute({ ...imageGenerate(params), ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }) }, options.credentials)
     },
 
     /** @see sourceToMarkdown */

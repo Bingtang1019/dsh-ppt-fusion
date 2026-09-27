@@ -412,6 +412,14 @@ licence, supported format, escaping path, duplicate id or absent file is reporte
 (`ContractViolation`/`OutputMissing`), and an office record whose files disappeared asks for a
 fresh `discover`.
 
+### `assets --cache-dir`, `--verify-cache`, discovery `--force`, and `images --timeout` (V10 Part E)
+
+`assets copy --cache-dir <dir> [--verify-cache]` remembers each copied payload under
+`<dir>/manifest.json` plus `blobs/`; a repeat copy is served from the cache (it still works when the
+library file can no longer be read) and `--verify-cache` reports every entry's digest state.
+`assets discover --cache-dir <dir> [--force]` reuses the cached discovery record unless `--force` walks
+the roots again. `images search --timeout <ms>` and `images generate --timeout <ms>` replace the engine
+call's own timeout for that call; the child is killed at that bound and the failure names it.
 ### `dsh-ppt assets copy <id> --source <office|user> [-o <dir>] [--as <file>] [--force] [--record <file>] [--dir <dir>] [--json]`
 
 Copies one listed item into the deck (default `assets/<id>.<format>`); `--as` may rename but must

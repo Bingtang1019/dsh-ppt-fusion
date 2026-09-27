@@ -39,6 +39,8 @@ export interface ImagesSearchOptions {
   readonly fromUrl?: string
   readonly purpose?: string
   readonly slide?: number
+  /** Per-call child timeout in ms; overrides the engine's network default. */
+  readonly timeoutMs?: number
   readonly deps: CommandDependencies
   /** DNS resolver seam for the URL policy, injected by tests. */
   readonly resolveHost?: (host: string) => Promise<readonly string[]>
@@ -110,6 +112,8 @@ export interface ImagesGenerateOptions {
   /** Free-text purpose recorded in the manifest. */
   readonly purpose?: string
   readonly slide?: number
+  /** Per-call child timeout in ms; overrides the engine's generation default. */
+  readonly timeoutMs?: number
   readonly deps: CommandDependencies
 }
 
@@ -182,6 +186,7 @@ export async function imagesGenerate(options: ImagesGenerateOptions): Promise<Im
   if (!/\.(?:png|jpe?g|webp)$/i.test(filename)) {
     throw new DshPptFailure('ContractViolation', `image filename must end in .png, .jpg, .jpeg or .webp: ${filename}`, { detail: { filename } })
   }
+  assertTimeout(options.timeoutMs)
   deps.fs.mkdirp(outputDir)
   engineFor(dir, deps).imageGenerate(
     {
@@ -192,7 +197,7 @@ export async function imagesGenerate(options: ImagesGenerateOptions): Promise<Im
       ...(options.aspectRatio === undefined ? {} : { aspectRatio: options.aspectRatio }),
       ...(options.imageSize === undefined ? {} : { imageSize: options.imageSize }),
     },
-    { credentials: imageGenCredentials(options.provider) },
+    { credentials: imageGenCredentials(options.provider), ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }) },
   )
   const stem = filename.replace(/\.[^.]+$/, '')
   const produced = findGeneratedFile(outputDir, stem, deps.fs)
@@ -294,6 +299,7 @@ export async function imagesSearch(options: ImagesSearchOptions): Promise<Images
   }
   // The engine requires a filename in single-query mode; derive one from the query (or the
   // URL extension) so callers only have to name it when they care.
+  assertTimeout(options.timeoutMs)
   const filename = options.filename ?? defaultFilename(options.query, options.fromUrl)
   // The zero-config providers are unreachable from some networks; a keyed provider is then
   // the only working path, so its key must reach the engine child.
@@ -314,7 +320,7 @@ export async function imagesSearch(options: ImagesSearchOptions): Promise<Images
       ...(options.purpose === undefined ? {} : { purpose: options.purpose }),
       ...(options.slide === undefined ? {} : { slide: options.slide }),
     },
-    { credentials: ['PEXELS_API_KEY', 'PIXABAY_API_KEY', 'IMAGE_SEARCH_CONCURRENCY'] },
+    { credentials: ['PEXELS_API_KEY', 'PIXABAY_API_KEY', 'IMAGE_SEARCH_CONCURRENCY'], ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }) },
   )
   const text = fs.readText(resolve(dir, manifestPath))
   if (text === null) {
@@ -363,4 +369,14 @@ export function formatImagesSearch(result: ImagesSearchResult): string {
   const lines = result.items.map((item) => `${item.filename}: ${item.attributionText === '' ? `${item.provider} / ${item.licenseName}` : item.attributionText}`)
   lines.push(`manifest ${result.manifestPath}`)
   return lines.join('\n')
+}
+/**
+ * @param timeoutMs - caller-supplied child timeout.
+ * @throws DshPptFailure `UsageError` when it is not a positive integer.
+ */
+function assertTimeout(timeoutMs: number | undefined): void {
+  if (timeoutMs === undefined) return
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+    throw new DshPptFailure('UsageError', `--timeout must be a positive integer number of milliseconds, got ${String(timeoutMs)}`, { detail: { timeoutMs } })
+  }
 }

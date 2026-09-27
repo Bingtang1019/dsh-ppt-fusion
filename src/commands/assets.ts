@@ -18,6 +18,7 @@ import {
   type ResolvedAsset,
 } from '../schema/assets.ts'
 import { resolveDeckDir, type CommandDependencies } from './context.ts'
+import { assetCacheKey, findAssetCacheEntry, putAssetCacheEntry, verifyAssetCache } from '../bridge/asset-cache.ts'
 
 /**
  * `dsh-ppt assets`: register and copy the machine-local asset libraries
@@ -59,6 +60,10 @@ export interface DiscoverOfficeAssetsOptions {
   readonly roots?: readonly OfficeRootCandidate[]
   /** Recursion limit per root; defaults to 6. */
   readonly maxDepth?: number
+  /** Cache root for discovery records; defaults under the DSH home. */
+  readonly cacheDir?: string
+  /** Ignore a cached discovery and walk the roots again. */
+  readonly force?: boolean
   /** Clock seam for `discoveredAt`; defaults to the wall clock. */
   readonly now?: () => Date
   readonly deps: CommandDependencies
@@ -68,6 +73,8 @@ export interface DiscoverOfficeAssetsOptions {
 export interface DiscoverOfficeAssetsResult {
   readonly recordFile: string
   readonly record: OfficeAssetRecord
+  /** Set when the record came from the discovery cache instead of a walk. */
+  readonly cachedFrom?: string
 }
 
 /** Options for `dsh-ppt assets list`. */
@@ -107,6 +114,10 @@ export interface AssetCopyOptions {
   /** Overwrite an existing different file instead of refusing. */
   readonly force?: boolean
   readonly record?: string
+  /** Cache root for copied payloads; defaults under the DSH home. */
+  readonly cacheDir?: string
+  /** Check every cache payload against its digest and report the result. */
+  readonly verifyCache?: boolean
   readonly deps: CommandDependencies
 }
 
@@ -125,6 +136,10 @@ export interface AssetCopyResult {
   readonly replaced: boolean
   /** True when the destination already held identical bytes; nothing was written. */
   readonly unchanged: boolean
+  /** True when the bytes came from the cache rather than the library. */
+  readonly cached: boolean
+  /** Result of `verifyCache`, when it was asked for. */
+  readonly cacheVerify?: { readonly checked: number; readonly missing: readonly string[]; readonly mismatched: readonly string[] }
 }
 
 /**
@@ -270,6 +285,16 @@ export function discoverOfficeAssets(options: DiscoverOfficeAssetsOptions): Disc
   const dir = resolveDeckDir(deps, options.dir ?? '.')
   const candidates = options.roots ?? officeRootCandidates(deps.env)
   const maxDepth = options.maxDepth ?? 6
+  const recordFile = officeRecordPath(deps, options.output, dir)
+  const cacheFile = assetDiscoveryCacheFile(deps, options.cacheDir)
+  if (options.force !== true) {
+    const cached = readDiscoveryCache(fs, cacheFile)
+    if (cached !== null) {
+      fs.mkdirp(dirname(recordFile))
+      fs.writeText(recordFile, `${JSON.stringify(cached, null, 2)}\n`)
+      return { recordFile, record: cached, cachedFrom: cacheFile }
+    }
+  }
   const roots: OfficeAssetRoot[] = []
   const walked: { entry: WalkedFile; category: OfficeCategory }[] = []
   for (const candidate of candidates) {
@@ -304,9 +329,15 @@ export function discoverOfficeAssets(options: DiscoverOfficeAssetsOptions): Disc
     roots,
     assets,
   }
-  const recordFile = officeRecordPath(deps, options.output, dir)
   fs.mkdirp(dirname(recordFile))
   fs.writeText(recordFile, `${JSON.stringify(record, null, 2)}\n`)
+  // A cache that cannot be written costs the next call a walk, never this one.
+  try {
+    fs.mkdirp(dirname(cacheFile))
+    fs.writeText(cacheFile, `${JSON.stringify(record, null, 2)}\n`)
+  } catch {
+    // A read-only cache root: discovery succeeded, so the command reports success.
+  }
   return { recordFile, record }
 }
 
@@ -526,13 +557,29 @@ export function copyAsset(options: AssetCopyOptions): AssetCopyResult {
     throw new DshPptFailure('ContractViolation', `--as must keep the .${item.format} extension: ${name}`, { detail: { as: options.as, format: item.format } })
   }
   const outputFile = join(outputDir, name)
-  const bytes = fs.readBytes(item.file)
+  const cacheRoot = assetCacheRoot(deps, options.cacheDir)
+  const cacheKey = assetCacheKey(item.source, item.id, item.format)
+  const libraryBytes = fs.readBytes(item.file)
+  // A cached payload is preferred when the library is gone, and reused when it is
+  // still there and the same size; the recorded size is what makes a stale entry a
+  // miss. The port exposes no stat, so an existing library is read once either way.
+  const hit = libraryBytes === null ? findAssetCacheEntry(fs, cacheRoot, cacheKey) : findAssetCacheEntry(fs, cacheRoot, cacheKey, { sourceBytes: libraryBytes.length })
+  const bytes = hit === null ? libraryBytes : hit.bytes
   if (bytes === null) {
     throw new DshPptFailure('OutputMissing', `the library file is unreadable: ${item.file}`, { detail: { file: item.file, id: item.id } })
   }
+  if (hit === null) {
+    // Best-effort: a cache that cannot be written must never fail the copy.
+    try {
+      putAssetCacheEntry(fs, cacheRoot, { key: cacheKey, source: item.source, id: item.id, format: item.format, bytes, sourceBytes: bytes.length })
+    } catch {
+      // Read-only or full cache root: the copy is still what the caller asked for.
+    }
+  }
+  const cacheVerify = options.verifyCache === true ? verifyAssetCache(fs, cacheRoot) : undefined
   const existing = fs.readBytes(outputFile)
   if (existing !== null && existing.equals(bytes)) {
-    return { id: item.id, source: item.source, file: item.file, outputFile, relative: toWorkspaceRelative(dir, outputFile), bytes: bytes.length, replaced: false, unchanged: true }
+    return { id: item.id, source: item.source, file: item.file, outputFile, relative: toWorkspaceRelative(dir, outputFile), bytes: bytes.length, replaced: false, unchanged: true, cached: hit !== null, ...(cacheVerify === undefined ? {} : { cacheVerify }) }
   }
   if (existing !== null && options.force !== true) {
     throw new DshPptFailure('ContractViolation', `${outputFile} already exists with different bytes; pass --force to replace it`, {
@@ -550,6 +597,8 @@ export function copyAsset(options: AssetCopyOptions): AssetCopyResult {
     bytes: bytes.length,
     replaced: existing !== null,
     unchanged: false,
+    cached: hit !== null,
+    ...(cacheVerify === undefined ? {} : { cacheVerify }),
   }
 }
 
@@ -596,7 +645,12 @@ export function formatAssetsList(result: AssetsListResult): string {
  */
 export function formatAssetCopy(result: AssetCopyResult): string {
   const state = result.unchanged ? 'unchanged' : result.replaced ? 'replaced' : 'copied'
-  return `${state} ${result.relative} (${String(result.bytes)} B) from ${result.file}`
+  const cached = result.cached ? ', from cache' : ''
+  const verify =
+    result.cacheVerify === undefined
+      ? ''
+      : `; cache ${String(result.cacheVerify.checked)} entr(ies), ${String(result.cacheVerify.missing.length)} missing, ${String(result.cacheVerify.mismatched.length)} mismatched`
+  return `${state} ${result.relative} (${String(result.bytes)} B) from ${result.file}${cached}${verify}`
 }
 
 /**
@@ -608,4 +662,37 @@ function compareText(left: string, right: string): number {
   if (left < right) return -1
   if (left > right) return 1
   return 0
+}
+/** @param deps - command dependencies. @param cacheDir - explicit root, or undefined. @returns the discovery cache file. */
+function assetDiscoveryCacheFile(deps: CommandDependencies, cacheDir: string | undefined): string {
+  const root = cacheDir ?? join(resolveDshHome(deps.env), 'ppt-fusion', 'assets', 'cache')
+  return join(root, 'office-discovery.json')
+}
+
+/**
+ * @param fs - filesystem port.
+ * @param file - absolute cache file.
+ * @returns the cached discovery, or null when it is absent or unreadable.
+ *
+ * A cache written by an older version, or one torn by an interrupted write, is a miss
+ * rather than an error: the caller walks the roots and rewrites it, which is the same
+ * answer the command would have produced anyway.
+ */
+function readDiscoveryCache(fs: FileSystemPort, file: string): OfficeAssetRecord | null {
+  const text = fs.readText(file)
+  if (text === null) return null
+  try {
+    const parsed = JSON.parse(text) as OfficeAssetRecord
+    if (parsed.version !== 1 || parsed.source !== 'office' || !Array.isArray(parsed.assets) || !Array.isArray(parsed.roots)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+/**
+ * @param deps - command dependencies. @param cacheDir - explicit root, or undefined. @returns the asset payload cache root.
+ */
+function assetCacheRoot(deps: CommandDependencies, cacheDir: string | undefined): string {
+  return cacheDir ?? join(resolveDshHome(deps.env), 'ppt-fusion', 'assets', 'cache')
 }

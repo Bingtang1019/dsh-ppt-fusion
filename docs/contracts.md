@@ -934,3 +934,20 @@ both probes.
 `renderpages` gained the two flags this needs: `--outside` allows `--file` to name a package outside the
 deck workspace (and then records the absolute path as the source), and `--output-dir <dir>` sets an
 absolute output root and is refused without `--outside`.
+## 28. Asset cache and per-call engine timeouts (V10 Part E, ADR-088)
+
+```
+<cacheDir>/manifest.json          index: schemaVersion, updatedAt, entries[]
+<cacheDir>/blobs/<key>.<format>   payload bytes named after source:id:format
+```
+
+An entry is `{key, source: office|user, id, format, file, sha256, bytes, sourceBytes, fetchedAt}`.
+`assets copy --cache-dir <dir> [--verify-cache]` serves a repeat copy from the payload when the entry
+matches the library's size (or when the library can no longer be read), reports `from cache`, and with
+`--verify-cache` adds `{checked, missing[], mismatched[]}` for every entry. A malformed index is a
+`ContractViolation` carrying the index path; a damaged payload is a miss that the next copy repairs.
+
+`assets discover --cache-dir <dir> [--force]` reuses the cached `office-discovery.json`; `--force` walks
+the roots again. `images search` and `images generate` accept `--timeout <ms>`, which replaces the engine
+invocation's own timeout for that call; the runner kills the child at that bound and the failure names the
+value (`image-search exceeded 250 ms`).

@@ -4,6 +4,7 @@ import { copyAsset, discoverOfficeAssets, formatAssetCopy, formatAssetsList, for
 import { defaultDependencies, type CommandDependencies } from './context.ts'
 import { DshPptFailure } from '../engine/errors.ts'
 import { parseOfficeAssetRecord } from '../schema/assets.ts'
+import { verifyAssetCache } from '../bridge/asset-cache.ts'
 import { createFakeFileSystem, type FakeFileSystem } from '../../tests/support/fake-runner.ts'
 
 const workspace = join(process.cwd(), 'tmp', 'assets')
@@ -266,3 +267,68 @@ function capture(run: () => unknown): unknown {
     return error
   }
 }
+describe('asset cache integration', () => {
+  it('serves a repeated user copy from the cache after the library goes away', () => {
+    const lib = join(workspace, 'libs', 'cached')
+    const { fs, deps } = buildLibrary(lib, ['logo'])
+    deps.env.DSH_PPT_ASSET_DIRS = lib
+    const cacheDir = join(workspace, 'cache-user')
+    const first = copyAsset({ id: 'logo', source: 'user', dir: deck, deps, cacheDir })
+    expect(first.cached).toBe(false)
+    // The library file is replaced by one the byte reader cannot read (the listing
+    // still resolves it): the payload can now only come from the cache, which is what
+    // makes the hit observable rather than claimed.
+    fs.removeTree(join(lib, 'logo.svg'))
+    fs.writeText(join(lib, 'logo.svg'), 'not bytes')
+    const second = copyAsset({ id: 'logo', source: 'user', dir: deck, output: 'assets-second', deps, cacheDir })
+    expect(second.cached).toBe(true)
+    expect(second.bytes).toBe(first.bytes)
+    expect(fs.readBytes(second.outputFile)?.toString()).toBe('svg-bytes-12')
+  })
+
+  it('reports cache verification and counts a damaged payload', () => {
+    const lib = join(workspace, 'libs', 'verify')
+    const { fs, deps } = buildLibrary(lib, ['logo'])
+    deps.env.DSH_PPT_ASSET_DIRS = lib
+    const cacheDir = join(workspace, 'cache-verify')
+    const copied = copyAsset({ id: 'logo', source: 'user', dir: deck, deps, cacheDir, verifyCache: true })
+    expect(copied.cacheVerify).toEqual({ checked: 1, missing: [], mismatched: [] })
+    const manifest = JSON.parse(fs.readText(join(cacheDir, 'manifest.json')) ?? '{}') as { entries: { key: string; file: string }[] }
+    fs.writeBytes(join(cacheDir, manifest.entries[0]?.file ?? ''), Buffer.from('tampered-payload'))
+    // The damaged payload is visible to a direct check, and the next copy repairs it
+    // (a miss re-copies from the library) rather than failing the command.
+    expect(verifyAssetCache(fs, cacheDir).mismatched).toEqual([manifest.entries[0]?.key])
+    const again = copyAsset({ id: 'logo', source: 'user', dir: deck, output: 'assets-again', deps, cacheDir, verifyCache: true })
+    expect(again.cached).toBe(false)
+    expect(again.cacheVerify).toEqual({ checked: 1, missing: [], mismatched: [] })
+  })
+
+  it('refuses a corrupted cache index instead of rebuilding it silently', () => {
+    const lib = join(workspace, 'libs', 'corrupt')
+    const { fs, deps } = buildLibrary(lib, ['logo'])
+    deps.env.DSH_PPT_ASSET_DIRS = lib
+    const cacheDir = join(workspace, 'cache-corrupt')
+    fs.writeText(join(cacheDir, 'manifest.json'), '{ broken')
+    const error = capture(() => copyAsset({ id: 'logo', source: 'user', dir: deck, deps, cacheDir }))
+    expect(error).toBeInstanceOf(DshPptFailure)
+    expect((error as DshPptFailure).code).toBe('ContractViolation')
+    expect((error as DshPptFailure).message).toContain('manifest.json')
+  })
+
+  it('reuses a cached office discovery and rescans when forced', () => {
+    const { fs, deps } = build()
+    buildOffice(fs)
+    const cacheDir = join(workspace, 'cache-discovery')
+    const first = discoverOfficeAssets({ roots, deps, cacheDir, now: () => new Date('2026-09-24T00:00:00.000Z') })
+    expect(first.cachedFrom).toBeUndefined()
+    fs.removeTree(clipRoot)
+    const cached = discoverOfficeAssets({ roots, deps, cacheDir })
+    expect(cached.cachedFrom).toBe(join(cacheDir, 'office-discovery.json'))
+    expect(cached.record.assets.map((asset) => asset.id)).toEqual(first.record.assets.map((asset) => asset.id))
+    // Forcing a rescan sees the library that is actually gone: only the theme root
+    // still holds assets, and the result is not reported as cached.
+    const rescanned = discoverOfficeAssets({ roots, deps, cacheDir, force: true })
+    expect(rescanned.cachedFrom).toBeUndefined()
+    expect(rescanned.record.assets.map((asset) => asset.format)).toEqual(['thmx'])
+  })
+})

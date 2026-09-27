@@ -99,6 +99,7 @@ the ADR wins.**
 | 085 | v0.5.0 release: render QA and the model self-review loop on both channels |
 | 086 | Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff |
 | 087 | File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside` |
+| 088 | Asset cache, discovery cache and per-call engine timeouts for `assets` / `images` |
 
 ---
 
@@ -2682,3 +2683,51 @@ the ADR wins.**
   pptx as unviewable without it); rendering inside the client (a second renderer in the UI, which the
   preview card's design already rejects); `--engine both` for every open (it pays the PowerPoint probe
   even when the engine only reports `skipped`).
+
+## ADR-088 — Asset cache, discovery cache and per-call engine timeouts for `assets` / `images`
+
+- **Date:** 2026-09-27
+- **Context.** Part E of the v10 plan borrows `dsh-univer-office`'s tooling pattern (U3) without
+  borrowing its assets: every copy of a library file was read from disk again, every office discovery
+  walked the roots again, and an image search or generation had only the engine's own fixed timeout. The
+  three sourcing channels (svg, office, user) and their licensing discipline stay exactly as they were.
+- **Decision.**
+  - `src/bridge/asset-cache.ts` owns one cache root: `<cacheDir>/manifest.json` plus
+    `<cacheDir>/blobs/<key>.<format>`. A key is `source:id:format`; an entry records the payload's
+    sha256, its size, the library size it was copied from and the fetch time.
+    `readAssetCache` validates the index on every read and refuses a malformed one with the path in the
+    message (a cache whose index disagrees with its payloads is how a deck ends up with an image nobody
+    chose). A payload that fails its digest is a miss, repaired by the next copy; a cache write that
+    fails (read-only root) never fails the copy.
+  - `assets copy` gained `--cache-dir` and `--verify-cache`. A repeat copy is served from the cache:
+    observable, because it still succeeds when the library file can no longer be read, and it reports
+    `from cache` in the summary. `--verify-cache` reports `checked`/`missing`/`mismatched` for every
+    entry. The port exposes no `stat`, so an existing library is still read once to compare sizes; the
+    cache removes the dependency on the library, not the read of an unchanged file.
+  - `assets discover` gained `--cache-dir` and `--force`: the discovery record is cached as
+    `office-discovery.json` and reused, and `--force` walks the roots again. The cache records the
+    snapshot it was built from; a library that changes underneath it needs `--force` (the filesystem port
+    carries no mtime, so a silent change cannot be detected).
+  - `images search` and `images generate` gained `--timeout <ms>`, which overrides the engine
+    invocation's timeout for that call. The download and the search live in the ppt-master engine, so the
+    flag travels as the child timeout the runner enforces; a breach surfaces as the engine's own
+    `EngineTimeout` naming the value.
+- **Evidence.** `src/bridge/asset-cache.test.ts` (6) covers storing a payload with its digest, a stale
+  size and a tampered payload as misses, a removed payload in `verify`, a non-JSON index, a wrong schema
+  and an unusable entry, replacement by key, and the temporary-file write.
+  `src/commands/assets.test.ts` adds four integration cases: a repeated `user` copy served from the cache
+  after the library stopped being readable, `--verify-cache` witnessing a tampered payload and the next
+  copy repairing it, a corrupted index refused as `ContractViolation`, and a cached office discovery
+  reused with `--force` rescanning (theme-only result). `src/commands/images.test.ts` adds four:
+  the timeout reaching the child (`options.timeoutMs`), a non-positive timeout refused before the engine
+  runs, a timed-out search reporting `image-search exceeded 250 ms`, and the timeout on a generation.
+- **Known limits.** The cache trusts its key: rename an asset but keep `source:id:format` and a stale
+  payload can be served until the library size changes. The office discovery cache cannot notice a
+  library that changed without changing size. `--verify-cache` is opt-in so an ordinary copy stays one
+  digest. Nothing here downloads: the cache only remembers what the engine or a library already produced.
+- **Alternatives rejected:** a global content-addressed store keyed by digest alone (a copy would have to
+  hash the library first, which is the read the cache is meant to avoid, and a stale entry could then be
+  served for a different id); writing the cache into the deck (a copied asset's cache is machine-local
+  and must not travel with the deck); treating a damaged payload as an error (a cache is an
+  optimisation, so it repairs or misses, never blocks); a fixed timeout flag with no engine plumbing (the
+  network lives in the engine, so a client-side timer would leave the child running).
