@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## v0.6.1 — 2026-09-29
+
+The DSH 0.2.0 line is now declared, measured and admitted. No plugin behaviour changed: this
+release exists so the package installs on the 0.2.0 runtime at all.
+
+- **Peer union gains the 0.2.0 branch (ADR-079 update).** Every `@deepseek-ai/dsh*` peer now ends
+  with `|| >=0.2.0-rc.1 <0.3.0-0`. The previous union stopped at `>=0.1.8 <0.2.0-0`, so the
+  runtime's own peer gate skipped the plugin on 0.2.0-rc.2 (`skipping profile bundle
+  "dsh-ppt-flashmade"`) even though the plugin loaded correctly as soon as the gate was satisfied
+  through an exact-version exemption.
+- **Measured on 0.2.0-rc.2** (desktop app 0.2.0-rc.2, bundled `@deepseek-ai/dsh` 0.2.0-rc.2).
+  Installed into an isolated profile and booted as a real service: the plugin layer composed, the
+  `dsh-ppt-fusion` skill registered (6,830 bytes of body), `dsh_ppt_preview` registered with its
+  parameter schema, the `webServer` scope registered its route, the `attachments` scope registered
+  `dsh_ppt_review`, and the plugin produced no `failed to import`, `did not activate`,
+  `incompatible` or `pending` line. The activation count matched the same profile without the plugin.
+- **Re-measured on 0.1.5-rc.2**, the line the WebUI profile runs: same plugin bytes, its own isolated
+  runtime and home, and the boot reported no activation warning at all.
+- **`tests/dsh-peers.test.ts`** pins all three lines (`0.1.2-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.2`) under
+  both npm and gate semantics, and adds a negative case so the next unmeasured minor (`0.3.0-rc.1`,
+  `1.0.0`) cannot be admitted by accident.
+- **Not changed:** the CI `dsh-compat` matrix still runs the two older legs. A 0.2.0 leg is a
+  separate change, because the packed-plugin smoke script needs the same exemption plumbing this
+  field test used.
+
 ## v0.6.0 — 2026-09-27
 
 审查工作台（V10 Part C/D/E）：渲染产物先进隔离草稿，用户 approve 才发布到 `out/`；同一天落地文件树右侧栏

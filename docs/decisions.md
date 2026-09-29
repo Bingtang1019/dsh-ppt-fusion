@@ -2373,6 +2373,23 @@ the ADR wins.**
   (the runtime gate, which evaluates with `includePrerelease: true`, hid that). `tests/dsh-peers.test.ts`
   now asserts both semantics for every line in `RUNTIME_LINES`, so supporting a new prerelease line
   requires extending the union; the awesome-dsh-plugin contributing rules document the same trap.
+
+  **Update (2026-09-29):** the union gained its `0.2.0` branch — every `@deepseek-ai/dsh*` peer now ends
+  with `|| >=0.2.0-rc.1 <0.3.0-0`, and `RUNTIME_LINES` is `0.1.2-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.2`.
+  Evidence, measured rather than inferred: on the desktop app's bundled runtime (`@deepseek-ai/dsh`
+  0.2.0-rc.2) the plugin first appeared as `skipping profile bundle "dsh-ppt-flashmade"` — the gate
+  reads the union and the old one stopped at `>=0.1.8 <0.2.0-0` — and once the profile granted an
+  exact-version exemption it composed, registered the skill and `dsh_ppt_preview`, registered the
+  `webServer` route and the `attachments`-scoped `dsh_ppt_review`, and reported no activation warning,
+  with an activation count identical to the same profile without the plugin. The 0.1.5-rc.2 line was
+  re-measured the same way (own runtime, own home, physical dependency copy) and reported no activation
+  warning at all; the 0.1.7-rc.2 line keeps the profile that has been running since ADR-085. The host
+  surface this rests on is small by construction: `dsh/index.js` imports only Node builtins and its own
+  modules, and binds to `ctx.skills.register`, `ctx.tools.register` and scoped `ctx.inject` for
+  `webServer` / `attachments` — no `@deepseek-ai/*` import exists in the package. A negative test was
+  added with it: `0.3.0-rc.1` and `1.0.0` must NOT satisfy the union, so the next unmeasured minor
+  cannot install by accident. The CI matrix still runs the two older legs; a 0.2.0 leg needs the packed
+  smoke script to write the same exemption, which is deliberately left to its own change.
 ## ADR-080 — v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0)
 
 - **Date:** 2026-09-25

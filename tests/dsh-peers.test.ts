@@ -7,7 +7,14 @@ import semver from 'semver'
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 
 /** The DSH runtime lines this plugin must stay installable on (ADR-079). */
-const RUNTIME_LINES = ['0.1.2-rc.1', '0.1.7-rc.2']
+const RUNTIME_LINES = ['0.1.2-rc.1', '0.1.7-rc.2', '0.2.0-rc.2']
+
+/**
+ * A line nobody measured. The union deliberately stops at the next minor, so a line the
+ * plugin has never run on cannot install by accident; supporting it means declaring it in
+ * `RUNTIME_LINES` and re-running the compatibility probe.
+ */
+const UNSUPPORTED_LINES = ['0.3.0-rc.1', '1.0.0']
 
 /** DSH packages whose peer ranges the runtime compatibility gate evaluates. */
 const DSH_PEERS = ['@deepseek-ai/dsh', '@deepseek-ai/dsh-client-ui-tool', '@deepseek-ai/dsh-skill', '@deepseek-ai/dsh-tools']
@@ -46,6 +53,16 @@ describe('dsh peer governance (ADR-079)', () => {
     expect(range).toBeTruthy()
     for (const cordis of ['4.0.2', '4.0.4']) {
       expect(semver.satisfies(cordis, range ?? '', { includePrerelease: true }), `${String(range)} rejects cordis ${cordis}`).toBe(true)
+    }
+  })
+
+  it('does not admit a runtime line nobody measured', () => {
+    const peers = manifest().peerDependencies ?? {}
+    for (const name of DSH_PEERS) {
+      const range = peers[name] ?? ''
+      for (const line of UNSUPPORTED_LINES) {
+        expect(semver.satisfies(line, range), `${String(name)} ${range} silently admits the unmeasured line ${line}`).toBe(false)
+      }
     }
   })
 })
