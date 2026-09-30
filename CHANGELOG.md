@@ -3,7 +3,10 @@
 ## Unreleased — DSH 0.2.0 兼容（V11 Track A → v0.7.0）
 
 - **CI 第三条腿（A1，ADR-089）**：`dsh-compat` 从两线扩到三线 —— `0.1.2-rc.1` 只证明"装得上、组装得起来"，
-  `0.1.7-rc.2` 与 `0.2.0-rc.2` 强制执行运行时自带的 peer gate。兼容 smoke 先用运行时自身
+
+- **peer union 生成化（A3，ADR-090）**：`scripts/runtime-lines.mjs` 成为唯一源（实测线 + 安装带 + 覆盖的 peer），`scripts/gen-peer-union.mjs`
+  写入/校验 `package.json`，`pnpm peers:check` 与 `prepack` 首步强制一致；`tests/dsh-peers.test.ts` 断言 manifest 与生成值逐字节相同，
+  负例线由清单算出而非手写。加一条支持线从"手改 4×8 个 range"变成"改一处清单 + 重生成 + 重跑探针"。  `0.1.7-rc.2` 与 `0.2.0-rc.2` 强制执行运行时自带的 peer gate。兼容 smoke 先用运行时自身
   `evaluatePluginCompatibility` 判定已装插件，不匹配即以运行时原文报错（`--dump-config` 里能组装不算准入）；
   `--exempt` 演练 `compatibility.json` 精确版本豁免（要求判定回到 `exempted: true`），`--expect` 钉住被测运行时版本。
 

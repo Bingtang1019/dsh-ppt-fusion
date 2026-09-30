@@ -101,6 +101,7 @@ the ADR wins.**
 | 087 | File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside` |
 | 088 | Asset cache, discovery cache and per-call engine timeouts for `assets` / `images` |
 | 089 | The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced |
+| 090 | Generate the DSH peer union from the declared runtime lines |
 
 ---
 
@@ -2390,7 +2391,8 @@ the ADR wins.**
   `webServer` / `attachments` — no `@deepseek-ai/*` import exists in the package. A negative test was
   added with it: `0.3.0-rc.1` and `1.0.0` must NOT satisfy the union, so the next unmeasured minor
   cannot install by accident. The CI matrix still runs the two older legs; a 0.2.0 leg needs the packed
-  smoke script to write the same exemption, which is deliberately left to its own change.
+  smoke script to handle the exemption, which is deliberately left to its own change — ADR-089 implements
+  that leg and makes the exemption an explicit `--exempt` rehearsal rather than a blanket grant.
 ## ADR-080 — v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0)
 
 - **Date:** 2026-09-25
@@ -2791,3 +2793,40 @@ the ADR wins.**
   trusting the dump alone (a gate-refused plugin still appears in `--dump-config`, so composing is not
   evidence of admission); granting the exemption unconditionally in CI (turns the escape hatch into the
   default and stops protecting users from an incompatible range).
+
+## ADR-090 — Generate the DSH peer union from the declared runtime lines
+
+- **Date:** 2026-09-30
+- **Context.** The union of peer ranges has been hand-edited three times: the original
+  `>=0.1.2-rc.1 <0.2.0`, the per-minor rewrite after npm's prerelease rule bit (ADR-079 update), and the
+  `0.2.0` admission (another update). Each edit had to keep four peers × eight bands in step, and the
+  same edit had to extend the negative controls that stop an unmeasured line installing. The rule that
+  makes the union eight bands long — npm needs a comparator per `major.minor.patch` tuple carrying its
+  own prerelease tag, while the runtime gate evaluates with `includePrerelease` — is exactly the rule a
+  hand edit forgets.
+- **Decision.**
+  - `scripts/runtime-lines.mjs` is the single source: `RUNTIME_LINES` (the exact versions a probe
+    measured), `COVERED_PATCH_LINES` (the patch lines the union enumerates as install bands),
+    `DSH_PEERS`, and the derivation `dshPeerRange()`, `unsupportedLines()`, `governanceProblems()`.
+    The newest covered line ends the union; the negative lines are the next minor's first prerelease and
+    `1.0.0`, both computed rather than remembered.
+  - `scripts/gen-peer-union.mjs` writes the four peer ranges into `package.json` and `--check`s them.
+    `pnpm peers:check` runs the check, and `prepack` runs it before the build, so a release cannot ship a
+    manifest that disagrees with the declared lines.
+  - `tests/dsh-peers.test.ts` asserts the manifest's ranges equal the generated union byte for byte,
+    that the declared lists are consistent, that both npm and gate semantics admit every measured line,
+    and that the computed unsupported lines satisfy neither.
+- **Evidence.** The generator reproduces the current, hand-written union byte for byte (4 peers, 8 bands,
+  3 measured lines). A copy of the manifest with one band altered fails `--check` (exit 1, naming all
+  four peers) and the write mode repairs it back to a byte-identical file. `tests/dsh-peers.test.ts`
+  passes 6 tests. Adding a line is now: edit `RUNTIME_LINES` (and, when the patch is new, the covered
+  list), run the generator, re-run the compatibility probe.
+- **Known limits.** The covered patch list is declared, not fetched: the generator stays offline and
+  deterministic, so a newly published 0.1.x patch that users might run is not admitted until the list is
+  extended. The generator covers the four `@deepseek-ai/dsh*` peers; `@deepseek-ai/cordis` keeps its own
+  range because the gate does not evaluate it.
+- **Alternatives rejected:** fetching the patch list from the registry during release (network in the
+  release path, and the registry's version history is not a correctness source for what a user runs);
+  keeping the union hand-written with a test that compares it to a second hand-written copy (two sources
+  of the same mistake); rewriting the manifest silently during `pnpm pack` (the release would then
+  publish something nobody reviewed).
