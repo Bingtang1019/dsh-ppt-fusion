@@ -2780,7 +2780,7 @@ the ADR wins.**
   Negative control: a plugin declaring `@deepseek-ai/dsh: >=0.1.2-rc.1 <0.1.3` installs on npm but the
   0.2.0 gate refuses it — the smoke fails with `Plugin … is incompatible with dsh 0.2.0-rc.2 …`, and with
   `--exempt` it passes and reports `exemption exercised (dsh-ppt-refusal-probe@0.0.1 on dsh 0.2.0-rc.2)`
-  with the file on disk. Repository gates at this commit: 580 tests over 73 files, typecheck, lint.
+  with the file on disk. Repository gates at this commit: 580 tests over 73 files, typecheck, lint. CI evidence: PR #2 head `632ba1e`, GitHub Actions run 36753222033 — five jobs green including the new `dsh-compat (0.2.0-rc.2)` leg alongside `0.1.2-rc.1` and `0.1.7-rc.2`.
 - **Known limits.** The 0.1.2 leg proves installation and composition, not gate compliance — that line has
   no gate to comply with. The exemption path is a 0.2.0 contract; on older lines a refused plugin is
   simply refused. CI runs the legs on ubuntu only: the peer ranges and the bundle patch are
