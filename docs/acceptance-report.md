@@ -42,6 +42,7 @@ scenario).
 | S30 | 双 DSH 版本可安装 | `dsh-compat` CI job 矩阵（0.1.2-rc.1 / 0.1.7-rc.2）：`scripts/dsh-compat.mjs` 在 0.1.7 上跑官方 peer 门禁、在 0.1.2 上显式 skipped；`scripts/dsh-compat-profile.mjs` 在两条线上都把打包后的插件装进 scratch profile 并 compose（本机实测两版 ok，ADR-079） | 无（CI 复核） | V8 Part 0 |
 | S31 | 0.1.7 探针记录 | `docs/dsh017-probe.md`：两版运行时矩阵、peer 门禁语义（只查 `@deepseek-ai/dsh*`、预发布参与匹配、`compatibility.json` 精确豁免与 BOM 坑）、本插件 5 个 peer 的声明与验证证据、V9 三杠杆（Kit/附件/子代理）可用性 | 无 | V8 Part 0 |
 | S32 | 0.1.7 实机运行 | 本机基线已切到 `~/dsh-017-runtime`（0.1.7-rc.2）：`--profile web --dump-config` 退出 0 且 `dsh-ppt-flashmade` 层在列；`%TEMP%\dsh-web.log` 无 `Failed to load / failed to import / did not activate`；`tests/dsh-peers.test.ts` 3 绿 | 浏览器 red banner 复核（用户） | V8 Part 0 |
+| S33 | 0.2.0 线可安装并运行 | 桌面版自带运行时（`@deepseek-ai/dsh` 0.2.0-rc.2）：隔离 profile 内先复现门禁跳过（`skipping profile bundle "dsh-ppt-flashmade"`，因旧 union 止于 `>=0.1.8 <0.2.0-0`），授予精确豁免后真实启动为服务成功——插件层在列、`dsh-ppt-fusion` 技能注册（正文 6,830 字节）、`dsh_ppt_preview` 带参数 schema 注册、`webServer` scope 注册路由、`attachments` scope 注册 `dsh_ppt_review`，stderr 无 `failed to import` / `did not activate` / `incompatible` / `pending`，未激活条目数与未装插件时相同；0.1.5-rc.2 线用同一份插件字节、独立运行时与独立 home 复测，boot 无任何激活告警；`tests/dsh-peers.test.ts` 4 绿（含 `0.3.0-rc.1` / `1.0.0` 反向用例） | 桌面版里实装并跑一次真实出片（用户） | V11 Part 0 |
 | S35 | 渲染快照可用 | `dsh-ppt renderpages` 在本机对 reference-quality deck 出全页 PNG：LibreOffice Kit 0.1.1（native，1280×721，12 页）与 PowerPoint COM 16.0（1280×720，12 页）各一份 + `pages.json`；二次运行两引擎均 `cached`（0 重渲）；`--force` 重渲；`--engine`/`--scale`/`--max-pages`/`--max-pixels` 与 `--required` 语义有单测（ADR-081） | 抽 2 页看图（用户） | V10 Part A |
 | S36 | 渲染门禁有效 | `dsh-ppt audit --rendered` 在 reference-quality deck 上跑通并给出 `ok=true`（仅 2 条 `render-parity` warning：两引擎墨迹占比漂移 6.2% / 0.5%）；规则：page-count / content-loss / off-page（几何越界 + 外带 warning）/ overlap（忽略模板的整幅隐形文本框）/ contrast（窗口内最深墨色，<18pt 4.5:1、≥18pt 3:1）/ chrome（页脚带暗色小标记 0.15–12%）/ tofu（仅 PowerPoint）/ overflow（warning）/ parity（warning）；`--require-rendered` 升级缺快照；`render-audit.test.ts` 4 例。校准事实：LibreOffice 把 `wrap="none"` 文本框按自身锚点绘制（比声明框高 30–100px），PowerPoint 严格按框（ADR-082） | 无 | V10 Part A |
 | S37 | 模型看图自评闭环 | `dsh_ppt_review` 工具（插件内 scoped `attachments` 注入）：inspect 模式把渲染页图作为图片附件交给模型 + rubric + `review.json` 路径；record 模式校验 findings 并写 `.dsh-ppt/review/review.json`；无附件服务 / 路由无法解析 / 模型不声明 image 输入时一律报 `image-input-unavailable` 并如实记录"视觉自评未运行"。`tests/plugin/review-tool.test.ts` 5 例钉住：附件页数与图片块、页选择与上限、两条拒绝路径、finding 校验与写入、渲染失败不上陈旧索引；SKILL 增相位 5.5（`DSH_PPT_REVIEW=pixel|model|subagent`，≤2 轮，approve 归用户），prompt-audit 25 files / 112,405 / 120,000 · 0 error。**本机实时看图需 image-capable 模型路由，未在本会话验证** | 用图片模型跑一轮并看修复前后（用户） | V10 Part B |
@@ -71,3 +72,19 @@ scenario).
 - **The preview card** was verified server-side (route + logs) and then user-confirmed
   in-browser on 2026-09-22 (M9 prep); the real `web`-profile card/red-banner check rides
   the M9 install.
+
+## V11 验收增量（Track A/B）
+
+> 编号说明：V11 计划书 §4 用 S45–S52 自己的编号，而本报告上面的表是 V10 的历史记录（其中也出现过 S45–S47）。
+> 两处按章节区分：**本节的 S45–S52 只指 V11 的验收项**，历史表里的 S41–S47 保持原号不改。
+
+| # | 验收项 | 断言 / 证据 | 人工复核 | 状态 |
+|---|---|---|---|---|
+| S45 | 0.2.0 CI 腿 | `dsh-compat` 三条腿：`0.1.2-rc.1`（无 peer gate，只证明安装+组装）、`0.1.7-rc.2` 与 `0.2.0-rc.2`（强制 gate，`matrix.gate == false` 才放行 `--allow-missing-gate`）。smoke 先用运行时自身 `evaluatePluginCompatibility` 判定已装插件（`--dump-config` 能组装不算准入），`--exempt` 演练 `compatibility.json` 精确版本豁免并要求判定回到 `exempted: true`，`--expect` 钉住被测运行时版本。证据：PR #2 head `632ba1e` run 36753222033 五 job 全绿（含新腿）；本机双线 `dsh-compat ok` + `profile ok (peer gate clean)`；负例插件无豁免失败、加 `--exempt` 通过 | 无 | ✅ A1（ADR-089） |
+| S46 | 0.2.0 模型链路 | `@deepseek-ai/dsh@0.2.0-rc.2` scratch runtime 上四场景 `eval:run --attempts 1`：**4/4 全绿**（topic-only 17/17 1591 s/198 tools；doc-to-deck 17/17 1714 s/147；branded-template 17/17 302 s/86；reference-quality 17/17 触 1800 s 上限 180 tools、`designProfileOk=true`、1 条 `checkpoint` warning 为截断产物）。0 失败调用、0 门禁失败、每场景 1 次 skill 加载；stderr 无 peer/compat 告警。与 0.1.7 基线（`tmp/eval/report-017-four.json`）对比：同 rubric 下 0.1.7 的 reference-quality 曾 16/17，判定为模型方差。记录：`docs/v020-eval.md`、`docs/dsh020-probe.md` | 抽 1 版人看（可择期） | ✅ A2 |
+| S47 | 多线治理自动化 | 单一源 `scripts/runtime-lines.mjs`（`RUNTIME_LINES` 实测线 + `COVERED_PATCH_LINES` 安装带 + `DSH_PEERS`）派生 union 与负例；`scripts/gen-peer-union.mjs` 写入/`--check`，`pnpm peers:check` 与 `prepack` 首步强制一致。实测：生成值与手写 union 逐字节一致（4 peers × 8 bands）；篡改一个 band 的副本 `--check` 退出 1 并点名 4 个 peer，write 修复后逐字节相同；`tests/dsh-peers.test.ts` 6 例含"manifest == 生成值"与两套语义逐线、负例线双语义皆不满足。CI：PR #2 head `fc097f6` run 36756552896 五 job 全绿 | 无 | ✅ A3（ADR-090） |
+| S48 | Windows ACL | ✅ **实测矩阵已归档**（`docs/compat/windows-sandbox.md`，ADR-091）：`scripts/win-sandbox-probe.mjs` 用运行时自带 `runner.js` 跑四行 × 七探针（control / standing / confined workspace-write / confined read-only）。**按插件实际形态（自 spawn、用户 token）在带"常驻授予"的工作区上：全部通过**（ffprobe、doctor 引擎检查、sharp、PowerPoint COM 5 页渲染、工作区文件与目录删除写）。若把子进程放进受限 token：python 链失败（venv 在授权外 + `imageio_ffmpeg` 需写用户目录缓存）、渲染引擎 `skipped`、插件 home 写入被拒（设计如此）→ 三条受阻点与适配方向已写明。顺带得到两条机器事实：LibreOffice 本机未安装（缓存命中不等于引擎可用，探针一律 `--force`）、`doctor` 的 `png-renderer`（cairo）本机缺口与沙箱无关 | 无 | ✅ A4 |
+| S49 | office 技能联邦 | SKILL 能力路由文档存在；`audit --office-check` 在 bundled 环境交叉验证通过；两技能同现无冲突 | 试一次"轻编辑"走 office-pptx | ⏳ B1 |
+| S50 | seam 预览 + 日志化 | worktree draft 在 document-preview seam 可预览/diff；approve/discard 事件可重建卡片，含"无日志态不出现"负例 | 点一遍 diff | ⏳ B2/B3 |
+| S51 | settings 化 | 设置页改 `maxRounds` 生效；env 覆盖优先；无硬编码 tunable 新增 | 点一遍设置 | ⏳ B4 |
+| S52 | bundled LO 渲染 | 0.2.0 kit 渲染全页 PNG；与 soffice 基线 parity 在阈值内；缓存键含 kit 版本 | 抽 1 页 | ⏳ B5 |

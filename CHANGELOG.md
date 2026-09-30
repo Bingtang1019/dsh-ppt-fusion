@@ -1,5 +1,49 @@
 # CHANGELOG
 
+## Unreleased — DSH 0.2.0 兼容（V11 Track A → v0.7.0）
+
+- **CI 第三条腿（A1，ADR-089）**：`dsh-compat` 从两线扩到三线 —— `0.1.2-rc.1` 只证明"装得上、组装得起来"，
+
+
+- **0.2.0 模型链路复跑（A2）**：`@deepseek-ai/dsh@0.2.0-rc.2` scratch runtime 上四场景 `eval:run` **4/4 全绿**
+  （每场景 17/17、0 失败调用、0 门禁失败；reference-quality 在 1800 s 上限处截断但交付包全门通过、`designProfileOk=true`）。
+  与 0.1.7 基线对比把 V10 那次 reference-quality 16/17 判定为模型方差。记录：`docs/v020-eval.md`、`docs/dsh020-probe.md`、验收 S46。
+- **Windows 沙箱矩阵（A4）**：`scripts/win-sandbox-probe.mjs`（`pnpm sandbox:probe`）在 0.2.0 自带 ACL 沙箱上跑四行 × 七探针；
+  按插件实际形态（自 spawn、用户 token）在带常驻授予的工作区上**全通过**；受限 token 下的三条受阻点（python 链、渲染引擎、插件 home 写入）
+  与适配方向记录在 `docs/compat/windows-sandbox.md`（ADR-091、S48）。
+- **四线支持矩阵（A5）**：`docs/compat/dsh-versions.md` 列四线状态与证据（0.2.0-rc.2 / 0.1.7-rc.2 first-class；0.1.5-rc.2 支持但无专属腿；
+  0.1.2-rc.1 legacy、v0.8 后 EOL 候选），并写明加线/删线流程与 `pnpm prepack` 的强制校验。
+- **peer union 生成化（A3，ADR-090）**：`scripts/runtime-lines.mjs` 成为唯一源（实测线 + 安装带 + 覆盖的 peer），`scripts/gen-peer-union.mjs`
+  写入/校验 `package.json`，`pnpm peers:check` 与 `prepack` 首步强制一致；`tests/dsh-peers.test.ts` 断言 manifest 与生成值逐字节相同，
+  负例线由清单算出而非手写。加一条支持线从"手改 4×8 个 range"变成"改一处清单 + 重生成 + 重跑探针"。  `0.1.7-rc.2` 与 `0.2.0-rc.2` 强制执行运行时自带的 peer gate。兼容 smoke 先用运行时自身
+  `evaluatePluginCompatibility` 判定已装插件，不匹配即以运行时原文报错（`--dump-config` 里能组装不算准入）；
+  `--exempt` 演练 `compatibility.json` 精确版本豁免（要求判定回到 `exempted: true`），`--expect` 钉住被测运行时版本。
+
+## v0.6.1 — 2026-09-29
+
+The DSH 0.2.0 line is now declared, measured and admitted. No plugin behaviour changed: this
+release exists so the package installs on the 0.2.0 runtime at all.
+
+- **Peer union gains the 0.2.0 branch (ADR-079 update).** Every `@deepseek-ai/dsh*` peer now ends
+  with `|| >=0.2.0-rc.1 <0.3.0-0`. The previous union stopped at `>=0.1.8 <0.2.0-0`, so the
+  runtime's own peer gate skipped the plugin on 0.2.0-rc.2 (`skipping profile bundle
+  "dsh-ppt-flashmade"`) even though the plugin loaded correctly as soon as the gate was satisfied
+  through an exact-version exemption.
+- **Measured on 0.2.0-rc.2** (desktop app 0.2.0-rc.2, bundled `@deepseek-ai/dsh` 0.2.0-rc.2).
+  Installed into an isolated profile and booted as a real service: the plugin layer composed, the
+  `dsh-ppt-fusion` skill registered (6,830 bytes of body), `dsh_ppt_preview` registered with its
+  parameter schema, the `webServer` scope registered its route, the `attachments` scope registered
+  `dsh_ppt_review`, and the plugin produced no `failed to import`, `did not activate`,
+  `incompatible` or `pending` line. The activation count matched the same profile without the plugin.
+- **Re-measured on 0.1.5-rc.2**, the line the WebUI profile runs: same plugin bytes, its own isolated
+  runtime and home, and the boot reported no activation warning at all.
+- **`tests/dsh-peers.test.ts`** pins all three lines (`0.1.2-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.2`) under
+  both npm and gate semantics, and adds a negative case so the next unmeasured minor (`0.3.0-rc.1`,
+  `1.0.0`) cannot be admitted by accident.
+- **Not changed:** the CI `dsh-compat` matrix still runs the two older legs. A 0.2.0 leg is a
+  separate change, because the packed-plugin smoke script needs the same exemption plumbing this
+  field test used.
+
 ## v0.6.0 — 2026-09-27
 
 审查工作台（V10 Part C/D/E）：渲染产物先进隔离草稿，用户 approve 才发布到 `out/`；同一天落地文件树右侧栏

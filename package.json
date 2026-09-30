@@ -1,6 +1,6 @@
 {
   "name": "dsh-ppt-flashmade",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "description": "DeepSeek Harness plugin that fuses pptwise's DSH-native front end with ppt-master's native DrawingML engine",
   "license": "MIT",
@@ -14,10 +14,10 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
-    "@deepseek-ai/dsh-client-ui-tool": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
-    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0",
-    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0"
+    "@deepseek-ai/dsh": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-client-ui-tool": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 <0.1.3 || >=0.1.3-rc.1 <0.1.4 || >=0.1.4-rc.1 <0.1.5 || >=0.1.5-rc.1 <0.1.6 || >=0.1.6-rc.1 <0.1.7 || >=0.1.7-rc.1 <0.1.8 || >=0.1.8 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0"
   },
   "engines": {
     "node": ">=22.19"
@@ -73,7 +73,9 @@
     "com:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-com-smoke.ps1",
     "eval:run": "node --import tsx scripts/eval-run.ts",
     "dsh-ppt": "node --import tsx src/cli.ts",
-    "prepack": "pnpm build && node scripts/check-pack.mjs",
+    "peers:check": "node scripts/gen-peer-union.mjs --check",
+    "sandbox:probe": "node scripts/win-sandbox-probe.mjs --json",
+    "prepack": "node scripts/gen-peer-union.mjs --check && pnpm build && node scripts/check-pack.mjs",
     "matrix:record": "node --import tsx tests/theme-matrix.ts --record",
     "matrix:verify": "node --import tsx tests/theme-matrix.ts --verify",
     "engine:provision": "node --import tsx scripts/engine-provision.ts",

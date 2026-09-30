@@ -514,3 +514,10 @@ The remaining surface from plan §3.9, with the milestone that lands it:
 neither is on a release path and the CLI must not advertise a surface no milestone owns
 (ADR-065, CHANGELOG v0.2.0). Options are registered with commander in `src/commands/*.ts`;
 a change to a documented option is an ADR, because the skill teaches the surface.
+
+## 开发侧脚本（非 CLI 命令）
+
+`node scripts/gen-peer-union.mjs [--check]` 从 `scripts/runtime-lines.mjs` 生成 `@deepseek-ai/dsh*` 的 peer union；
+`pnpm peers:check` 校验一致性，`pnpm prepack` 首步即跑它（ADR-090）。兼容性探针：`node scripts/dsh-compat.mjs --runtime <dir>
+--expect <version>`（运行时自带 peer gate）与 `node scripts/dsh-compat-profile.mjs --runtime <dir> --plugin <tgz> --expect <version>
+[--exempt]`（打包插件装进 scratch profile 并组装，`--exempt` 演练 `compatibility.json` 精确版本豁免；ADR-089）。

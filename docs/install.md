@@ -6,28 +6,28 @@ preview card, and `cordis.patch.yml` is the bundle layer DSH composes.
 
 ## Prerequisites
 
-- Node `>=22.19` and a DSH runtime (`0.1.2-rc.1` or newer) that supports
-  `dsh.bundle` packages.
+- Node `>=22.19` and a DSH runtime that supports `dsh.bundle` packages. The declared lines are
+  `0.1.2-rc.1`, `0.1.5-rc.2`, `0.1.7-rc.2` and `0.2.0-rc.2` and newer patches inside each of those
+  minors (ADR-079). A line the plugin has never been measured on is deliberately not admitted, and
+  the runtime's peer gate skips the bundle when the running version falls outside the union.
 - The engine bootstrap is local: the first run needs
   `dsh-ppt doctor --repair` (uv + pinned Python + `python-assets/requirements.lock`).
   The plugin's own commands do not install anything globally.
 
 ## Install
 
-From npm (v0.6.0):
+From npm (v0.6.1 — the release that declares the DSH 0.2.0 line; v0.6.0 has the same plugin
+behaviour but its peer union stops before 0.2.0, so a 0.2.0 runtime skips the bundle):
 
 ```sh
-dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.6.0
+dsh plugin --profile <profile> add -w dsh-ppt-flashmade@0.6.1
 ```
 
-From the GitHub Release (the attached tarball is byte-identical to the npm package, shasum
-`d354434ef86d22b40d6b8578cdd462ebd1d8af77`, sha256
-`a616af0169e2539377ee9b853098f97c4c225efbea2ecbd0359102c258dcf5ff`): download
-`dsh-ppt-flashmade-0.6.0.tgz` from
-`https://github.com/Bingtang1019/dsh-ppt-fusion/releases/tag/v0.6.0`, then
+From a local build or a GitHub Release tarball, read the shasum off the release page for the
+version you download:
 
 ```sh
-dsh plugin --profile <profile> add -w <downloads>/dsh-ppt-flashmade-0.6.0.tgz
+dsh plugin --profile <profile> add -w <downloads>/dsh-ppt-flashmade-0.6.1.tgz
 ```
 
 From a checkout, build first so the linked package has `dist/cli.js`:

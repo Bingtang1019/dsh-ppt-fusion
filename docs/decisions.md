@@ -100,6 +100,9 @@ the ADR wins.**
 | 086 | Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff |
 | 087 | File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside` |
 | 088 | Asset cache, discovery cache and per-call engine timeouts for `assets` / `images` |
+| 089 | The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced |
+| 090 | Generate the DSH peer union from the declared runtime lines |
+| 091 | Windows sandbox (0.2.0 ACL confinement): keep the plugin chain outside the restricted token, with the matrix recorded |
 
 ---
 
@@ -2373,6 +2376,24 @@ the ADR wins.**
   (the runtime gate, which evaluates with `includePrerelease: true`, hid that). `tests/dsh-peers.test.ts`
   now asserts both semantics for every line in `RUNTIME_LINES`, so supporting a new prerelease line
   requires extending the union; the awesome-dsh-plugin contributing rules document the same trap.
+
+  **Update (2026-09-29):** the union gained its `0.2.0` branch — every `@deepseek-ai/dsh*` peer now ends
+  with `|| >=0.2.0-rc.1 <0.3.0-0`, and `RUNTIME_LINES` is `0.1.2-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.2`.
+  Evidence, measured rather than inferred: on the desktop app's bundled runtime (`@deepseek-ai/dsh`
+  0.2.0-rc.2) the plugin first appeared as `skipping profile bundle "dsh-ppt-flashmade"` — the gate
+  reads the union and the old one stopped at `>=0.1.8 <0.2.0-0` — and once the profile granted an
+  exact-version exemption it composed, registered the skill and `dsh_ppt_preview`, registered the
+  `webServer` route and the `attachments`-scoped `dsh_ppt_review`, and reported no activation warning,
+  with an activation count identical to the same profile without the plugin. The 0.1.5-rc.2 line was
+  re-measured the same way (own runtime, own home, physical dependency copy) and reported no activation
+  warning at all; the 0.1.7-rc.2 line keeps the profile that has been running since ADR-085. The host
+  surface this rests on is small by construction: `dsh/index.js` imports only Node builtins and its own
+  modules, and binds to `ctx.skills.register`, `ctx.tools.register` and scoped `ctx.inject` for
+  `webServer` / `attachments` — no `@deepseek-ai/*` import exists in the package. A negative test was
+  added with it: `0.3.0-rc.1` and `1.0.0` must NOT satisfy the union, so the next unmeasured minor
+  cannot install by accident. The CI matrix still runs the two older legs; a 0.2.0 leg needs the packed
+  smoke script to handle the exemption, which is deliberately left to its own change — ADR-089 implements
+  that leg and makes the exemption an explicit `--exempt` rehearsal rather than a blanket grant.
 ## ADR-080 — v0.4.0 release: peer governance and the dual-runtime CI on both channels (V8 Part 0)
 
 - **Date:** 2026-09-25
@@ -2731,3 +2752,115 @@ the ADR wins.**
   and must not travel with the deck); treating a damaged payload as an error (a cache is an
   optimisation, so it repairs or misses, never blocks); a fixed timeout flag with no engine plumbing (the
   network lives in the engine, so a client-side timer would leave the child running).
+
+## ADR-089 — The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced
+
+- **Date:** 2026-09-30
+- **Context.** DSH moved to the 0.2.0 line (npm `latest`/`next` = `0.2.0-rc.2`) and the desktop app already
+  runs it, while the WebUI profile still runs 0.1.5-rc.2. The plugin's peer union carries a 0.2.0 branch
+  (ADR-079 update) and a one-off measurement on this machine showed the skill, tools, `webServer` routes
+  and the scoped `attachments` service registering on 0.2.0-rc.2, but CI still proved only the 0.1.2 and
+  0.1.7 lines. A release that claims 0.2.0 support needs a permanent gate, not a remembered measurement.
+- **Decision.**
+  - `dsh-compat` runs three legs: `0.1.2-rc.1` (install and compose only — that line predates the peer
+    gate), `0.1.7-rc.2` and `0.2.0-rc.2` (both enforce the gate, `--allow-missing-gate` stays false so a
+    line without the gate fails instead of silently skipping).
+  - `scripts/dsh-compat-profile.mjs` now asks the pinned runtime's own `evaluatePluginCompatibility` about
+    the installed plugin before it dumps the profile. A mismatching peer fails the step with the runtime's
+    own warning text: a plugin whose range npm satisfies but the gate refuses (the two use different
+    prerelease rules) can no longer pass by composing.
+  - `--exempt` rehearses the documented escape hatch: it writes
+    `<profileDir>/compatibility.json` as `{"<name>@<exact version>": ["<exact dsh version>"]}`, re-reads it
+    through the runtime's `readProfileCompatibility`, and requires the verdict to come back `exempted: true`
+    before the compose assertions run. On a line without that reader the flag fails with its own message
+    instead of a reference error.
+  - `--expect <version>` pins the runtime the step is about, so a stale or wrongly cached install cannot
+    satisfy a leg; `--package`/`--entry` let the same script rehearse another package (the negative
+    control).
+- **Evidence.** On this machine, against temp installs of `@deepseek-ai/dsh@0.1.7-rc.2` and
+  `@deepseek-ai/dsh@0.2.0-rc.2`: `dsh-compat ok: dsh-ppt-flashmade@0.6.1 vs dsh <line>` and
+  `dsh-compat profile ok: dsh <line> composes dsh-ppt-flashmade@0.6.1 … (peer gate clean)` on both lines.
+  Negative control: a plugin declaring `@deepseek-ai/dsh: >=0.1.2-rc.1 <0.1.3` installs on npm but the
+  0.2.0 gate refuses it — the smoke fails with `Plugin … is incompatible with dsh 0.2.0-rc.2 …`, and with
+  `--exempt` it passes and reports `exemption exercised (dsh-ppt-refusal-probe@0.0.1 on dsh 0.2.0-rc.2)`
+  with the file on disk. Repository gates at this commit: 580 tests over 73 files, typecheck, lint. CI evidence: PR #2 head `632ba1e`, GitHub Actions run 36753222033 — five jobs green including the new `dsh-compat (0.2.0-rc.2)` leg alongside `0.1.2-rc.1` and `0.1.7-rc.2`.
+- **Known limits.** The 0.1.2 leg proves installation and composition, not gate compliance — that line has
+  no gate to comply with. The exemption path is a 0.2.0 contract; on older lines a refused plugin is
+  simply refused. CI runs the legs on ubuntu only: the peer ranges and the bundle patch are
+  platform-independent, while Windows-specific runtime gaps are covered by the Windows leg of the main
+  job and by the sandbox probe in A4.
+- **Alternatives rejected:** a single "latest line" leg (leaves 0.1.7 users unproven and would silently
+  drop 0.1.2); passing `--allow-missing-gate true` on every line (hides a regression that removes the gate);
+  trusting the dump alone (a gate-refused plugin still appears in `--dump-config`, so composing is not
+  evidence of admission); granting the exemption unconditionally in CI (turns the escape hatch into the
+  default and stops protecting users from an incompatible range).
+
+## ADR-090 — Generate the DSH peer union from the declared runtime lines
+
+- **Date:** 2026-09-30
+- **Context.** The union of peer ranges has been hand-edited three times: the original
+  `>=0.1.2-rc.1 <0.2.0`, the per-minor rewrite after npm's prerelease rule bit (ADR-079 update), and the
+  `0.2.0` admission (another update). Each edit had to keep four peers × eight bands in step, and the
+  same edit had to extend the negative controls that stop an unmeasured line installing. The rule that
+  makes the union eight bands long — npm needs a comparator per `major.minor.patch` tuple carrying its
+  own prerelease tag, while the runtime gate evaluates with `includePrerelease` — is exactly the rule a
+  hand edit forgets.
+- **Decision.**
+  - `scripts/runtime-lines.mjs` is the single source: `RUNTIME_LINES` (the exact versions a probe
+    measured), `COVERED_PATCH_LINES` (the patch lines the union enumerates as install bands),
+    `DSH_PEERS`, and the derivation `dshPeerRange()`, `unsupportedLines()`, `governanceProblems()`.
+    The newest covered line ends the union; the negative lines are the next minor's first prerelease and
+    `1.0.0`, both computed rather than remembered.
+  - `scripts/gen-peer-union.mjs` writes the four peer ranges into `package.json` and `--check`s them.
+    `pnpm peers:check` runs the check, and `prepack` runs it before the build, so a release cannot ship a
+    manifest that disagrees with the declared lines.
+  - `tests/dsh-peers.test.ts` asserts the manifest's ranges equal the generated union byte for byte,
+    that the declared lists are consistent, that both npm and gate semantics admit every measured line,
+    and that the computed unsupported lines satisfy neither.
+- **Evidence.** The generator reproduces the current, hand-written union byte for byte (4 peers, 8 bands,
+  3 measured lines). A copy of the manifest with one band altered fails `--check` (exit 1, naming all
+  four peers) and the write mode repairs it back to a byte-identical file. `tests/dsh-peers.test.ts`
+  passes 6 tests. Adding a line is now: edit `RUNTIME_LINES` (and, when the patch is new, the covered
+  list), run the generator, re-run the compatibility probe.
+- **Known limits.** The covered patch list is declared, not fetched: the generator stays offline and
+  deterministic, so a newly published 0.1.x patch that users might run is not admitted until the list is
+  extended. The generator covers the four `@deepseek-ai/dsh*` peers; `@deepseek-ai/cordis` keeps its own
+  range because the gate does not evaluate it.
+- **Alternatives rejected:** fetching the patch list from the registry during release (network in the
+  release path, and the registry's version history is not a correctness source for what a user runs);
+  keeping the union hand-written with a test that compares it to a second hand-written copy (two sources
+  of the same mistake); rewriting the manifest silently during `pnpm pack` (the release would then
+  publish something nobody reviewed).
+
+## ADR-091 — Windows sandbox: the plugin chain stays outside the 0.2.0 ACL confinement, with the matrix recorded
+
+- **Date:** 2026-10-01
+- **Context.** DSH's 0.2.0 line ships a Windows sandbox (`@deepseek-ai/dsh-sandbox-windows-acl`): a
+  `WRITE_RESTRICTED`, Low-integrity token that may write only in granted roots (workspace plus a per-session
+  private temp), with a **standing** workspace grant (ACE + world `FILE_DELETE_CHILD` deny + Low label) and a
+  revocable temp grant. The plugin runs a long subprocess chain (Node, an `uv` venv with the ppt-master
+  engine, sharp, LibreOffice/PowerPoint, an ffprobe shim) and spawns those children itself through its
+  runner port rather than through `ctx.sandbox`.
+- **Decision.** Keep the chain where it is — spawned with the user's token — and treat "does it still work
+  when the workspace carries the sandbox's standing edits?" as the question to answer, because that is what
+  the plugin actually meets. Record the confined behaviour as a matrix (`docs/compat/windows-sandbox.md`)
+  instead of claiming confinement support that was never measured, and name the adaptations a move under
+  `ctx.sandbox` would need first.
+- **Evidence.** `scripts/win-sandbox-probe.mjs` runs seven probes in four rows (control, standing,
+  confined `workspace-write`, confined `read-only`) against the runtime's own `runner.js`, and judges
+  renders by their `renderpages --json` report rather than by exit code (a `skipped` engine is not a pass; a
+  cache hit is not a render). Result: **every probe passes in the standing row** — ffprobe, `doctor`'s
+  engine checks, sharp, the PowerPoint COM render (5 pages), workspace file and directory writes — so the
+  sandbox's standing mutations do not break the plugin for a user in a confined session. Under confinement
+  three blockers appear: the Python chain (venv outside the grant; `imageio_ffmpeg.get_ffmpeg_exe()` writes
+  its binary cache under the user profile), the render engines (`skipped`: COM cannot launch confined,
+  LibreOffice is absent on this machine in every row), and plugin-home writes (denied by design).
+- **Known limits.** `read-only` does not deny writes inside an already-Low-labelled workspace — the standing
+  label's documented widening, measured here rather than assumed; `doctor` fails its `png-renderer` check on
+  this machine for a missing cairo library in every row, so that check is not confinement evidence; and the
+  matrix covers one workspace and one machine, not a fleet.
+- **Alternatives rejected:** routing the chain through `ctx.sandbox` now (it would break the engine,
+  the ffprobe shim and both renderers before the home strategy exists, with no user benefit today);
+  "fixing" the plugin home by moving it into the workspace unconditionally (a user's venv and caches belong
+  to the machine, not to one deck, and the harness already proves the in-workspace layout works when a
+  session needs it); reporting the confined rows as failures (they measure a path the plugin does not take).
