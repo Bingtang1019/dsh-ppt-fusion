@@ -103,6 +103,7 @@ the ADR wins.**
 | 089 | The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced |
 | 090 | Generate the DSH peer union from the declared runtime lines |
 | 091 | Windows sandbox (0.2.0 ACL confinement): keep the plugin chain outside the restricted token, with the matrix recorded |
+| 092 | The 0.2.0 model chain: four scenarios on a scratch install, one attempt each |
 
 ---
 
@@ -2864,3 +2865,34 @@ the ADR wins.**
   "fixing" the plugin home by moving it into the workspace unconditionally (a user's venv and caches belong
   to the machine, not to one deck, and the harness already proves the in-workspace layout works when a
   session needs it); reporting the confined rows as failures (they measure a path the plugin does not take).
+
+## ADR-092 — The 0.2.0 model chain: four scenarios on a scratch install, one attempt each
+
+- **Date:** 2026-10-01
+- **Context.** A1 proved the 0.2.0 line installs, satisfies the peer gate and composes; that is not the same
+  as a model being able to work on it. V11 A-D4 asks for the four scenarios to be re-run on the 0.2.0
+  runtime, and ADR-079's update already showed the line differs in ways that matter (a plugin whose ranges
+  stop before 0.2.0 is skipped, not merely warned about).
+- **Decision.** Run `pnpm eval:run --attempts 1` over the four scenarios on a scratch install of
+  `@deepseek-ai/dsh@0.2.0-rc.2` (own `DSH_HOME`, own profile, the runtime's own `dsh.cmd` through the
+  Windows launch path V10 F2 fixed) and keep the outcome as the 0.2.0 baseline, separate from the 0.1.7
+  baseline snapshot. One attempt each: the question is "does the chain work on this line", not "what is the
+  best of three", and the attempt cap (1800 s) is part of the harness as shipped.
+- **Evidence.** 4/4 scenarios pass all seventeen rubric checks: topic-only 17/17 (1591 s, 198 tool calls),
+  doc-to-deck 17/17 (1714 s, 147), branded-template 17/17 (302 s, 86), reference-quality 17/17 (hit the
+  1800 s cap, 180 tool calls, `designProfileOk = true`). Zero failed tool calls, zero gate failures, one
+  skill load per attempt, and no `peerDependencies` / `exemption` / `skipping profile bundle` line in any
+  attempt's stderr. Against the 0.1.7 baseline the earlier reference-quality failure
+  (`design-background-mode`, 16/17) is model variance, not a gap in the plugin. Records:
+  `docs/v020-eval.md`, `docs/dsh020-probe.md`, acceptance S46.
+- **Known limits.** `reference-quality` is a cut-off pass: the 1800 s cap killed the attempt while it was
+  still working, so it never wrote `.dsh-ppt/checkpoint.json` (the report's single warning) even though the
+  published package passed every gate. Raising or splitting the cap for the 12-page scenario belongs to the
+  next evaluation pass. `branded-template` exited 1 with a green rubric: the harness judges the workspace,
+  not the agent's exit code. And nothing here covers the Windows sandbox matrix (A4) or a bundled
+  LibreOffice renderer (B5).
+- **Alternatives rejected:** three attempts per scenario (triples the model cost to answer a question one
+  attempt answers, and the pass/fail rule already treats any passing attempt as a pass); running the
+  scenarios through the source checkout instead of the pinned runtime (that measures a different
+  composition); dropping reference-quality because it had failed on 0.1.7 (the failure was the reason to
+  re-run it).
