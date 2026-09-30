@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Unreleased — DSH 0.2.0 兼容（V11 Track A → v0.7.0）
+
+- **CI 第三条腿（A1，ADR-089）**：`dsh-compat` 从两线扩到三线 —— `0.1.2-rc.1` 只证明"装得上、组装得起来"，
+  `0.1.7-rc.2` 与 `0.2.0-rc.2` 强制执行运行时自带的 peer gate。兼容 smoke 先用运行时自身
+  `evaluatePluginCompatibility` 判定已装插件，不匹配即以运行时原文报错（`--dump-config` 里能组装不算准入）；
+  `--exempt` 演练 `compatibility.json` 精确版本豁免（要求判定回到 `exempted: true`），`--expect` 钉住被测运行时版本。
+
 ## v0.6.1 — 2026-09-29
 
 The DSH 0.2.0 line is now declared, measured and admitted. No plugin behaviour changed: this

@@ -97,16 +97,23 @@ jobs:
       - name: Build the CLI bundle
         run: pnpm run build
 
-  # The plugin must stay installable on both supported DSH lines (ADR-079). The
-  # 0.1.7 line carries the official peer gate; 0.1.2 predates it, so that leg
-  # proves the packed plugin still installs and composes into a scratch profile.
+  # The plugin must stay installable on every supported DSH line (ADR-079, ADR-089).
+  # 0.1.7 and 0.2.0 carry the official peer gate, so those legs run it and fail when a
+  # range would disable the plugin; 0.1.2 predates the gate, so that leg proves the
+  # packed plugin still installs and composes into a scratch profile.
   dsh-compat:
     name: dsh-compat (${{ matrix.dsh }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dsh: ['0.1.2-rc.1', '0.1.7-rc.2']
+        include:
+          - dsh: 0.1.2-rc.1
+            gate: false
+          - dsh: 0.1.7-rc.2
+            gate: true
+          - dsh: 0.2.0-rc.2
+            gate: true
     steps:
       - uses: actions/checkout@v4
 
@@ -138,7 +145,7 @@ jobs:
           npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.dsh }}"
 
       - name: Peer gate
-        run: node scripts/dsh-compat.mjs --runtime "$RUNNER_TEMP/dsh-${{ matrix.dsh }}" --expect "${{ matrix.dsh }}" --allow-missing-gate true
+        run: node scripts/dsh-compat.mjs --runtime "$RUNNER_TEMP/dsh-${{ matrix.dsh }}" --expect "${{ matrix.dsh }}" --allow-missing-gate ${{ matrix.gate == false }}
 
       - name: Profile smoke
-        run: node scripts/dsh-compat-profile.mjs --runtime "$RUNNER_TEMP/dsh-${{ matrix.dsh }}" --plugin "$(ls "$RUNNER_TEMP"/dsh-ppt-flashmade-*.tgz)"
+        run: node scripts/dsh-compat-profile.mjs --runtime "$RUNNER_TEMP/dsh-${{ matrix.dsh }}" --plugin "$(ls "$RUNNER_TEMP"/dsh-ppt-flashmade-*.tgz)" --expect "${{ matrix.dsh }}"

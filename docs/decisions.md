@@ -100,6 +100,7 @@ the ADR wins.**
 | 086 | Worktree review workspace: version directories, propose/approve/discard, and the three-mode diff |
 | 087 | File-tree `.pptx` viewer: an external document-preview implementation over `renderpages --outside` |
 | 088 | Asset cache, discovery cache and per-call engine timeouts for `assets` / `images` |
+| 089 | The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced |
 
 ---
 
@@ -2748,3 +2749,45 @@ the ADR wins.**
   and must not travel with the deck); treating a damaged payload as an error (a cache is an
   optimisation, so it repairs or misses, never blocks); a fixed timeout flag with no engine plumbing (the
   network lives in the engine, so a client-side timer would leave the child running).
+
+## ADR-089 — The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced
+
+- **Date:** 2026-09-30
+- **Context.** DSH moved to the 0.2.0 line (npm `latest`/`next` = `0.2.0-rc.2`) and the desktop app already
+  runs it, while the WebUI profile still runs 0.1.5-rc.2. The plugin's peer union carries a 0.2.0 branch
+  (ADR-079 update) and a one-off measurement on this machine showed the skill, tools, `webServer` routes
+  and the scoped `attachments` service registering on 0.2.0-rc.2, but CI still proved only the 0.1.2 and
+  0.1.7 lines. A release that claims 0.2.0 support needs a permanent gate, not a remembered measurement.
+- **Decision.**
+  - `dsh-compat` runs three legs: `0.1.2-rc.1` (install and compose only — that line predates the peer
+    gate), `0.1.7-rc.2` and `0.2.0-rc.2` (both enforce the gate, `--allow-missing-gate` stays false so a
+    line without the gate fails instead of silently skipping).
+  - `scripts/dsh-compat-profile.mjs` now asks the pinned runtime's own `evaluatePluginCompatibility` about
+    the installed plugin before it dumps the profile. A mismatching peer fails the step with the runtime's
+    own warning text: a plugin whose range npm satisfies but the gate refuses (the two use different
+    prerelease rules) can no longer pass by composing.
+  - `--exempt` rehearses the documented escape hatch: it writes
+    `<profileDir>/compatibility.json` as `{"<name>@<exact version>": ["<exact dsh version>"]}`, re-reads it
+    through the runtime's `readProfileCompatibility`, and requires the verdict to come back `exempted: true`
+    before the compose assertions run. On a line without that reader the flag fails with its own message
+    instead of a reference error.
+  - `--expect <version>` pins the runtime the step is about, so a stale or wrongly cached install cannot
+    satisfy a leg; `--package`/`--entry` let the same script rehearse another package (the negative
+    control).
+- **Evidence.** On this machine, against temp installs of `@deepseek-ai/dsh@0.1.7-rc.2` and
+  `@deepseek-ai/dsh@0.2.0-rc.2`: `dsh-compat ok: dsh-ppt-flashmade@0.6.1 vs dsh <line>` and
+  `dsh-compat profile ok: dsh <line> composes dsh-ppt-flashmade@0.6.1 … (peer gate clean)` on both lines.
+  Negative control: a plugin declaring `@deepseek-ai/dsh: >=0.1.2-rc.1 <0.1.3` installs on npm but the
+  0.2.0 gate refuses it — the smoke fails with `Plugin … is incompatible with dsh 0.2.0-rc.2 …`, and with
+  `--exempt` it passes and reports `exemption exercised (dsh-ppt-refusal-probe@0.0.1 on dsh 0.2.0-rc.2)`
+  with the file on disk. Repository gates at this commit: 580 tests over 73 files, typecheck, lint.
+- **Known limits.** The 0.1.2 leg proves installation and composition, not gate compliance — that line has
+  no gate to comply with. The exemption path is a 0.2.0 contract; on older lines a refused plugin is
+  simply refused. CI runs the legs on ubuntu only: the peer ranges and the bundle patch are
+  platform-independent, while Windows-specific runtime gaps are covered by the Windows leg of the main
+  job and by the sandbox probe in A4.
+- **Alternatives rejected:** a single "latest line" leg (leaves 0.1.7 users unproven and would silently
+  drop 0.1.2); passing `--allow-missing-gate true` on every line (hides a regression that removes the gate);
+  trusting the dump alone (a gate-refused plugin still appears in `--dump-config`, so composing is not
+  evidence of admission); granting the exemption unconditionally in CI (turns the escape hatch into the
+  default and stops protecting users from an incompatible range).
