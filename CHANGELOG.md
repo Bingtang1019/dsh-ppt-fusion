@@ -4,6 +4,12 @@
 
 - **CI 第三条腿（A1，ADR-089）**：`dsh-compat` 从两线扩到三线 —— `0.1.2-rc.1` 只证明"装得上、组装得起来"，
 
+
+- **0.2.0 模型链路复跑（A2）**：`@deepseek-ai/dsh@0.2.0-rc.2` scratch runtime 上四场景 `eval:run` **4/4 全绿**
+  （每场景 17/17、0 失败调用、0 门禁失败；reference-quality 在 1800 s 上限处截断但交付包全门通过、`designProfileOk=true`）。
+  与 0.1.7 基线对比把 V10 那次 reference-quality 16/17 判定为模型方差。记录：`docs/v020-eval.md`、`docs/dsh020-probe.md`、验收 S46。
+- **四线支持矩阵（A5）**：`docs/compat/dsh-versions.md` 列四线状态与证据（0.2.0-rc.2 / 0.1.7-rc.2 first-class；0.1.5-rc.2 支持但无专属腿；
+  0.1.2-rc.1 legacy、v0.8 后 EOL 候选），并写明加线/删线流程与 `pnpm prepack` 的强制校验。
 - **peer union 生成化（A3，ADR-090）**：`scripts/runtime-lines.mjs` 成为唯一源（实测线 + 安装带 + 覆盖的 peer），`scripts/gen-peer-union.mjs`
   写入/校验 `package.json`，`pnpm peers:check` 与 `prepack` 首步强制一致；`tests/dsh-peers.test.ts` 断言 manifest 与生成值逐字节相同，
   负例线由清单算出而非手写。加一条支持线从"手改 4×8 个 range"变成"改一处清单 + 重生成 + 重跑探针"。  `0.1.7-rc.2` 与 `0.2.0-rc.2` 强制执行运行时自带的 peer gate。兼容 smoke 先用运行时自身
