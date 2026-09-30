@@ -104,6 +104,7 @@ the ADR wins.**
 | 090 | Generate the DSH peer union from the declared runtime lines |
 | 091 | Windows sandbox (0.2.0 ACL confinement): keep the plugin chain outside the restricted token, with the matrix recorded |
 | 092 | The 0.2.0 model chain: four scenarios on a scratch install, one attempt each |
+| 099 | v0.7.0 release: the GitHub channel first, npm pending a valid token |
 
 ---
 
@@ -2896,3 +2897,36 @@ the ADR wins.**
   scenarios through the source checkout instead of the pinned runtime (that measures a different
   composition); dropping reference-quality because it had failed on 0.1.7 (the failure was the reason to
   re-run it).
+
+## ADR-099 — v0.7.0 release: the GitHub channel first, npm pending a valid token
+
+- **Date:** 2026-10-01
+- **Context.** V11 A6 ships v0.7.0, the DSH 0.2.0 compatibility milestone: the compatibility CI leg with the
+  gate enforced (ADR-089), the four-scenario run on 0.2.0 (ADR-092), the generated peer union (ADR-090), the
+  Windows sandbox matrix (ADR-091) and the four-line support matrix. The repository's rule for releases is
+  "both channels from identical bytes, npm first". The npm token in `~/.npmrc`
+  (`//registry.npmjs.org/:_authToken=npm_xyuG…`, written 2026-09-23) now answers **401 Unauthorized** for
+  `/-/whoami` — it worked for v0.6.1 and has since been revoked or expired — so the npm half cannot run.
+- **Decision.** Publish the **GitHub channel now** from the packed tarball and keep npm pending rather than
+  holding the release, and record the deviation here instead of letting the channel pair look complete.
+  The asset is the same file the npm publish will use, verified by digest, so the pair stays byte-identical
+  once the token exists; `tmp/ci/release-v070-npm.ps1` completes npm and re-proves the equality.
+- **Evidence (GitHub channel, 2026-10-01).** Commit `0f42cc98` on `main` (PR #2 merged as `e181e68`, the
+  v0.7.0 prep replayed on top), CI run 36782220289 green on all five jobs (three `dsh-compat` legs,
+  ubuntu, windows). Annotated tag `v0.7.0` → tag object `1a243c99` → commit `0f42cc98`. Release id
+  **400483004**, assets `dsh-ppt-flashmade-0.7.0.tgz` (id 601916467) and the version-free alias
+  `dsh-ppt-flashmade.tgz` (id 601916553), both **1,025,871 bytes**, digest
+  `sha256:c7d85c864a02966abf2c950893ffea9db9377a03173192144ea354ca13a17792` — equal to the packed tarball,
+  and each asset downloaded back hashes to sha1 `d4e9e1871020960957d4c911fdda4c9e9caea16d`. The alias under
+  `releases/latest/download/` resolves, so the marketplace's rot-free link keeps working.
+  Pre-publish host checks: `dsh-compat` gate and the packed-plugin smoke both pass on scratch installs of
+  `0.1.7-rc.2` and `0.2.0-rc.2` (`composes dsh-ppt-flashmade@0.7.0 … (peer gate clean)`); repository gates
+  typecheck, lint, 73 test files, `fixtures:verify`, `matrix:verify`, `prepack` (peers:check first) and the
+  skill audit (112,576 tokens, 0 errors) are green.
+- **Known limits.** npm `latest` is still `0.6.1` until the token is replaced, so an install by name gets
+  the previous version even though the GitHub channel carries 0.7.0; the WebUI profile migration rides the
+  npm half. The GitHub-first order is a deviation, documented here, not a change of policy.
+- **Alternatives rejected:** holding the GitHub release until npm works (the GitHub channel is independently
+  usable and the bytes are already proven); publishing a rebuilt tarball from a different tree to npm later
+  (the pair must be one file); writing a redacted token into the repository or CI (credentials never enter
+  the repo).
