@@ -102,6 +102,7 @@ the ADR wins.**
 | 088 | Asset cache, discovery cache and per-call engine timeouts for `assets` / `images` |
 | 089 | The 0.2.0 line joins the compatibility CI with the runtime peer gate enforced |
 | 090 | Generate the DSH peer union from the declared runtime lines |
+| 091 | Windows sandbox (0.2.0 ACL confinement): keep the plugin chain outside the restricted token, with the matrix recorded |
 
 ---
 
@@ -2830,3 +2831,36 @@ the ADR wins.**
   keeping the union hand-written with a test that compares it to a second hand-written copy (two sources
   of the same mistake); rewriting the manifest silently during `pnpm pack` (the release would then
   publish something nobody reviewed).
+
+## ADR-091 — Windows sandbox: the plugin chain stays outside the 0.2.0 ACL confinement, with the matrix recorded
+
+- **Date:** 2026-10-01
+- **Context.** DSH's 0.2.0 line ships a Windows sandbox (`@deepseek-ai/dsh-sandbox-windows-acl`): a
+  `WRITE_RESTRICTED`, Low-integrity token that may write only in granted roots (workspace plus a per-session
+  private temp), with a **standing** workspace grant (ACE + world `FILE_DELETE_CHILD` deny + Low label) and a
+  revocable temp grant. The plugin runs a long subprocess chain (Node, an `uv` venv with the ppt-master
+  engine, sharp, LibreOffice/PowerPoint, an ffprobe shim) and spawns those children itself through its
+  runner port rather than through `ctx.sandbox`.
+- **Decision.** Keep the chain where it is — spawned with the user's token — and treat "does it still work
+  when the workspace carries the sandbox's standing edits?" as the question to answer, because that is what
+  the plugin actually meets. Record the confined behaviour as a matrix (`docs/compat/windows-sandbox.md`)
+  instead of claiming confinement support that was never measured, and name the adaptations a move under
+  `ctx.sandbox` would need first.
+- **Evidence.** `scripts/win-sandbox-probe.mjs` runs seven probes in four rows (control, standing,
+  confined `workspace-write`, confined `read-only`) against the runtime's own `runner.js`, and judges
+  renders by their `renderpages --json` report rather than by exit code (a `skipped` engine is not a pass; a
+  cache hit is not a render). Result: **every probe passes in the standing row** — ffprobe, `doctor`'s
+  engine checks, sharp, the PowerPoint COM render (5 pages), workspace file and directory writes — so the
+  sandbox's standing mutations do not break the plugin for a user in a confined session. Under confinement
+  three blockers appear: the Python chain (venv outside the grant; `imageio_ffmpeg.get_ffmpeg_exe()` writes
+  its binary cache under the user profile), the render engines (`skipped`: COM cannot launch confined,
+  LibreOffice is absent on this machine in every row), and plugin-home writes (denied by design).
+- **Known limits.** `read-only` does not deny writes inside an already-Low-labelled workspace — the standing
+  label's documented widening, measured here rather than assumed; `doctor` fails its `png-renderer` check on
+  this machine for a missing cairo library in every row, so that check is not confinement evidence; and the
+  matrix covers one workspace and one machine, not a fleet.
+- **Alternatives rejected:** routing the chain through `ctx.sandbox` now (it would break the engine,
+  the ffprobe shim and both renderers before the home strategy exists, with no user benefit today);
+  "fixing" the plugin home by moving it into the workspace unconditionally (a user's venv and caches belong
+  to the machine, not to one deck, and the harness already proves the in-workspace layout works when a
+  session needs it); reporting the confined rows as failures (they measure a path the plugin does not take).

@@ -74,6 +74,7 @@
     "eval:run": "node --import tsx scripts/eval-run.ts",
     "dsh-ppt": "node --import tsx src/cli.ts",
     "peers:check": "node scripts/gen-peer-union.mjs --check",
+    "sandbox:probe": "node scripts/win-sandbox-probe.mjs --json",
     "prepack": "node scripts/gen-peer-union.mjs --check && pnpm build && node scripts/check-pack.mjs",
     "matrix:record": "node --import tsx tests/theme-matrix.ts --record",
     "matrix:verify": "node --import tsx tests/theme-matrix.ts --verify",
