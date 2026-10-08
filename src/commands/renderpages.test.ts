@@ -64,8 +64,8 @@ describe('renderpages discovery', () => {
     expect(() => scaleOption('3')).toThrow(/--scale/)
   })
 })
-/** A one-pixel PNG the fake Kit reports and the fake filesystem can serve. */
-const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001', 'hex')
+/** A complete one-pixel PNG the fake Kit reports and the fake filesystem can serve. */
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64')
 
 /**
  * Build command dependencies whose runner answers the Kit probe and writes the

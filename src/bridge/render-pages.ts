@@ -360,6 +360,15 @@ function renderEnginePages(engine: RenderEngineId, request: RenderPagesRequest, 
     for (const image of images) {
       const bytes = request.fs.readBytes(join(temp, image.file))
       if (bytes === null || bytes.length === 0) throw new DshPptFailure('OutputMissing', `${engine} reported ${image.file} but wrote no bytes`)
+      // A page image is read back the moment the engine reports it, and PowerPoint's
+      // `Slide.Export` returns before the file is flushed (feedback F7, ADR-101): a
+      // header-only file would otherwise be recorded as that page's render.
+      if (!isCompletePng(bytes)) {
+        throw new DshPptFailure(
+          'ContractViolation',
+          `${engine} reported ${image.file} but it is not a complete PNG (${String(bytes.length)} bytes); the engine was still writing, retry or use --engine libreoffice`,
+        )
+      }
       if (image.width * image.height > request.maxPixels) {
         throw new DshPptFailure('ContractViolation', `${engine} page ${String(image.index)} is ${String(image.width)}x${String(image.height)}, above --max-pixels ${String(request.maxPixels)}`)
       }
@@ -398,7 +407,12 @@ function exportWithPowerPoint(engine: RenderEngineId, request: RenderPagesReques
   if (result.spawnError !== null) throw new DshPptFailure('SpawnFailed', `${engine} could not start: ${result.spawnErrorMessage}`)
   const parsed = parseJsonObject(result.stdout)
   if (parsed === null || parsed.ok !== true) {
-    throw new DshPptFailure('EngineExit', `${engine} failed: ${String(parsed?.error ?? tailOf(result.stderr || result.stdout, 5))}`)
+    // The COM leg is the "real PowerPoint" evidence; when it cannot run, the caller still
+    // has the structural engine, so the failure names that way out (feedback F7, ADR-101).
+    throw new DshPptFailure(
+      'EngineExit',
+      `${engine} failed: ${String(parsed?.error ?? tailOf(result.stderr || result.stdout, 5))} (rerun with --engine libreoffice for a structural render)`,
+    )
   }
   const width = positiveInt(parsed.width)
   const height = positiveInt(parsed.height)
@@ -500,6 +514,20 @@ function pngSize(bytes: Buffer | null): { width: number; height: number } | null
   if (bytes === null || bytes.length < 24) return null
   if (bytes.readUInt32BE(0) !== 0x89504e47 || bytes.readUInt32BE(4) !== 0x0d0a1a0a) return null
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
+}
+
+/** The `IEND` chunk type and CRC every complete PNG ends with. */
+const PNG_IEND = Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82])
+
+/**
+ * @param bytes - a page image an engine wrote, or null.
+ * @returns whether the file is a complete PNG: signature, readable IHDR and the trailing
+ *   `IEND` chunk. A file without the terminator was still being written when it was read.
+ */
+function isCompletePng(bytes: Buffer | null): boolean {
+  if (pngSize(bytes) === null) return false
+  const buffer = bytes as Buffer
+  return buffer.length >= PNG_IEND.length && buffer.subarray(buffer.length - PNG_IEND.length).equals(PNG_IEND)
 }
 
 /**

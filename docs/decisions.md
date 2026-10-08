@@ -105,6 +105,8 @@ the ADR wins.**
 | 091 | Windows sandbox (0.2.0 ACL confinement): keep the plugin chain outside the restricted token, with the matrix recorded |
 | 092 | The 0.2.0 model chain: four scenarios on a scratch install, one attempt each |
 | 099 | v0.7.0 release: the GitHub channel first, npm pending a valid token |
+| 100 | Chrome components are independent: `pageNumber.show` governs the page number only |
+| 101 | The PowerPoint COM leg validates every page image and opens a unique copy per run |
 
 ---
 
@@ -2937,3 +2939,75 @@ the ADR wins.**
   usable and the bytes are already proven); publishing a rebuilt tarball from a different tree to npm later
   (the pair must be one file); writing a redacted token into the repository or CI (credentials never enter
   the repo).
+
+## ADR-100 — Chrome components are independent: `pageNumber.show` governs the page number only
+
+- **Date:** 2026-10-08
+- **Context.** A real 16-page deck (the V12 feedback report) turned the page number off — `chrome.pageNumber.show:
+  false` — because the LibreOffice renderer does not paint `<a:fld type="slidenum">` and the render-level chrome
+  gate therefore reddens under that engine. The footer carrying the course name disappeared with it. The cause
+  was one condition in two places: `applyChrome` wrapped the page number, footer and section in a single
+  `if (!isPageNumberSkipped(...))`, and `auditChrome` gated the footer/section rules on the same flag while its
+  `chrome-skip` rule *forbade* any chrome shape on a page the page number skipped. Applier and gate agreed on a
+  contract the fields never expressed: a deck can declare a footer without declaring a page number at all, and
+  `pageNumber.skipRoles` names the page **number**, not the page.
+- **Decision.** Every chrome component answers to its own declaration.
+  - `isPageNumberSkipped(chrome, role)` keeps its meaning — the page number is skipped when the deck declares no
+    `pageNumber` block, `show: false`, or a `skipRoles` entry covers the role — and is used only for the page
+    number.
+  - `applyChrome` writes the page number under that condition, and writes a declared `footer`/`section` on every
+    page it applies to, whatever the page-number state.
+  - `auditChrome` requires a page-number field exactly when the page number is expected (`chrome-coverage`); its
+    `chrome-skip` rule now fires only for a page-number field or `chrome-page-number` shape on a page the contract
+    skips, so a footer or section there is expected rather than a violation. The `chrome-footer-text` and
+    `chrome-section` rules run on every page.
+  - `fixtures/hello` (footer + `skipRoles: ["cover","ending"]`) is re-recorded at **fixtureVersion 9**, because
+    the cover and ending legitimately gain the footer they always should have carried.
+- **Evidence.** Four new cases in `src/bridge/chrome.test.ts`: page number off + footer on (footer written, no
+  page number, audit clean), every component off (nothing written, audit clean), every component on (all three
+  written, audit clean), and a `skipRoles` cover whose footer is removed after the pass (the audit reports
+  `chrome-footer-text`, not `chrome-skip`). `pnpm fixtures:record` wrote fixtureVersion 9 and `pnpm
+  fixtures:verify` holds canonical equality for all three artifacts; 21 chrome tests pass; the full gate set
+  (typecheck, lint, 73 test files, fixtures:verify, matrix:verify, prepack, skill audit) is green.
+- **Known limits.** `chrome.logo` is still audited (`chrome-logo-part`) without this pass drawing it, so a deck
+  that declares a logo needs the shape from its author: the per-component fix removes the page-number coupling,
+  not that separate gap. The fixture's raw bytes for deep/merged drift by a few bytes between runs while their
+  canonical form holds — pre-existing and unchanged.
+- **Alternatives rejected:** keeping the all-or-nothing reading (it contradicts the field names and the report);
+  reading `show: false` as "no chrome at all" (silently drops declared components); fixing only the applier
+  (the audit would then redden the footer the applier correctly writes); fixing only the audit (the applier would
+  keep dropping the footer).
+
+## ADR-101 — The PowerPoint COM leg validates every page image and opens a unique copy per run
+
+- **Date:** 2026-10-08
+- **Context.** The same feedback session hit two PowerPoint COM behaviours while measuring pixels. `Slide.Export`
+  returns before the PNG is flushed, so reading the file immediately yields a truncated image (the report
+  measured a 720-line header against ~683 readable lines). And PowerPoint keeps an open presentation in memory
+  keyed by path: re-exporting a deck the caller had just modified handed back the previous copy for 10 of 16
+  pages, which nearly read as "the fix did not work". The render-level gates then consume those images, so both
+  behaviours can turn a measurement into a wrong conclusion.
+- **Decision.**
+  - `scripts/win-com-export-pages.ps1` accepts a page file only when it is a complete PNG — signature, IHDR
+    width/height within two pixels of the requested size, trailing `IEND` — and re-exports up to three times with
+    a 60→480 ms backoff. A page that never completes throws with a hint to run `--engine libreoffice`.
+  - Each run opens a **unique copy** of the deck (a GUID-named file in the temp directory, removed in `finally`),
+    so the path-keyed in-memory cache cannot answer with a stale presentation.
+  - `src/bridge/render-pages.ts` validates every page image before recording it, for every engine: a file that is
+    not a complete PNG fails the run as `ContractViolation` naming the file and engine, instead of being stored as
+    that page's render. The COM leg's failure message names the LibreOffice fallback.
+- **Evidence.** On this machine (PowerPoint 16.0): `hello-merged.pptx` (5 pages) exported to five complete PNGs;
+  overwriting the same path with `hello-deep.pptx` (2 pages) and exporting again produced two PNGs that are
+  byte-identical to an export of the same file under a unique path and different from the first run's pages — no
+  stale copy, no truncation. Unit tests: three new cases in `src/bridge/render-pages.test.ts` (COM render through
+  the probe and export, a truncated page rejected, the LibreOffice hint) plus the shared completeness check. The
+  real-machine run also caught an implementation bug in the first version of this fix (PowerShell's `-shl`
+  returns the left operand's type, so widening bytes without `[int]` read the width as zero); the tolerance and
+  the cast are recorded in the script's comment.
+- **Known limits.** The two-pixel tolerance assumes PowerPoint rounds the export within that window; the Kit and
+  `soffice` paths are validated for completeness but not for requested dimensions; the unique copy costs one file
+  copy per run (the decks this tool handles are small); and the fix protects the exporter, not a user's own
+  PowerPoint session, which the script never touches.
+- **Alternatives rejected:** sleeping before reading (a race with no bound); checking only file size (truncated
+  PNGs come in many sizes); closing presentations by name before opening (does not defeat a cache keyed on path in
+  another instance); trusting the engine's JSON page list (it is written before the bytes are flushed).

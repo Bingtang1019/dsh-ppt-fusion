@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## Unreleased — 使用反馈硬化 C1（反馈报告 F1/F7）
+
+- **chrome 粒度修复（F1，ADR-100）**：`pageNumber.show:false`（或 `skipRoles`）只关页码，不再连坐 footer/section/logo；
+  applier 逐组件写、审计逐组件判：`chrome-skip` 收窄为"跳页码的页仍带页码域/页码形状"，`chrome-footer-text` /
+  `chrome-section` 在页码关闭时照常运行。修的就是反馈里"为规避 LO 不渲染 slidenum 而关页码 → 页脚（课程汇报）凭空消失"。
+  新增 4 个单测（页码关+footer 开 / 全关 / 全开 / 跳页码角色仍要求 footer）；`fixtures/hello` 重录为 **fixtureVersion 9**
+  （封面与结束页从此带上本来就该有的页脚），`fixtures:verify` 三个产物 canonical 相等。
+- **COM 导出竞态修复（F7，ADR-101）**：COM 导出路径改为"写出 → 校验完整 PNG（签名 + IHDR 尺寸 ±2px + 结尾 IEND）→ 最多重试 3 次
+  （60→480ms 退避）"，失败时报 `EngineExit` 并指引 `--engine libreoffice`；每次运行改为打开**唯一副本**，杜绝 PowerPoint 按路径
+  复用旧内存副本（反馈里"16 页有 10 页是旧渲染"）。driver 侧对**所有引擎**的页图做完整性校验：不完整的 PNG 以
+  `ContractViolation` 指名文件与引擎，而不是记成该页渲染。实机验证：同一路径先 merged（5 页）后换成 deep（2 页）连续导出，
+  第二次两页与唯一路径下 deep 的导出逐字节一致、且与第一次不同；实测还抓出并修掉了修复自身的 PowerShell `-shl` 宽度误读。
+
 ## v0.7.0 — 2026-10-01
 
 DSH 0.2.0 兼容里程碑（V11 Track A）：0.2.0 线从"已准入"变成"全门守护"——CI 第三腿、四场景实测、peer 治理生成化、

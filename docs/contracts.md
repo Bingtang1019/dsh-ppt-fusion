@@ -587,9 +587,11 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
 - **Default.** `dsh-ppt init` and `dsh-ppt plan` write
   `pageNumber { show: true, skipRoles: ["cover","ending"], position: "footer-right", style: "tokens" }`.
 - **Roles.** The IR slide's `type` maps onto the role vocabulary (`cover`, `section`, `content`,
-  `data`, `quote`, `ending`); deep pages default to `content`. `skipRoles` pages receive **no**
-  chrome at all — a cover with a footer but no page number would be the inconsistency this
-  contract removes.
+  `data`, `quote`, `ending`); deep pages default to `content`. **Each component answers to its own
+  declaration** (feedback F1, ADR-100): `pageNumber.show` and `skipRoles` govern the page number,
+  while a declared `footer`/`section`/`logo` lands on every page it applies to. A cover whose
+  `skipRoles` entry suppresses the number still carries the deck's footer — turning the number off is
+  not turning the chrome off, which is what the previous all-or-nothing reading got wrong.
 - **Application.** `applyChrome` (`src/bridge/chrome.ts`) runs in `render.ts` after motion and
   before the compat pass; `render` publishes only afterwards. It first removes its own shapes by
   stable name (`chrome-page-number`, `chrome-footer`, `chrome-section`, `chrome-logo`) and then any
@@ -600,11 +602,15 @@ The SKILL writes `.dsh-ppt/checkpoint.json` after every phase; `dsh-ppt resume <
   bytes.
 - **Gate.** `validate` rejects an undeclared `section`, a missing `logo.file`, and warns when the
   contract skips every page (`chrome-skip-all`). `audit` adds the `chrome` source with
-  `chrome-coverage`, `chrome-skip`, `chrome-geometry`, `chrome-footer-text`, `chrome-section`,
+  `chrome-coverage` (a page that must carry a page-number field and does not),
+  `chrome-skip` (a page the contract skips for the page number that still carries a field or a
+  page-number shape — footer and section shapes are expected there, not a violation),
+  `chrome-geometry`, `chrome-footer-text`, `chrome-section`,
   `chrome-logo-part`, `chrome-baked-strip` (all error) and `chrome-overlap` (warning; full-canvas
-  background shapes are excluded). `--strict` reds the warning.
+  background shapes are excluded). The footer/section rules run for every page whether or not the
+  page carries a number. `--strict` reds the warning.
 - **Fixture.** `fixtures/hello` declares a footer and a section on page 3; the golden package is
-  re-recorded at the current fixtureVersion (8 as of ADR-062) and the theme matrix snapshots
+  re-recorded at the current fixtureVersion (9 as of ADR-100) and the theme matrix snapshots
   carry the chrome source.
 
 ## 18. Storyboard contract (V6 WP2, ADR-059)
@@ -810,8 +816,14 @@ outside the deck, and rasterises with `--engine powerpoint|libreoffice|both`:
 
 | Engine | How | Cache identity |
 |---|---|---|
-| `powerpoint` | `scripts/win-com-export-pages.ps1` over COM: read-only headless open, per-slide `Export` at `round(pt × dpi / 72)`, `-MaxPages`/`-MaxPixels` checked before the first export | the `Microsoft PowerPoint` version |
+| `powerpoint` | `scripts/win-com-export-pages.ps1` over COM: read-only headless open of a **unique copy** of the deck, per-slide `Export` at `round(pt × dpi / 72)`, `-MaxPages`/`-MaxPixels` checked before the first export; each page file must be a complete PNG (signature, IHDR dimensions within 2 px, trailing `IEND`) or the page is re-exported up to three times, and a page that never completes fails with a hint to use `--engine libreoffice` (feedback F7, ADR-101) | the `Microsoft PowerPoint` version |
 | `libreoffice` | the Kit CLI `render` (`--dpi` = 96 × `--scale`, fresh `--output-dir`) discovered via `DSH_PPT_LOKIT_CLI`/`DSH_PPT_LOKIT_NODE` → module resolution and runtime scan → `soffice` + `pdftoppm` | the Kit runtime version or `soffice --version` |
+
+Every page image is validated before it is recorded, for every engine: a file that is not a complete PNG
+(signature, readable IHDR, trailing `IEND`) fails the run as `ContractViolation` naming the file and the
+engine instead of being stored as that page's render. The COM exporter additionally opens a unique copy per
+run, because PowerPoint caches an open presentation by path and would otherwise serve the previous file's
+in-memory copy when a caller re-exports a deck it just modified.
 
 Layout: `<deck>/.dsh-ppt/render/<engine>/page-NNNN.png` plus `manifest.json`
 (`{schemaVersion, engine, engineVersion, cacheKey, source, sourceSha256, scale, dpi, maxPages,
