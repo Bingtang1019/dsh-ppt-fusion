@@ -2923,7 +2923,14 @@ the ADR wins.**
   `0.1.7-rc.2` and `0.2.0-rc.2` (`composes dsh-ppt-flashmade@0.7.0 … (peer gate clean)`); repository gates
   typecheck, lint, 73 test files, `fixtures:verify`, `matrix:verify`, `prepack` (peers:check first) and the
   skill audit (112,576 tokens, 0 errors) are green.
-- **Known limits.** npm `latest` is still `0.6.1` until the token is replaced, so an install by name gets
+- **Update (2026-10-08): the npm half is published.** A fresh token (`npm whoami` → `bingtang1019`) replaced the
+  revoked one in `~/.npmrc`, and `tmp/ci/release-v070-npm.ps1` published the same tarball:
+  `npm publish tmp/release/dsh-ppt-flashmade-0.7.0.tgz --registry https://registry.npmjs.org` → registry
+  tarball downloaded back at sha1 `d4e9e1871020960957d4c911fdda4c9e9caea16d` (1,025,871 bytes), both GitHub
+  assets re-downloaded at the same sha1, and `dist-tags.latest = 0.7.0`. Both channels therefore carry one
+  file again, and `dsh plugin --profile <p> add -w dsh-ppt-flashmade@0.7.0` resolves from npm.
+- **Known limits (superseded by the update above).** npm `latest` was `0.6.1` while the token was revoked, so
+  an install by name got
   the previous version even though the GitHub channel carries 0.7.0; the WebUI profile migration rides the
   npm half. The GitHub-first order is a deviation, documented here, not a change of policy.
 - **Alternatives rejected:** holding the GitHub release until npm works (the GitHub channel is independently
