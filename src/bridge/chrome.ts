@@ -242,26 +242,25 @@ export function applyChrome(pkg: OpcPackage, options: ChromeOptions): ChromeRepo
     })
 
     const shapes: string[] = []
-    // Skipped pages carry no chrome at all (plan §3.3 item 5): a cover or ending
-    // with a footer but no page number would be exactly the inconsistency this pass
-    // exists to remove.
-    if (!isPageNumberSkipped(options.chrome, page.role)) {
-      let shapeId = nextShapeId(xml)
-      const pageNumber = options.chrome.pageNumber
-      if (pageNumber !== undefined && pageNumber.show !== false) {
-        const box = boxFor(pageNumber.position ?? 'footer-right', PAGE_NUMBER_WIDTH, size)
-        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-page-number', box, tokens: options.tokens, runs: slideNumberField(options.tokens, `page-number:${String(index)}`) }))
-      }
-      const footer = options.chrome.footer
-      if (footer !== undefined) {
-        const box = boxFor(footer.position ?? 'footer-left', FOOTER_WIDTH, size)
-        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-footer', box, tokens: options.tokens, runs: textRun(options.tokens, footer.text) }))
-      }
-      const section = options.chrome.section
-      if (section !== undefined && page.section !== undefined) {
-        const box = boxFor(section.position ?? 'header-left', SECTION_WIDTH, size)
-        shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-section', box, tokens: options.tokens, runs: textRun(options.tokens, page.section) }))
-      }
+    // Each component answers to its own declaration (feedback F1, ADR-100): turning the
+    // page number off silences the page number only, and a declared footer or section
+    // still lands on every page it applies to. The previous all-or-nothing reading
+    // dropped the footer with the page number, which is what the feedback report hit.
+    let shapeId = nextShapeId(xml)
+    const pageNumber = options.chrome.pageNumber
+    if (pageNumber !== undefined && !isPageNumberSkipped(options.chrome, page.role)) {
+      const box = boxFor(pageNumber.position ?? 'footer-right', PAGE_NUMBER_WIDTH, size)
+      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-page-number', box, tokens: options.tokens, runs: slideNumberField(options.tokens, `page-number:${String(index)}`) }))
+    }
+    const footer = options.chrome.footer
+    if (footer !== undefined) {
+      const box = boxFor(footer.position ?? 'footer-left', FOOTER_WIDTH, size)
+      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-footer', box, tokens: options.tokens, runs: textRun(options.tokens, footer.text) }))
+    }
+    const section = options.chrome.section
+    if (section !== undefined && page.section !== undefined) {
+      const box = boxFor(section.position ?? 'header-left', SECTION_WIDTH, size)
+      shapes.push(textBox({ shapeId: shapeId++, name: 'chrome-section', box, tokens: options.tokens, runs: textRun(options.tokens, page.section) }))
     }
 
     if (shapes.length > 0) xml = xml.replace('</p:spTree>', `${shapes.join('')}</p:spTree>`)
@@ -368,8 +367,12 @@ export function auditChrome(pkg: OpcPackage, options: { chrome: FusionChrome; pa
     const shapes = slideShapes(xml)
     const chrome = shapes.filter((shape) => shape.chrome)
     const named = (name: string) => chrome.filter((shape) => shape.name === name)
+    // `isPageNumberSkipped` answers for the page-number component only (feedback F1, ADR-100):
+    // a footer or section the deck declared is expected on every page it applies to, whether
+    // or not that page carries a number.
     const skipped = isPageNumberSkipped(options.chrome, page.role)
     const fields = [...xml.matchAll(/type="slidenum"/g)].length
+    const pageNumberShapes = named('chrome-page-number')
 
     if (!skipped && fields !== 1) {
       findings.push({
@@ -380,13 +383,13 @@ export function auditChrome(pkg: OpcPackage, options: { chrome: FusionChrome; pa
         message: `page ${String(index)} (${page.role}) must carry exactly one native page-number field; found ${String(fields)}`,
       })
     }
-    if (skipped && chrome.length > 0) {
+    if (skipped && (fields > 0 || pageNumberShapes.length > 0)) {
       findings.push({
         level: 'error',
         source: 'chrome',
         page: index,
         rule: 'chrome-skip',
-        message: `page ${String(index)} (${page.role}) is skipped by the contract but carries ${String(chrome.length)} chrome shape(s): ${chrome.map((shape) => shape.name).join(', ')}`,
+        message: `page ${String(index)} (${page.role}) skips the page number but carries ${String(fields)} page-number field(s) and ${String(pageNumberShapes.length)} page-number shape(s)`,
       })
     }
     for (const shape of shapes) {
@@ -402,7 +405,9 @@ export function auditChrome(pkg: OpcPackage, options: { chrome: FusionChrome; pa
       }
     }
     const footer = options.chrome.footer
-    if (footer !== undefined && !skipped) {
+    // A declared footer is required on every page, page number or not: that is the whole
+    // point of the F1 fix (the feedback report lost its footer to `pageNumber.show: false`).
+    if (footer !== undefined) {
       const footers = named('chrome-footer')
       const text = footers.length === 1 ? shapeText(footers[0]!.xml) : ''
       if (footers.length !== 1 || text !== footer.text) {
@@ -416,9 +421,7 @@ export function auditChrome(pkg: OpcPackage, options: { chrome: FusionChrome; pa
       }
     }
     const sections = named('chrome-section')
-    if (skipped) {
-      // Skipped pages are covered by `chrome-skip` above; nothing else is expected.
-    } else if (page.section === undefined) {
+    if (page.section === undefined) {
       if (sections.length > 0) {
         findings.push({
           level: 'error',

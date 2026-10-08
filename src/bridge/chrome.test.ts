@@ -231,3 +231,67 @@ describe('auditChrome', () => {
     expect(rulesOf(auditChrome(pkg, { chrome: contract, pages: plan(['content']) }))).not.toContain('chrome-overlap')
   })
 })
+
+describe('chrome component independence (F1, ADR-100)', () => {
+  // The feedback report's deck: a footer carrying the course name, with the page number
+  // switched off so the LibreOffice renderer cannot fail the field-based chrome check.
+  const footer = { text: '课程汇报', position: 'footer-left' as const }
+  const section = { position: 'header-left' as const }
+  const plan = (roles: readonly ('cover' | 'content' | 'ending')[], sections: Record<number, string> = {}) => pages(roles, sections)
+  const rulesOf = (findings: FusionFinding[]) => findings.map((finding) => finding.rule)
+  const slide = (pkg: OpcPackage, index = 1): string => pkg.text(`ppt/slides/slide${String(index)}.xml`)
+
+  it('keeps the footer when the page number is switched off, and audits it', () => {
+    const chrome = { pageNumber: { show: false }, footer }
+    const roles = ['content', 'content'] as const
+    const pkg = miniPackage(2)
+    applyChrome(pkg, { chrome, pages: plan(roles), tokens: TOKENS })
+    const xml = slide(pkg)
+    expect(xml).toContain('chrome-footer')
+    expect(xml).toContain('课程汇报')
+    expect(xml).not.toContain('chrome-page-number')
+    expect(slide(pkg, 2)).toContain('chrome-footer')
+    expect(auditChrome(pkg, { chrome, pages: plan(roles) })).toEqual([])
+  })
+
+  it('writes nothing when every component is off', () => {
+    const chrome = { pageNumber: { show: false } }
+    const roles = ['content'] as const
+    const pkg = miniPackage(1)
+    applyChrome(pkg, { chrome, pages: plan(roles), tokens: TOKENS })
+    const xml = slide(pkg)
+    expect(xml).not.toContain('chrome-footer')
+    expect(xml).not.toContain('chrome-page-number')
+    expect(xml).not.toContain('chrome-section')
+    expect(auditChrome(pkg, { chrome, pages: plan(roles) })).toEqual([])
+  })
+
+  it('writes every declared component when all are on', () => {
+    const chrome = { ...defaultChrome(), footer, section }
+    const roles = ['content'] as const
+    const sections = { 1: 'Intro' }
+    const pkg = miniPackage(1)
+    applyChrome(pkg, { chrome, pages: plan(roles, sections), tokens: TOKENS })
+    const xml = slide(pkg)
+    expect(xml).toContain('chrome-page-number')
+    expect(xml).toContain('chrome-footer')
+    expect(xml).toContain('chrome-section')
+    expect(auditChrome(pkg, { chrome, pages: plan(roles, sections) })).toEqual([])
+  })
+
+  it('still requires the footer on a role whose page number is skipped', () => {
+    const chrome = { pageNumber: { show: true, skipRoles: ['cover' as const], position: 'footer-right' as const }, footer }
+    const roles = ['cover', 'content'] as const
+    const pkg = miniPackage(2)
+    applyChrome(pkg, { chrome, pages: plan(roles), tokens: TOKENS })
+    // Prove the audit asks for the footer while the page number is legitimately absent:
+    // remove the cover's footer and expect the footer rule, not the page-number rule.
+    const cover = slide(pkg)
+    expect(cover).toContain('chrome-footer')
+    expect(cover).not.toContain('chrome-page-number')
+    pkg.setPart('ppt/slides/slide1.xml', cover.replace(/<p:sp>(?:(?!<\/p:sp>)[\s\S])*chrome-footer(?:(?!<\/p:sp>)[\s\S])*<\/p:sp>/, ''))
+    const findings = auditChrome(pkg, { chrome, pages: plan(roles) })
+    expect(rulesOf(findings)).toContain('chrome-footer-text')
+    expect(rulesOf(findings)).not.toContain('chrome-skip')
+  })
+})

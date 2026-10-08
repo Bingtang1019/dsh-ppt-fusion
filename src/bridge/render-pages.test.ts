@@ -10,14 +10,24 @@ const outputRoot = join(workspace, '.dsh-ppt', 'render')
 const kit: KitLocation = { node: 'C:/node/node.exe', cli: 'C:/kit/lib/cli.js' }
 const comScript = join(process.cwd(), 'scripts', 'win-com-export-pages.ps1')
 
-/** A PNG header whose IHDR carries real dimensions. */
+/** A complete 45-byte PNG: signature, an IHDR chunk carrying the dimensions, and IEND. */
 function png(width: number, height: number): Buffer {
-  const bytes = Buffer.alloc(32)
+  const bytes = Buffer.alloc(45)
   bytes.writeUInt32BE(0x89504e47, 0)
   bytes.writeUInt32BE(0x0d0a1a0a, 4)
+  bytes.writeUInt32BE(13, 8)
+  bytes.write('IHDR', 12, 'latin1')
   bytes.writeUInt32BE(width, 16)
   bytes.writeUInt32BE(height, 20)
+  bytes.writeUInt32BE(0, 29) // IHDR CRC; the reader never validates it
+  bytes.write('IEND', 37, 'latin1')
+  bytes.writeUInt32BE(0xae426082, 41)
   return bytes
+}
+
+/** @returns the same header without its IEND chunk: what a still-writing engine leaves behind. */
+function truncatedPng(width: number, height: number): Buffer {
+  return png(width, height).subarray(0, 32)
 }
 
 /** @returns the base request every case varies from. */
@@ -251,5 +261,57 @@ describe('engine output validation', () => {
       return {}
     })
     expect(() => renderPages(request(notPng, notPngRunner, { kit: null, soffice: 'C:/lo/soffice.exe' }))).toThrow(/not a PNG/)
+  })
+})
+
+/** @returns a runner that answers the COM version probe and the export call. */
+function comRunner(fs: FakeFileSystem, outcome: { truncated?: boolean; fail?: string; pages?: number } = {}): FakeRunner {
+  const pages = outcome.pages ?? 1
+  const name = (index: number): string => `page-${String(index).padStart(4, '0')}.png`
+  return createFakeRunner((call) => {
+    if (call.command !== 'powershell') return {}
+    const at = call.args.indexOf('-OutDir')
+    // The version probe carries no `-OutDir`; `indexOf` returning -1 must not fall through
+    // to the export branch, which would answer the probe with an export payload.
+    if (at < 0) return ok('ok 16.0\r\n')
+    const outdir = call.args[at + 1]
+    if (outdir === undefined) return ok('ok 16.0\r\n')
+    if (outcome.fail !== undefined) return ok(JSON.stringify({ ok: false, error: outcome.fail }))
+    for (let index = 1; index <= pages; index += 1) {
+      fs.writeBytes(join(outdir, name(index)), outcome.truncated === true ? truncatedPng(1280, 720) : png(1280, 720))
+    }
+    return ok(
+      JSON.stringify({
+        ok: true,
+        engineVersion: '16.0',
+        pageCount: pages,
+        width: 1280,
+        height: 720,
+        pages: Array.from({ length: pages }, (_unused, offset) => ({ index: offset + 1, file: name(offset + 1) })),
+      }),
+    )
+  })
+}
+
+describe('PowerPoint COM export (F7, ADR-101)', () => {
+  it('renders through the COM leg when PowerPoint is available', () => {
+    const fs = fileSystem()
+    const runner = comRunner(fs, { pages: 2 })
+    const report = renderPages(request(fs, runner, { engines: ['powerpoint'], platform: 'win32' }))
+    expect(report.engines[0]?.engine).toBe('powerpoint')
+    expect(report.engines[0]?.status).toBe('rendered')
+    expect(report.engines[0]?.pages.map((page) => page.file)).toEqual(['page-0001.png', 'page-0002.png'])
+  })
+
+  it('rejects a page image the COM leg was still writing', () => {
+    const fs = fileSystem()
+    const runner = comRunner(fs, { truncated: true })
+    expect(() => renderPages(request(fs, runner, { engines: ['powerpoint'], platform: 'win32' }))).toThrow(/not a complete PNG/)
+  })
+
+  it('names the LibreOffice fallback when the COM leg fails', () => {
+    const fs = fileSystem()
+    const runner = comRunner(fs, { fail: 'cannot start PowerPoint COM' })
+    expect(() => renderPages(request(fs, runner, { engines: ['powerpoint'], platform: 'win32' }))).toThrow(/--engine libreoffice/)
   })
 })
