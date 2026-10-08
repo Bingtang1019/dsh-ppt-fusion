@@ -107,6 +107,7 @@ the ADR wins.**
 | 099 | v0.7.0 release: the GitHub channel first, npm pending a valid token |
 | 100 | Chrome components are independent: `pageNumber.show` governs the page number only |
 | 101 | The PowerPoint COM leg validates every page image and opens a unique copy per run |
+| 102 | v0.7.1 release: the F1/F7 patch on both channels, one version line above v0.7.0 |
 
 ---
 
@@ -3011,3 +3012,31 @@ the ADR wins.**
 - **Alternatives rejected:** sleeping before reading (a race with no bound); checking only file size (truncated
   PNGs come in many sizes); closing presentations by name before opening (does not defeat a cache keyed on path in
   another instance); trusting the engine's JSON page list (it is written before the bytes are flushed).
+
+## ADR-102 — v0.7.1 release: the F1/F7 patch on both channels
+
+- **Date:** 2026-10-08
+- **Context.** V12 C1 fixes two correctness bugs the real-session feedback found (chrome components were
+  coupled to `pageNumber.show`, ADR-100; the PowerPoint COM exporter could record a truncated PNG or a stale
+  in-memory copy, ADR-101). The plan labels this patch **v0.6.2**, but by the time it was ready npm `latest`
+  was already **0.7.0** (ADR-099): publishing 0.6.2 would have put the fix on a version line no `latest` user
+  resolves, leaving the defect in place for everyone installing by name.
+- **Decision.** Ship the patch as **v0.7.1** — the next patch on the line `latest` already points at — and
+  record the deviation from the plan's label here, per the plan's own conflict rule (an ADR arbitrates and the
+  plan is written back).
+- **Evidence (dual channel, 2026-10-08).** npm: `dsh-ppt-flashmade@0.7.1`, 1,033,539 bytes, shasum
+  `224a5ee3fc4f46871746822ffe22ee8001556caf`, integrity
+  `sha512-GDuZ+yTdlpT72wiMkXsrhdtmtjT0xmsq1BX0EGCSrxfuMBJnz2Ny6+w69PoEZYExAmsoe4lXXxFwwvNLW2OgUg==`,
+  `dist-tags.latest = 0.7.1`; the registry tarball was downloaded back and matched both digests. GitHub:
+  annotated tag `v0.7.1` → tag object `62878a2f` → commit `b17107f1` on `main` (the C1 commit replayed as
+  `f9517441` plus the release prep), Release id **406923864** with `dsh-ppt-flashmade-0.7.1.tgz`
+  (id 622064790) and the version-free alias `dsh-ppt-flashmade.tgz` (id 622065000), both 1,033,539 bytes and
+  digest `sha256:4fae2d7ff6e00c278b0f30d3ad3a8d676e9aa2960368a64f68df98576aea4dd3`, each downloaded back to
+  sha1 `224a5ee3…`. CI run 37791316381 for `b17107f1` is green on all five jobs (three `dsh-compat` legs,
+  ubuntu, windows). Acceptance S53 holds on this machine.
+- **Known limits.** The release carries the two fixes only; C2–C7 of V12 and Track B are untouched. The
+  version mismatch between the plan's label and npm's line is corrected in the plan, not retrospectively in
+  the changelog: v0.6.2 is not published and never will be, so no user can hold a "0.6.2 with the fix".
+- **Alternatives rejected:** publishing 0.6.2 (the fix would not reach `latest`); publishing 0.8.0 (the V12
+  architecture line, which would drag unfinished Track B into a patch); publishing only on GitHub (npm is the
+  documented install path).
