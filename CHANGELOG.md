@@ -1,6 +1,8 @@
 # CHANGELOG
 
-## Unreleased — 使用反馈硬化 C1（反馈报告 F1/F7）
+## v0.7.1 — 2026-10-08
+
+真实使用反馈硬化补丁（V12 C1）：chrome 契约不再连坐、PowerPoint COM 导出不再截断或复用旧副本。插件行为只在这两处正确性上变化。
 
 - **chrome 粒度修复（F1，ADR-100）**：`pageNumber.show:false`（或 `skipRoles`）只关页码，不再连坐 footer/section/logo；
   applier 逐组件写、审计逐组件判：`chrome-skip` 收窄为"跳页码的页仍带页码域/页码形状"，`chrome-footer-text` /
